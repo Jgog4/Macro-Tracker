@@ -25,8 +25,16 @@ STATIC_DIR = Path(__file__).parent.parent / "static"
 # ── Lifespan: create tables on startup ───────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    db_url = settings.DATABASE_URL
+    masked = db_url[:30] + "..." if len(db_url) > 30 else db_url
+    print(f"🚀 Starting Macro Tracker — DB: {masked}", flush=True)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        print("✅ Database tables ready", flush=True)
+    except Exception as e:
+        print(f"❌ Database connection failed: {e}", flush=True)
+        print("⚠️  App will start but DB calls will fail — check DATABASE_URL", flush=True)
     yield
     await engine.dispose()
 
