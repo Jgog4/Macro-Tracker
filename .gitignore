@@ -1,0 +1,29 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# ── Environment — NEVER commit real credentials ───────────────────────────────
+backend/.env
+.env
+
+# ── Node / React ──────────────────────────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# ── macOS ─────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+
+# ── Editors ───────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp

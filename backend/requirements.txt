@@ -1,0 +1,26 @@
+# ── Web framework ─────────────────────────────────────────────────────────────
+fastapi==0.110.0
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9       # file uploads
+
+# ── Database ──────────────────────────────────────────────────────────────────
+sqlalchemy==2.0.27
+asyncpg==0.29.0               # async PostgreSQL driver
+alembic==1.13.1               # schema migrations
+
+# ── Config / env ──────────────────────────────────────────────────────────────
+pydantic==2.6.1
+pydantic-settings==2.2.1
+python-dotenv==1.0.1
+
+# ── HTTP client (USDA + OpenAI) ───────────────────────────────────────────────
+httpx==0.26.0
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+pandas==2.2.0                 # CSV seeding script
+
+# ── Dev tools ─────────────────────────────────────────────────────────────────
+# Uncomment for local development:
+# pytest==8.0.0
+# pytest-asyncio==0.23.4
+# httpx==0.26.0  (already above)

@@ -1,0 +1,161 @@
+Brand,Item,Serving Size,Calories,Total Fat (g),Sat Fat (g),Trans Fat (g),Cholesterol (mg),Sodium (mg),Carbs (g),Fiber (g),Sugars (g),Protein (g)
+Chipotle,Flour Tortilla (burrito),1 ea,320.0,9.0,0.5,0.0,0.0,600.0,50.0,3.0,0.0,8.0
+Chipotle,Crispy Corn Tortilla,1 ea,70.0,3.0,0.5,0.0,0.0,0.0,10.0,1.0,0.0,1.0
+Chipotle,Cilantro-Lime Brown Rice,113 g,210.0,5.5,0.0,0.0,0.0,195.0,36.0,2.5,0.0,4.0
+Chipotle,Cilantro-Lime White Rice,113 g,210.0,4.0,1.0,0.0,0.0,345.0,40.0,1.0,0.0,3.0
+Chipotle,Black Beans,113 g,130.0,1.5,0.0,0.0,0.0,210.0,22.0,7.0,2.0,8.0
+Chipotle,Pinto Beans,113 g,130.0,1.5,0.0,0.0,0.0,210.0,21.0,8.0,1.0,8.0
+Chipotle,Fajita Vegetables,57 g,20.0,0.5,0.0,0.0,0.0,150.0,5.0,1.0,2.0,1.0
+Chipotle,Barbacoa,113 g,170.0,7.0,2.5,0.0,65.0,530.0,2.0,1.0,0.0,24.0
+Chipotle,Chicken,113 g,180.0,7.0,3.0,0.0,125.0,310.0,0.0,0.5,0.0,32.0
+Chipotle,Carnitas,113 g,210.0,12.0,6.5,0.0,65.0,450.0,0.0,0.0,0.0,23.0
+Chipotle,Steak,113 g,150.0,6.5,2.0,0.0,80.0,330.0,1.0,1.0,0.0,21.0
+Chipotle,Sofritas,113 g,150.0,10.0,1.5,0.0,0.0,555.0,9.0,3.5,4.5,8.0
+Chipotle,Fresh Tomato Salsa,113 g,25.0,0.0,0.0,0.0,0.0,550.0,4.0,1.0,1.0,0.0
+Chipotle,Roasted Chili-Corn Salsa,113 g,80.0,1.5,0.0,0.0,0.0,330.0,16.0,3.0,4.0,3.0
+Chipotle,Tomatillo-Green Chili Salsa,59 ml,15.0,0.0,0.0,0.0,0.0,255.0,4.0,0.0,1.5,0.0
+Chipotle,Tomatillo-Red Chili Salsa,59 ml,30.0,0.0,0.0,0.0,0.0,500.0,4.0,1.5,0.0,0.0
+Chipotle,Sour Cream,57 g,90.0,8.0,4.5,0.0,25.0,45.0,3.0,0.0,2.0,1.0
+Chipotle,Guacamole (topping/side),113 g,230.0,22.0,3.5,0.0,0.0,375.0,8.0,6.0,1.0,2.0
+Chipotle,Guacamole (large),226 g,460.0,44.0,7.0,0.0,0.0,740.0,16.0,12.0,2.0,4.0
+Chipotle,Queso Blanco (entreé),57 g,120.0,9.0,6.0,0.0,30.0,250.0,4.0,0.0,1.0,5.0
+Chipotle,Queso Blanco (side),113 g,240.0,18.0,12.0,1.0,60.0,490.0,7.0,0.0,2.0,10.0
+Chipotle,Supergreens Mix (salad),85 g,15.0,0.0,0.0,0.0,0.0,15.0,3.0,2.0,1.0,1.0
+Chipotle,Romaine Lettuce (tacos),28 g,5.0,0.0,0.0,0.0,0.0,0.0,1.0,1.0,0.0,0.0
+Chipotle,Chips (regular),113 g,540.0,25.0,3.5,0.0,0.0,390.0,73.0,7.0,1.0,7.0
+Chipotle,Chips (large),170 g,810.0,38.0,5.0,0.0,0.0,590.0,110.0,11.0,2.0,11.0
+Chipotle,Vinaigrette,59 ml,220.0,16.0,2.5,0.0,0.0,850.0,18.0,1.0,12.0,1.0
+Chipotle,Barq’s Root Beer,650 ml,280.0,0.0,0.0,0.0,0.0,130.0,85.0,0.0,85.0,0.0
+Chipotle,950 ml,,430.0,0.0,0.0,0.0,0.0,180.0,120.0,0.0,120.0,0.0
+Chipotle,Coca-Cola Classic,650 ml,260.0,0.0,0.0,0.0,0.0,85.0,70.0,0.0,70.0,0.0
+Chipotle,950 ml,,380.0,0.0,0.0,0.0,0.0,120.0,105.0,0.0,105.0,0.0
+Chipotle,Diet Coke,650 ml,0.0,0.0,0.0,0.0,0.0,75.0,0.0,0.0,0.0,0.0
+Chipotle,950 ml,,0.0,0.0,0.0,0.0,0.0,115.0,0.0,0.0,0.0,0.0
+Chipotle,Iced Tea,650 ml,10.0,0.0,0.0,0.0,0.0,0.0,3.0,0.0,0.0,0.0
+Chipotle,950 ml,,15.0,0.0,0.0,0.0,0.0,0.0,4.0,0.0,0.0,0.0
+Chipotle,Canada Dry Ginger Ale,650 ml,260.0,0.0,0.0,0.0,0.0,88.0,66.0,0.0,65.0,0.0
+Chipotle,950 ml,,370.0,0.0,0.0,0.0,0.0,128.0,96.0,0.0,95.0,0.0
+Chipotle,Sprite,650 ml,260.0,0.0,0.0,0.0,0.0,120.0,70.0,0.0,70.0,0.0
+Chipotle,950 ml,,380.0,0.0,0.0,0.0,0.0,180.0,105.0,0.0,105.0,0.0
+Chipotle,Coca-Cola Zero Sugar,650 ml,0.0,0.0,0.0,0.0,0.0,75.0,0.0,0.0,0.0,0.0
+Chipotle,950 ml,,0.0,0.0,0.0,0.0,0.0,115.0,0.0,0.0,0.0,0.0
+Chipotle,Fanta Orange,650 ml,290.0,0.0,0.0,0.0,0.0,80.0,80.0,0.0,80.0,0.0
+Chipotle,950 ml,,430.0,0.0,0.0,0.0,0.0,140.0,120.0,0.0,120.0,0.0
+Chipotle,Nestea,650 ml,140.0,0.0,0.0,0.0,0.0,125.0,33.0,0.0,30.0,0.0
+Chipotle,950 ml,,210.0,0.0,0.0,0.0,0.0,180.0,48.0,0.0,44.0,0.0
+Chipotle,Regular Beer,330 ml,170.0,0.0,0.0,0.0,0.0,0.0,12.0,0.0,11.0,0.0
+Chipotle,Light Beer,330 ml,110.0,0.0,0.0,0.0,0.0,10.0,7.0,0.0,0.0,0.0
+Chipotle,Sauza Margarita,330 ml,230.0,0.0,0.0,0.0,0.0,5.0,25.0,0.0,21.0,0.0
+Chipotle,Tractor Berry Agua Fresca,650 ml,200.0,0.0,0.0,0.0,0.0,10.0,50.0,0.0,49.0,0.0
+Chipotle,950 ml,,290.0,0.0,0.0,0.0,0.0,15.0,72.0,0.0,72.0,0.0
+Chipotle,Tractor Watermelon Limeade,650 ml,230.0,0.0,0.0,0.0,0.0,5.0,56.0,0.0,50.0,0.0
+Chipotle,950 ml,,330.0,0.0,0.0,0.0,0.0,10.0,82.0,0.0,72.0,0.0
+Chipotle,Tractor Lemonade,650 ml,170.0,0.0,0.0,0.0,0.0,10.0,43.0,0.0,37.0,0.0
+Chipotle,950 ml,,250.0,0.0,0.0,0.0,0.0,15.0,62.0,0.0,53.0,0.0
+Chipotle,Tractor Mandarin Agua Fresca,650 ml,190.0,0.0,0.0,0.0,0.0,0.0,47.0,0.0,47.0,0.0
+Chipotle,950 ml,,280.0,0.0,0.0,0.0,0.0,5.0,69.0,0.0,69.0,0.0
+Chipotle,Flour Tortilla (taco),2 ea,170.0,5.0,0.0,0.0,0.0,320.0,27.0,1.0,0.0,5.0
+Chipotle,Crispy Corn Tortilla,2 ea,130.0,6.0,1.0,0.0,0.0,0.0,19.0,2.0,0.0,2.0
+Chipotle,Cilantro-Lime Brown Rice,57 g,110.0,3.0,0.0,0.0,0.0,95.0,18.0,1.0,0.0,2.0
+Chipotle,Cilantro-Lime White Rice,57 g,100.0,2.0,0.5,0.0,0.0,170.0,20.0,0.0,0.0,2.0
+Chipotle,Black Beans,85 g,100.0,1.0,0.0,0.0,0.0,160.0,16.0,5.0,1.0,6.0
+Chipotle,Pinto Beans,85 g,100.0,1.0,0.0,0.0,0.0,160.0,15.0,6.0,1.0,6.0
+Chipotle,Fajita Vegetables,57 g,20.0,0.0,0.0,0.0,0.0,150.0,5.0,1.0,2.0,1.0
+Chipotle,Chicken,57 g,90.0,3.0,1.5,0.0,65.0,150.0,0.0,0.0,0.0,15.0
+Chipotle,Carnitas,57 g,110.0,6.0,3.0,0.0,32.0,220.0,0.0,0.0,0.0,12.0
+Chipotle,Sofritas,57 g,70.0,5.0,1.0,0.0,0.0,275.0,5.0,1.5,2.0,4.0
+Chipotle,Fresh Tomato Salsa,57 g,15.0,0.0,0.0,0.0,0.0,315.0,1.0,0.0,0.5,0.0
+Chipotle,Roasted Chili-Corn Salsa,57 g,40.0,1.0,0.0,0.0,0.0,190.0,9.0,1.5,2.5,1.0
+Chipotle,Tomatillo-Green Chili Salsa,59 ml,15.0,0.0,0.0,0.0,0.0,255.0,4.0,0.0,1.5,0.0
+Chipotle,Tomatillo-Red Chili Salsa,59 ml,30.0,0.0,0.0,0.0,0.0,500.0,4.0,1.5,0.0,0.0
+Chipotle,Guacamole,57 g,110.0,11.0,1.5,0.0,0.0,190.0,3.0,3.0,0.0,1.0
+Chipotle,Romaine Lettuce (tacos),28 g,5.0,0.0,0.0,0.0,0.0,0.0,1.0,1.0,0.0,0.0
+Chipotle,Mandarins,71 g,35.0,0.0,0.0,0.0,0.0,0.0,9.0,1.0,7.0,1.0
+Chipotle,Valencia Oranges,1 ea,80.0,0.0,0.0,0.0,0.0,0.0,19.0,3.0,14.0,1.0
+Chipotle,Chips,28 g,140.0,6.0,1.0,0.0,0.0,95.0,18.0,2.0,0.0,2.0
+Chipotle,Kiju Organic Apple Juice,200 ml,90.0,0.0,0.0,0.0,0.0,0.0,22.0,0.0,18.0,0.0
+Chipotle,Regular Milk,237 ml,130.0,5.0,3.0,0.0,20.0,120.0,12.0,0.0,12.0,8.0
+Chipotle,Chocolate Milk,237 ml,160.0,2.5,1.5,0.0,10.0,115.0,27.0,1.0,26.0,7.0
+Cactus Club,Ravioli & Prawn Trio,199 g,560.0,45.0,22.0,1.5,235.0,1100.0,19.0,1.0,3.0,17.0
+Cactus Club,Chicken Wings,259 g,850.0,55.0,15.0,0.5,350.0,330.0,0.0,0.0,0.0,83.0
+Cactus Club,Creamy Parmesan Dip,30 g,170.0,20.0,4.0,0.0,20.0,80.0,1.0,0.0,0.0,1.0
+Cactus Club,Garlic Mayo,45 g,290.0,35.0,6.0,0.0,30.0,150.0,1.0,0.0,0.0,0.0
+Cactus Club,Mini Burgers,356 g,980.0,67.0,26.0,1.0,200.0,1110.0,41.0,4.0,24.0,44.0
+Cactus Club,Potato Skins,299 g,1050.0,87.0,25.0,1.0,110.0,1870.0,39.0,4.0,3.0,32.0
+Cactus Club,Creole Fries (12oz),289 g,980.0,81.0,13.0,0.5,45.0,1250.0,64.0,6.0,3.0,7.0
+Cactus Club,Creole Fries (8oz),209 g,760.0,67.0,11.0,0.4,45.0,910.0,43.0,4.0,2.0,5.0
+Cactus Club,Creole Fries (4oz),129 g,530.0,52.0,9.0,0.2,40.0,600.0,22.0,2.0,1.0,3.0
+Cactus Club,Truffle Fries,249 g,670.0,47.0,5.0,0.2,10.0,2480.0,60.0,5.0,3.0,9.0
+Cactus Club,Garlic Mayo,45 g,290.0,35.0,6.0,0.0,30.0,150.0,1.0,0.0,0.0,0.0
+Cactus Club,Wagyu Beef Carpaccio,297 g,1090.0,89.0,31.0,2.0,135.0,1890.0,56.0,4.0,3.0,25.0
+Cactus Club,Hot Chicken & Pickles,277 g,790.0,39.0,4.0,0.1,130.0,1380.0,56.0,2.0,14.0,51.0
+Cactus Club,Creamy Parmesan Dip,45 g,250.0,29.0,6.0,0.0,25.0,120.0,1.0,0.0,1.0,2.0
+Cactus Club,Avocado Dip,217 g,390.0,25.0,5.0,0.1,15.0,1050.0,39.0,9.0,2.0,9.0
+Cactus Club,Szechuan Beans,285 g,390.0,23.0,2.0,0.1,0.0,1430.0,42.0,8.0,17.0,9.0
+Cactus Club,Warm Pull-Apart Bread,173 g,620.0,32.0,13.0,1.0,55.0,900.0,73.0,3.0,14.0,14.0
+Cactus Club,Chicken Tenders,283 g,760.0,38.0,4.0,0.1,260.0,1360.0,54.0,2.0,1.0,51.0
+Cactus Club,Honey Mustard,45 g,260.0,29.0,5.0,0.0,25.0,190.0,5.0,0.0,4.0,0.0
+Cactus Club,Sea salted fries,154 g,400.0,26.0,2.0,0.1,0.0,830.0,40.0,3.0,2.0,5.0
+Cactus Club,Cajun Chicken Sandwich,312 g,810.0,54.0,17.0,0.5,155.0,1180.0,43.0,3.0,9.0,40.0
+Cactus Club,Pesto Chicken Quesadilla,277 g,840.0,40.0,16.0,0.5,120.0,1370.0,73.0,5.0,10.0,52.0
+Cactus Club,Chicken Fajitas,856 g,1490.0,72.0,31.0,2.0,255.0,5590.0,125.0,14.0,21.0,87.0
+Cactus Club,Baja Fish Tacos,330 g,760.0,36.0,5.0,0.1,30.0,1430.0,85.0,6.0,7.0,24.0
+Cactus Club,Chipotle Chicken Tacos,409 g,830.0,41.0,9.0,0.0,100.0,1820.0,75.0,8.0,5.0,41.0
+Cactus Club,Kale Salad,277 g,450.0,32.0,5.0,0.1,10.0,1020.0,38.0,9.0,6.0,10.0
+Cactus Club,Chicken Kale Salad,357 g,580.0,34.0,5.0,0.1,75.0,1120.0,38.0,10.0,6.0,35.0
+Cactus Club,Starter Fresh Greens,140 g,150.0,12.0,3.0,0.2,10.0,270.0,5.0,2.0,3.0,4.0
+Cactus Club,Crispy Tofu Bowl,604 g,900.0,50.0,6.0,0.1,0.0,1550.0,87.0,10.0,25.0,27.0
+Cactus Club,Tuna Poke Bowl,577 g,880.0,50.0,6.0,0.3,60.0,1890.0,78.0,11.0,22.0,31.0
+Cactus Club,The Med Bowl - Vegan,444 g,700.0,35.0,5.0,0.1,0.0,1900.0,76.0,8.0,12.0,11.0
+Cactus Club,The Med Bowl - Falafel,459 g,680.0,29.0,6.0,0.2,15.0,1970.0,79.0,8.0,15.0,14.0
+Cactus Club,The Med Bowl - Chicken,548 g,870.0,40.0,10.0,0.4,90.0,1880.0,78.0,8.0,16.0,39.0
+Cactus Club,Salmon Aburi Sushi,268 g,500.0,22.0,3.0,0.0,45.0,1170.0,60.0,4.0,14.0,14.0
+Cactus Club,Cactus Burger (New),448 g,1280.0,93.0,28.0,1.5,225.0,1950.0,48.0,4.0,9.0,67.0
+Cactus Club,HH Cheeseburger (New),230 g,620.0,34.0,11.0,0.5,105.0,910.0,42.0,0.0,8.0,34.0
+Cactus Club,Garden Burger (New),308 g,660.0,35.0,11.0,0.0,40.0,2190.0,68.0,6.0,11.0,21.0
+Cactus Club,Cheddar Bacon Burger,378 g,890.0,50.0,17.0,0.2,135.0,2020.0,62.0,3.0,20.0,52.0
+Cactus Club,Cheddar Burger,403 g,830.0,45.0,15.0,1.0,125.0,1640.0,62.0,3.0,20.0,47.0
+Cactus Club,The Feenie Burger,537 g,1170.0,80.0,34.0,1.5,195.0,2030.0,64.0,4.0,22.0,54.0
+Cactus Club,GardenBurger,359 g,950.0,64.0,20.0,1.0,85.0,1600.0,72.0,6.0,13.0,25.0
+Cactus Club,JD BBQ Burger,378 g,910.0,59.0,15.0,0.0,110.0,1480.0,56.0,3.0,17.0,39.0
+Cactus Club,Side Sea Salted Fries,154 g,400.0,26.0,2.0,0.1,0.0,830.0,40.0,3.0,2.0,5.0
+Cactus Club,Yam Fries,167 g,480.0,28.0,2.0,0.1,0.0,860.0,56.0,6.0,17.0,3.0
+Cactus Club,Garlic Mayo,45 g,290.0,35.0,6.0,0.0,30.0,150.0,1.0,0.0,0.0,0.0
+Cactus Club,Rigatoni Bolognese,465 g,980.0,43.0,17.0,0.5,105.0,1950.0,111.0,14.0,21.0,41.0
+Cactus Club,Spaghetti Portofino,475 g,1060.0,69.0,31.0,1.5,295.0,1650.0,73.0,4.0,6.0,31.0
+Cactus Club,Grilled Salmon,475 g,710.0,46.0,16.0,0.4,160.0,1750.0,42.0,6.0,3.0,35.0
+Cactus Club,Grilled Dijon Salmon,516 g,720.0,43.0,20.0,0.5,180.0,2270.0,47.0,8.0,5.0,36.0
+Cactus Club,Truffle Chicken,550 g,1400.0,97.0,24.0,1.0,295.0,2320.0,50.0,5.0,4.0,82.0
+Cactus Club,Halibut Main,408 g,940.0,83.0,27.0,1.5,110.0,2000.0,30.0,4.0,6.0,16.0
+Cactus Club,Thai Red Curry  + Tofu,683 g,1140.0,55.0,20.0,0.1,0.0,1590.0,129.0,6.0,11.0,28.0
+Cactus Club,8 oz sirloin,169 g,330.0,14.0,7.0,0.5,120.0,190.0,0.0,0.0,0.0,47.0
+Cactus Club,7oz AAA filet,132 g,320.0,15.0,8.0,0.5,110.0,180.0,0.0,0.0,0.0,41.0
+Cactus Club,12 oz NY Striploin,240 g,540.0,24.0,11.0,1.0,180.0,230.0,0.0,0.0,0.0,76.0
+Cactus Club,Steakhouse Lobster Tail,98 g,150.0,10.0,6.0,0.5,70.0,550.0,3.0,1.0,0.0,14.0
+Cactus Club,Creole Butter,15 g,100.0,10.0,7.0,0.5,30.0,55.0,1.0,0.0,0.0,0.0
+Cactus Club,Sautéed Creole Prawns,113 g,280.0,21.0,8.0,0.5,190.0,780.0,3.0,0.0,0.0,18.0
+Cactus Club,Chocolate Lava Cake,252 g,880.0,46.0,22.0,0.2,335.0,280.0,111.0,3.0,90.0,12.0
+Cactus Club,Key Lime Pie,253 g,840.0,40.0,24.0,1.0,305.0,460.0,107.0,1.0,86.0,13.0
+Cactus Club,New York Cheesecake,247 g,780.0,56.0,33.0,2.0,260.0,500.0,60.0,2.0,48.0,13.0
+Cactus Club,6 Layer Chocolate Cake,480 g,1730.0,80.0,40.0,1.5,180.0,1270.0,239.0,12.0,166.0,19.0
+Cactus Club,Goma Dressing,30 g,180.0,18.0,1.0,0.4,20.0,340.0,4.0,0.0,4.0,1.0
+Cactus Club,Honey Lime Vinaigrette,30 g,160.0,18.0,3.0,0.0,15.0,180.0,3.0,0.0,3.0,0.0
+Cactus Club,Ponzu Mirin Sauce,30 g,35.0,0.0,0.0,0.0,0.0,700.0,6.0,0.0,4.0,1.0
+Cactus Club,Soy Chili Sauce,30 g,100.0,6.0,1.0,0.0,0.0,430.0,11.0,0.0,9.0,0.0
+Cactus Club,Truffle Beurre Blanc,60 g,370.0,39.0,25.0,2.0,105.0,300.0,4.0,0.0,3.0,0.0
+Cactus Club,Fries,276 g,900.0,74.0,9.0,0.2,30.0,1640.0,60.0,5.0,3.0,7.0
+Cactus Club,Truffle Fries,249 g,670.0,47.0,5.0,0.2,10.0,2480.0,60.0,5.0,3.0,9.0
+Cactus Club,Garlic Mayo,45 g,290.0,35.0,6.0,0.0,30.0,150.0,1.0,0.0,0.0,0.0
+Pokerrito,White Rice,1 cup,240.0,0.5,,,,5.0,53.0,,,4.5
+Pokerrito,Brown Rice,1 cup,140.0,1.5,,,,5.0,28.0,,,3.5
+Pokerrito,Mixed Greens,1 cup,20.0,0.0,,,,15.0,4.0,,,1.0
+Pokerrito,Ahi Tuna,4 oz,120.0,1.0,,,,45.0,0.0,,,24.0
+Pokerrito,Salmon,4 oz,160.0,9.0,,,,55.0,0.0,,,20.0
+Pokerrito,Tofu,4 oz,100.0,5.0,,,,10.0,3.0,,,10.0
+Pokerrito,Ponzu Sauce,1 tbsp,15.0,0.0,,,,450.0,3.0,,,1.0
+Pokerrito,Spicy Mayo,1 tbsp,100.0,11.0,,,,95.0,1.0,,,0.0
+Pokerrito,Torched Ahi Tuna Bowl,1 bowl,317.0,,,,,,,,,
+Pokerrito,Miso Salmon Bowl,1 bowl,351.0,,,,,,,,,
+Pokerrito,Roasted Chicken Bowl,1 bowl,367.0,,,,,,,,,
+Pokerrito,Bulgogi Bowl,1 bowl,402.0,,,,,,,,,
+Pokerrito,Spicy BBQ Pork Bowl,1 bowl,568.0,,,,,,,,,
