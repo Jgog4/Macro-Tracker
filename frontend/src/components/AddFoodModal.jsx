@@ -21,15 +21,18 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
   const [qty, setQty]           = useState("");
   const [logging, setLogging]   = useState(false);
   const [error, setError]       = useState("");
-  const inputRef = useRef();
+  const inputRef  = useRef();
+  const searchGen = useRef(0); // incremented each time a search fires; stale callbacks are dropped
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
   // Unified search across all sources
   useEffect(() => {
-    if (!query || query.length < 2) { setResults([]); return; }
+    if (!query || query.length < 2) { setResults([]); setLoading(false); return; }
 
     const timer = setTimeout(async () => {
+      // Grab the generation counter for THIS search
+      const gen = ++searchGen.current;
       setLoading(true);
       try {
         // Run local and USDA searches in parallel
@@ -37,6 +40,9 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
           foodsApi.search(query, { limit: 20 }),
           foodsApi.usdaSearch(query, 5),
         ]);
+
+        // If a newer search has started, discard these results
+        if (gen !== searchGen.current) return;
 
         const localItems = localRes.status === "fulfilled"
           ? localRes.value.data
@@ -64,9 +70,11 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
 
         setResults([...localItems, ...filteredUsda]);
       } catch {
+        if (gen !== searchGen.current) return;
         setResults([]);
+      } finally {
+        if (gen === searchGen.current) setLoading(false);
       }
-      setLoading(false);
     }, 350);
 
     return () => clearTimeout(timer);
