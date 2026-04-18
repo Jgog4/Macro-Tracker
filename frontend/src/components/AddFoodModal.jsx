@@ -28,20 +28,26 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
 
   // Unified search across all sources
   useEffect(() => {
-    if (!query || query.length < 2) { setResults([]); setLoading(false); return; }
+    // Increment on EVERY query change so any in-flight fetch is invalidated immediately
+    const gen = ++searchGen.current;
+
+    if (!query || query.length < 2) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
 
     const timer = setTimeout(async () => {
-      // Grab the generation counter for THIS search
-      const gen = ++searchGen.current;
+      // Another keystroke may have fired since we were scheduled — bail if stale
+      if (gen !== searchGen.current) return;
+
       setLoading(true);
       try {
-        // Run local and USDA searches in parallel
         const [localRes, usdaRes] = await Promise.allSettled([
           foodsApi.search(query, { limit: 20 }),
           foodsApi.usdaSearch(query, 5),
         ]);
 
-        // If a newer search has started, discard these results
         if (gen !== searchGen.current) return;
 
         const localItems = localRes.status === "fulfilled"
@@ -64,7 +70,6 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
             }))
           : [];
 
-        // Local results first, then USDA (deduplicated by fdc_id)
         const localFdcIds = new Set(localItems.map(i => i.usda_fdc_id).filter(Boolean));
         const filteredUsda = usdaItems.filter(i => !localFdcIds.has(i.fdc_id));
 
