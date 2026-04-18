@@ -4,7 +4,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, or_, func
+from sqlalchemy import case, select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -40,7 +40,15 @@ async def search_local_foods(
     if brand:
         stmt = stmt.where(func.lower(Ingredient.brand) == brand.lower())
 
-    stmt = stmt.order_by(Ingredient.name).limit(limit)
+    # Personal (from user's Cronometer history) comes first, then custom recipes,
+    # then restaurant items, then USDA imports.
+    source_rank = case(
+        (Ingredient.source == "personal",   0),
+        (Ingredient.source == "custom",     1),
+        (Ingredient.source == "restaurant", 2),
+        else_=3,
+    )
+    stmt = stmt.order_by(source_rank, Ingredient.name).limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
 

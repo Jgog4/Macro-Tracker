@@ -7,6 +7,7 @@ import { foodsApi, mealsApi } from "../api/client";
 import { X, Search, Loader2, ChevronRight } from "lucide-react";
 
 const SOURCE_BADGE = {
+  personal:   { label: "My Foods",   color: "bg-green-500/20 text-green-400" },
   restaurant: { label: "Restaurant", color: "bg-orange-500/20 text-orange-400" },
   usda:       { label: "USDA",       color: "bg-blue-500/20 text-blue-400" },
   custom:     { label: "Custom",     color: "bg-purple-500/20 text-purple-400" },
