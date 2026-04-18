@@ -31,4 +31,4 @@ COPY --from=frontend-build /frontend/dist ./static
 EXPOSE 8000
 
 # Railway injects $PORT automatically
-CMD ["sh", "-c", "echo '>>> Starting on port '${PORT:-8000} && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level debug"]
+CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
