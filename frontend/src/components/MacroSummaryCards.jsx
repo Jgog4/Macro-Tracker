@@ -1,5 +1,5 @@
 /**
- * Top summary bar — 4 macro cards exactly as in Cronometer but consultant-dark styled.
+ * Top summary bar — 4 macro cards exactly as in the app but consultant-dark styled.
  * Energy / Protein / Net Carbs / Fat
  * Each card: consumed / target, colour-coded progress bar, % used.
  */

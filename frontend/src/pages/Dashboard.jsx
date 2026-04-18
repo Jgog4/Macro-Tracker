@@ -1,5 +1,5 @@
 /**
- * Main dashboard page — mirrors Cronometer's layout:
+ * Main dashboard page — mirrors the app's layout:
  *  1. Macro summary cards (Energy / Protein / Net Carbs / Fat)
  *  2. Chronological meal list (Meal 1, Meal 2, …)
  *  3. Action row (Add Food | Scan | Suggest)

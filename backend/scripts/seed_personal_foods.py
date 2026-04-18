@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Import your personal Cronometer food history into the ingredients table.
+Import your personal food history into the ingredients table.
 
-Reads Nutrition data/cronometer_servings.csv (the "Servings" export from
-Cronometer → Export → Servings). Every food that Cronometer recorded with a
-weight in grams (or oz / mL) gets normalized to per-100 g values and inserted
-as source="personal". If the item already exists it is skipped.
+Reads Nutrition data/personal_foods.csv (a "Servings" export from your
+nutrition tracking history). Every food recorded with a weight in grams
+(or oz / mL) gets normalized to per-100 g values and inserted as
+source="personal". If the item already exists it is skipped.
 
 Usage (from /backend directory):
-    python -m scripts.seed_cronometer
+    python -m scripts.seed_personal_foods
 
 Requires:
     DATABASE_URL env var pointing at your PostgreSQL instance.
@@ -27,7 +27,7 @@ from statistics import median
 SCRIPT_DIR   = Path(__file__).parent
 BACKEND_DIR  = SCRIPT_DIR.parent
 NUTRITION_DIR = BACKEND_DIR.parent / "Nutrition data"
-CSV_PATH     = NUTRITION_DIR / "cronometer_servings.csv"
+CSV_PATH     = NUTRITION_DIR / "personal_foods.csv"
 
 sys.path.insert(0, str(BACKEND_DIR))
 

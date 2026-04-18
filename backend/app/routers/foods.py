@@ -40,8 +40,7 @@ async def search_local_foods(
     if brand:
         stmt = stmt.where(func.lower(Ingredient.brand) == brand.lower())
 
-    # Personal (from user's Cronometer history) comes first, then custom recipes,
-    # then restaurant items, then USDA imports.
+    # Personal foods come first, then custom recipes, then restaurant items, then USDA imports.
     source_rank = case(
         (Ingredient.source == "personal",   0),
         (Ingredient.source == "custom",     1),
