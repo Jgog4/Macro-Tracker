@@ -5,6 +5,7 @@ In production (Railway) the built React app lives in ./static.
 FastAPI serves the API on /api/v1/* and falls back to index.html
 for all other routes so React Router works correctly.
 """
+import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -87,7 +88,9 @@ if STATIC_DIR.exists():
 # ── Global error handler ──────────────────────────────────────────────────────
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    print(f"❌ Unhandled error on {request.url}: {exc}", flush=True)
+    traceback.print_exc()
     return JSONResponse(
         status_code=500,
-        content={"detail": f"Internal server error: {type(exc).__name__}"},
+        content={"detail": f"Internal server error: {type(exc).__name__}: {str(exc)[:200]}"},
     )

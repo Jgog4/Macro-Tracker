@@ -15,14 +15,12 @@ api_keys           – hashed keys for external tool access (Mac dashboard, etc.
 
 import uuid
 from datetime import date, datetime
-from enum import Enum as PyEnum
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     Date,
     DateTime,
-    Enum,
     Float,
     ForeignKey,
     Integer,
@@ -37,13 +35,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 
-# ── Enums ─────────────────────────────────────────────────────────────────────
-
-class IngredientSource(str, PyEnum):
-    USDA       = "usda"        # pulled from FoodData Central API
-    RESTAURANT = "restaurant"  # seeded from your CSV (Chipotle, Cactus, Pokerrito)
-    CUSTOM     = "custom"      # manually entered / vision OCR
-    RECIPE     = "recipe"      # macro-expanded from a Recipe row
+# ── Valid source values (stored as plain strings — avoids PostgreSQL ENUM issues) ──
+# "usda" | "restaurant" | "custom" | "recipe"
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
@@ -112,7 +105,7 @@ class Ingredient(Base):
     __tablename__ = "ingredients"
 
     id:             Mapped[str]   = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
-    source:         Mapped[str]   = mapped_column(Enum(IngredientSource), nullable=False, default=IngredientSource.CUSTOM)
+    source:         Mapped[str]   = mapped_column(String(50), nullable=False, default="custom")
 
     # Identity
     brand:          Mapped[str | None] = mapped_column(String(255))          # e.g. "Chipotle"
