@@ -1,147 +1,118 @@
 #!/usr/bin/env python3
 """
-Import your personal food history into the ingredients table.
+Import your personal food history into the mt_ingredients table.
 
-Reads Nutrition data/personal_foods.csv (a "Servings" export from your
-nutrition tracking history). Every food recorded with a weight in grams
-(or oz / mL) gets normalized to per-100 g values and inserted as
-source="personal". If the item already exists it is skipped.
+Reads Nutrition data/personal_foods.csv. Every food recorded with a weight
+in grams (or oz / mL) gets normalized to per-100 g values and inserted as
+source='personal'. Already-existing items are skipped.
 
 Usage (from /backend directory):
-    python -m scripts.seed_personal_foods
+    python3 -m scripts.seed_personal_foods
 
 Requires:
-    DATABASE_URL env var pointing at your PostgreSQL instance.
-    pip install asyncpg sqlalchemy python-dotenv
+    DATABASE_URL env var (injected automatically by: railway run python3 ...)
+    pip3 install asyncpg python-dotenv
 """
 import asyncio
 import csv
 import os
 import re
 import sys
+import uuid
 from collections import Counter, defaultdict
 from pathlib import Path
-from statistics import median
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-SCRIPT_DIR   = Path(__file__).parent
-BACKEND_DIR  = SCRIPT_DIR.parent
+SCRIPT_DIR    = Path(__file__).parent
+BACKEND_DIR   = SCRIPT_DIR.parent
 NUTRITION_DIR = BACKEND_DIR.parent / "Nutrition data"
-CSV_PATH     = NUTRITION_DIR / "personal_foods.csv"
+CSV_PATH      = NUTRITION_DIR / "personal_foods.csv"
 
-sys.path.insert(0, str(BACKEND_DIR))
+# Load .env if present (for local runs without railway run)
+env_file = BACKEND_DIR / ".env"
+if env_file.exists():
+    for line in env_file.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 
-from dotenv import load_dotenv
-load_dotenv(BACKEND_DIR / ".env")
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+if not DATABASE_URL:
+    print("❌ DATABASE_URL not set. Run with: railway run python3 -m scripts.seed_personal_foods")
+    sys.exit(1)
 
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy import select
+# asyncpg needs postgresql:// not postgresql+asyncpg://
+DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/macro_tracker")
-# Railway injects postgresql:// — convert to asyncpg driver
-DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+try:
+    import asyncpg
+except ImportError:
+    print("❌ asyncpg not installed. Run: pip3 install asyncpg")
+    sys.exit(1)
 
-from app.database import Base
-from app.models.models import Ingredient
 
-
-# ── Amount → grams conversion ─────────────────────────────────────────────────
-def parse_grams(amount_str: str) -> float | None:
-    """
-    Convert a Cronometer amount string to grams.
-    Handles: "40.00 g", "2.50 oz", "250.00 mL", "8.00 fl oz"
-    Returns None for unit-less entries (scoops, pieces, etc.)
-    """
+# ── Amount → grams ────────────────────────────────────────────────────────────
+def parse_grams(amount_str):
     s = amount_str.strip()
-
-    # Plain grams: "40.00 g"
     m = re.match(r"^([\d.]+)\s*g\s*$", s, re.IGNORECASE)
-    if m:
-        return float(m.group(1))
-
-    # Ounces: "2.00 oz"
+    if m: return float(m.group(1))
     m = re.match(r"^([\d.]+)\s*oz\s*$", s, re.IGNORECASE)
-    if m:
-        return float(m.group(1)) * 28.3495
-
-    # Millilitres: "250.00 mL"  (density ≈ 1 g/mL — good enough for most liquids)
+    if m: return float(m.group(1)) * 28.3495
     m = re.match(r"^([\d.]+)\s*m[lL]\s*$", s)
-    if m:
-        return float(m.group(1))
-
-    # Fluid ounces: "8.00 fl oz"
+    if m: return float(m.group(1))
     m = re.match(r"^([\d.]+)\s*fl\.?\s*oz\.?\s*$", s, re.IGNORECASE)
-    if m:
-        return float(m.group(1)) * 29.5735
-
+    if m: return float(m.group(1)) * 29.5735
     return None
 
 
-# ── Safe numeric parse ────────────────────────────────────────────────────────
-def _f(val) -> float | None:
-    """Convert string to float; return None on blank or non-numeric."""
-    if val is None:
-        return None
+def _f(val):
+    if val is None: return None
     s = str(val).strip()
-    if not s:
-        return None
+    if not s: return None
     try:
         v = float(s)
-        return v if v == v else None  # reject NaN
+        return v if v == v else None
     except ValueError:
         return None
 
 
-# ── Load and aggregate CSV ────────────────────────────────────────────────────
-def load_personal_foods(csv_path: Path) -> list[dict]:
-    """
-    Parse cronometer_servings.csv and return a list of dicts, one per unique
-    food name.  All macro values are normalised to per-100 g.  The default
-    serving size is set to the mode (most-common) gram amount the user logged.
-    """
-    by_name: dict[str, list[dict]] = defaultdict(list)
-
+# ── Load & aggregate CSV ──────────────────────────────────────────────────────
+def load_personal_foods(csv_path):
+    by_name = defaultdict(list)
     with open(csv_path, newline="", encoding="utf-8-sig") as fh:
         reader = csv.DictReader(fh)
         for row in reader:
-            name   = row["Food Name"].strip()
-            grams  = parse_grams(row["Amount"])
+            name  = row["Food Name"].strip()
+            grams = parse_grams(row["Amount"])
             if not grams or grams < 0.5:
                 continue
-
             by_name[name].append({
-                "grams":         grams,
-                "amount_str":    row["Amount"].strip(),
-                "calories":      _f(row["Energy (kcal)"]),
-                "protein_g":     _f(row["Protein (g)"]),
-                "fat_g":         _f(row["Fat (g)"]),
-                "carbs_g":       _f(row["Carbs (g)"]),
-                "fiber_g":       _f(row["Fiber (g)"]),
-                "sugar_g":       _f(row["Sugars (g)"]),
-                "sodium_mg":     _f(row["Sodium (mg)"]),
-                "cholesterol_mg":_f(row["Cholesterol (mg)"]),
-                "sat_fat_g":     _f(row["Saturated (g)"]),
-                "trans_fat_g":   _f(row["Trans-Fats (g)"]),
+                "grams":          grams,
+                "amount_str":     row["Amount"].strip(),
+                "calories":       _f(row["Energy (kcal)"]),
+                "protein_g":      _f(row["Protein (g)"]),
+                "fat_g":          _f(row["Fat (g)"]),
+                "carbs_g":        _f(row["Carbs (g)"]),
+                "fiber_g":        _f(row["Fiber (g)"]),
+                "sugar_g":        _f(row["Sugars (g)"]),
+                "sodium_mg":      _f(row["Sodium (mg)"]),
+                "cholesterol_mg": _f(row["Cholesterol (mg)"]),
+                "sat_fat_g":      _f(row["Saturated (g)"]),
+                "trans_fat_g":    _f(row["Trans-Fats (g)"]),
             })
 
     results = []
     for name, entries in by_name.items():
-        # Weighted average of per-gram values (weight = gram amount)
-        def w_avg(key: str) -> float | None:
+        def w_avg(key):
             pairs = [(e[key] / e["grams"], e["grams"])
                      for e in entries
                      if e[key] is not None and e["grams"] > 0]
-            if not pairs:
-                return None
+            if not pairs: return None
             total_w = sum(w for _, w in pairs)
             return sum(v * w for v, w in pairs) / total_w
 
-        # Most-common gram amount becomes the default serving size
-        gram_counts = Counter(round(e["grams"]) for e in entries)
-        typical_g   = gram_counts.most_common(1)[0][0]
-
-        # Per-100 g macros
-        def per100(key: str) -> float | None:
+        def per100(key):
             v = w_avg(key)
             return round(v * 100, 4) if v is not None else None
 
@@ -149,80 +120,81 @@ def load_personal_foods(csv_path: Path) -> list[dict]:
         prot  = per100("protein_g")
         fat   = per100("fat_g")
         carbs = per100("carbs_g")
-
-        # Skip entries with no usable macro data
         if cal is None and prot is None and fat is None and carbs is None:
             continue
 
-        results.append({
-            "name":            name,
-            "source":          "personal",
-            "serving_size_g":  float(typical_g),
-            "serving_size_desc": f"{typical_g} g",
-            "calories":        cal   or 0.0,
-            "protein_g":       prot  or 0.0,
-            "fat_g":           fat   or 0.0,
-            "carbs_g":         carbs or 0.0,
-            "fiber_g":         per100("fiber_g"),
-            "sugar_g":         per100("sugar_g"),
-            "sodium_mg":       per100("sodium_mg"),
-            "cholesterol_mg":  per100("cholesterol_mg"),
-            "sat_fat_g":       per100("sat_fat_g"),
-            "trans_fat_g":     per100("trans_fat_g"),
-        })
+        gram_counts = Counter(round(e["grams"]) for e in entries)
+        typical_g   = float(gram_counts.most_common(1)[0][0])
 
+        results.append({
+            "id":               str(uuid.uuid4()),
+            "name":             name,
+            "source":           "personal",
+            "serving_size_g":   typical_g,
+            "serving_size_desc": f"{int(typical_g)} g",
+            "calories":         cal   or 0.0,
+            "protein_g":        prot  or 0.0,
+            "fat_g":            fat   or 0.0,
+            "carbs_g":          carbs or 0.0,
+            "fiber_g":          per100("fiber_g"),
+            "sugar_g":          per100("sugar_g"),
+            "sodium_mg":        per100("sodium_mg"),
+            "cholesterol_mg":   per100("cholesterol_mg"),
+            "sat_fat_g":        per100("sat_fat_g"),
+            "trans_fat_g":      per100("trans_fat_g"),
+        })
     return results
 
 
-# ── Database seeding ──────────────────────────────────────────────────────────
-async def seed(session: AsyncSession):
+# ── Seed database ─────────────────────────────────────────────────────────────
+async def main():
+    if not CSV_PATH.exists():
+        print(f"❌ CSV not found at {CSV_PATH}")
+        sys.exit(1)
+
     print(f"📂 Reading {CSV_PATH}")
     foods = load_personal_foods(CSV_PATH)
     print(f"   → {len(foods)} unique foods with gram-based amounts")
 
-    seeded = 0
-    skipped = 0
-
-    for food in foods:
-        # Idempotent: skip if already in DB with same name + personal source
-        existing = await session.execute(
-            select(Ingredient).where(
-                Ingredient.name   == food["name"],
-                Ingredient.source == "personal",
-            )
-        )
-        if existing.scalar_one_or_none():
-            skipped += 1
-            continue
-
-        ingredient = Ingredient(**food)
-        session.add(ingredient)
-        seeded += 1
-
-        if seeded % 100 == 0:
-            await session.commit()
-            print(f"   … {seeded} seeded so far")
-
-    await session.commit()
-    print(f"✅ Personal foods: {seeded} seeded, {skipped} already existed")
-
-
-async def main():
-    if not CSV_PATH.exists():
-        print(f"❌ CSV not found at {CSV_PATH}")
-        print("   Place your Cronometer 'Servings' export there and try again.")
-        sys.exit(1)
-
     print("🌱 Connecting to database...")
-    engine = create_async_engine(DATABASE_URL, echo=False)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    conn = await asyncpg.connect(DATABASE_URL)
 
-    SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with SessionLocal() as session:
-        await seed(session)
+    seeded = skipped = 0
+    try:
+        for food in foods:
+            # Skip if already present
+            existing = await conn.fetchval(
+                "SELECT id FROM mt_ingredients WHERE name=$1 AND source='personal'",
+                food["name"]
+            )
+            if existing:
+                skipped += 1
+                continue
 
-    await engine.dispose()
+            await conn.execute("""
+                INSERT INTO mt_ingredients
+                  (id, source, name, serving_size_g, serving_size_desc,
+                   calories, protein_g, fat_g, carbs_g,
+                   fiber_g, sugar_g, sodium_mg, cholesterol_mg,
+                   sat_fat_g, trans_fat_g,
+                   created_at, updated_at)
+                VALUES
+                  ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW(),NOW())
+            """,
+                food["id"], food["source"], food["name"],
+                food["serving_size_g"], food["serving_size_desc"],
+                food["calories"], food["protein_g"], food["fat_g"], food["carbs_g"],
+                food["fiber_g"], food["sugar_g"], food["sodium_mg"], food["cholesterol_mg"],
+                food["sat_fat_g"], food["trans_fat_g"],
+            )
+            seeded += 1
+            if seeded % 100 == 0:
+                print(f"   … {seeded} inserted so far")
+
+    finally:
+        await conn.close()
+
+    print(f"✅ Personal foods: {seeded} seeded, {skipped} already existed")
     print("🎉 Done — your personal food library is ready")
 
 
