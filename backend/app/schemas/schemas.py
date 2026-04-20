@@ -127,9 +127,11 @@ class MealLogCreate(BaseModel):
     """
     POST body to add food to a meal.
     If meal_number is omitted, the service auto-increments from today's count.
+    If logged_at is omitted, the server uses the current timestamp.
     """
-    log_date:    Optional[date] = None   # defaults to today
-    meal_number: Optional[int]  = None   # auto-assigned if omitted
+    log_date:    Optional[date]     = None   # defaults to today
+    meal_number: Optional[int]      = None   # auto-assigned if omitted
+    logged_at:   Optional[datetime] = None   # defaults to now()
     items:       list[MealLogItemCreate] = Field(..., min_length=1)
 
 

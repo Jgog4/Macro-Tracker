@@ -100,6 +100,9 @@ async def log_food(body: MealLogCreate, db: AsyncSession = Depends(get_db)):
         db.add(meal)
         await db.flush()
 
+    # Resolve logged_at timestamp (use client-supplied time or fall back to now)
+    logged_at = body.logged_at or datetime.now(timezone.utc)
+
     # Add each item
     for item_body in body.items:
         if not item_body.ingredient_id and not item_body.recipe_id:
@@ -116,6 +119,7 @@ async def log_food(body: MealLogCreate, db: AsyncSession = Depends(get_db)):
                 ingredient_id=food.id,
                 display_name=display_name,
                 quantity_g=item_body.quantity_g,
+                logged_at=logged_at,
                 **macros,
             )
         else:
@@ -128,6 +132,7 @@ async def log_food(body: MealLogCreate, db: AsyncSession = Depends(get_db)):
                 recipe_id=recipe.id,
                 display_name=recipe.name,
                 quantity_g=item_body.quantity_g,
+                logged_at=logged_at,
                 **macros,
             )
 

@@ -1,10 +1,10 @@
 /**
- * Add Food modal — unified search across Local, Restaurant, and USDA.
- * One search box, results from all sources with a source badge on each.
+ * Add Food modal — search + entry screen.
+ * Entry screen: meal selector (1–6), time picker, quantity with live macro preview.
  */
 import { useState, useEffect, useRef } from "react";
 import { foodsApi, mealsApi } from "../api/client";
-import { X, Search, Loader2, ChevronRight } from "lucide-react";
+import { X, Search, Loader2, ChevronRight, ChevronLeft } from "lucide-react";
 
 const SOURCE_BADGE = {
   personal:   { label: "My Foods",   color: "bg-green-500/20 text-green-400" },
@@ -14,48 +14,50 @@ const SOURCE_BADGE = {
   usda_live:  { label: "USDA",       color: "bg-blue-500/20 text-blue-400" },
 };
 
+function nowTimeStr() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLogged }) {
-  const [query, setQuery]       = useState("");
-  const [results, setResults]   = useState([]);
-  const [loading, setLoading]   = useState(false);
-  const [selected, setSelected] = useState(null);
-  const [qty, setQty]           = useState("");
-  const [logging, setLogging]   = useState(false);
-  const [error, setError]       = useState("");
+  const [query, setQuery]           = useState("");
+  const [results, setResults]       = useState([]);
+  const [loading, setLoading]       = useState(false);
+  const [selected, setSelected]     = useState(null);
+  const [qty, setQty]               = useState("");
+  const [mealNumber, setMealNumber] = useState(defaultMealNumber ?? 1);
+  const [time, setTime]             = useState(nowTimeStr);
+  const [logging, setLogging]       = useState(false);
+  const [error, setError]           = useState("");
+
   const inputRef  = useRef();
-  const searchGen = useRef(0); // incremented each time a search fires; stale callbacks are dropped
+  const qtyRef    = useRef();
+  const searchGen = useRef(0);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
-  // Unified search across all sources
+  // Focus qty input when a food is selected
   useEffect(() => {
-    // Increment on EVERY query change so any in-flight fetch is invalidated immediately
-    const gen = ++searchGen.current;
+    if (selected) setTimeout(() => qtyRef.current?.focus(), 50);
+  }, [selected]);
 
-    if (!query || query.length < 2) {
-      setResults([]);
-      setLoading(false);
-      return;
-    }
+  // ── Unified search ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    const gen = ++searchGen.current;
+    if (!query || query.length < 2) { setResults([]); setLoading(false); return; }
 
     const timer = setTimeout(async () => {
-      // Another keystroke may have fired since we were scheduled — bail if stale
       if (gen !== searchGen.current) return;
-
       setLoading(true);
       try {
         const [localRes, usdaRes] = await Promise.allSettled([
           foodsApi.search(query, { limit: 20 }),
           foodsApi.usdaSearch(query, 5),
         ]);
-
         if (gen !== searchGen.current) return;
 
-        const localItems = localRes.status === "fulfilled"
-          ? localRes.value.data
-          : [];
-
-        const usdaItems = usdaRes.status === "fulfilled"
+        const localItems = localRes.status === "fulfilled" ? localRes.value.data : [];
+        const usdaItems  = usdaRes.status  === "fulfilled"
           ? usdaRes.value.data.map(f => ({
               id:                null,
               fdc_id:            f.fdc_id,
@@ -71,9 +73,8 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
             }))
           : [];
 
-        const localFdcIds = new Set(localItems.map(i => i.usda_fdc_id).filter(Boolean));
+        const localFdcIds  = new Set(localItems.map(i => i.usda_fdc_id).filter(Boolean));
         const filteredUsda = usdaItems.filter(i => !localFdcIds.has(i.fdc_id));
-
         setResults([...localItems, ...filteredUsda]);
       } catch {
         if (gen !== searchGen.current) return;
@@ -86,6 +87,18 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
     return () => clearTimeout(timer);
   }, [query]);
 
+  // ── Live macro calculation ──────────────────────────────────────────────────
+  const qtyNum = parseFloat(qty) || 0;
+  const baseG  = selected?.serving_size_g || (qtyNum || 100);
+  const ratio  = qtyNum / baseG;
+  const live   = selected ? {
+    calories: (selected.calories  || 0) * ratio,
+    protein:  (selected.protein_g || 0) * ratio,
+    carbs:    (selected.carbs_g   || 0) * ratio,
+    fat:      (selected.fat_g     || 0) * ratio,
+  } : null;
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
   const handleSelect = (food) => {
     setSelected(food);
     setQty(food.serving_size_g ? String(food.serving_size_g) : "100");
@@ -98,16 +111,19 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
     setError("");
     try {
       let ingredient_id = selected.id;
-
-      // If it's a live USDA result, import it first to get a local ID
       if (!ingredient_id && selected.fdc_id) {
         const imported = await foodsApi.importUsda(selected.fdc_id);
         ingredient_id = imported.data.id;
       }
 
+      // Build the logged_at ISO string from dateStr + time picker
+      const [h, m]  = time.split(":").map(Number);
+      const loggedAt = new Date(`${dateStr}T${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:00`);
+
       await mealsApi.logFood({
         log_date:    dateStr,
-        meal_number: defaultMealNumber ?? undefined,
+        meal_number: mealNumber,
+        logged_at:   loggedAt.toISOString(),
         items: [{ ingredient_id, quantity_g: parseFloat(qty) }],
       });
       onLogged();
@@ -118,10 +134,11 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
     }
   };
 
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <ModalShell onClose={onClose} title="Add Food">
+    <ModalShell onClose={onClose} title={selected ? "Log Food" : "Add Food"}>
 
-      {/* Search box */}
+      {/* ── Search box (always visible) ── */}
       <div className="relative">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
         <input
@@ -132,16 +149,17 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
           className="input pl-8"
         />
         {query && (
-          <button onClick={() => { setQuery(""); setSelected(null); setResults([]); }}
+          <button
+            onClick={() => { setQuery(""); setSelected(null); setResults([]); }}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-white">
             <X size={13} />
           </button>
         )}
       </div>
 
-      {/* Results list */}
+      {/* ── Results list ── */}
       {!selected && (
-        <div className="max-h-72 overflow-y-auto flex flex-col gap-0.5 -mx-1 px-1">
+        <div className="max-h-64 overflow-y-auto flex flex-col gap-0.5 -mx-1 px-1">
           {loading ? (
             <div className="flex justify-center py-10">
               <Loader2 size={20} className="animate-spin text-muted" />
@@ -166,7 +184,9 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
                     </span>
                   </div>
                   {food.brand && (
-                    <p className="text-[11px] text-muted truncate">{food.brand}{food.serving_size_desc ? ` · ${food.serving_size_desc}` : ""}</p>
+                    <p className="text-[11px] text-muted truncate">
+                      {food.brand}{food.serving_size_desc ? ` · ${food.serving_size_desc}` : ""}
+                    </p>
                   )}
                 </div>
                 <div className="flex items-center gap-2 ml-3 shrink-0">
@@ -181,50 +201,92 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
         </div>
       )}
 
-      {/* Selected item — quantity entry */}
+      {/* ── Entry screen (food selected) ── */}
       {selected && (
         <div className="flex flex-col gap-4">
-          <button onClick={() => setSelected(null)}
-            className="text-xs text-accent-blue hover:underline self-start flex items-center gap-1">
-            ← Back to results
-          </button>
 
-          <div className="card-sm">
-            <p className="text-sm font-semibold leading-snug">{selected.name}</p>
-            {selected.brand && <p className="text-xs text-muted mt-0.5">{selected.brand}</p>}
-            <div className="flex gap-5 mt-3">
-              <MacroStat label="Cal"  value={selected.calories}  unit="kcal" color="text-accent-orange" />
-              <MacroStat label="P"    value={selected.protein_g} unit="g"    color="text-accent-green" />
-              <MacroStat label="C"    value={selected.carbs_g}   unit="g"    color="text-accent-blue" />
-              <MacroStat label="F"    value={selected.fat_g}     unit="g"    color="text-accent-red" />
+          {/* Food name + back */}
+          <div className="flex items-start gap-2">
+            <button
+              onClick={() => setSelected(null)}
+              className="mt-0.5 p-1 rounded hover:bg-surface-3 text-muted hover:text-white transition-colors shrink-0">
+              <ChevronLeft size={15} />
+            </button>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold leading-snug">{selected.name}</p>
+              {selected.brand && <p className="text-xs text-muted mt-0.5">{selected.brand}</p>}
             </div>
-            <p className="text-[11px] text-muted mt-1.5">
-              Per {selected.serving_size_desc || "serving"}
-            </p>
           </div>
 
+          {/* Meal selector */}
           <div>
-            <label className="text-xs text-subtle mb-1 block">Quantity (grams)</label>
-            <input
-              type="number"
-              value={qty}
-              onChange={e => setQty(e.target.value)}
-              className="input font-mono"
-              placeholder="100"
-              min="1"
-              step="0.5"
-              autoFocus
-            />
+            <label className="text-xs text-subtle mb-1.5 block">Meal</label>
+            <div className="flex gap-1.5">
+              {[1, 2, 3, 4, 5, 6].map(n => (
+                <button
+                  key={n}
+                  onClick={() => setMealNumber(n)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    n === mealNumber
+                      ? "bg-accent-blue text-white"
+                      : "bg-surface-3 text-muted hover:text-white"
+                  }`}>
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Time + Quantity row */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-xs text-subtle mb-1 block">Time</label>
+              <input
+                type="time"
+                value={time}
+                onChange={e => setTime(e.target.value)}
+                className="input font-mono w-full"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs text-subtle mb-1 block">Quantity (g)</label>
+              <input
+                ref={qtyRef}
+                type="number"
+                value={qty}
+                onChange={e => setQty(e.target.value)}
+                className="input font-mono w-full"
+                placeholder="100"
+                min="1"
+                step="0.5"
+              />
+            </div>
+          </div>
+
+          {/* Live macro preview */}
+          <div className="bg-surface-2 border border-border rounded-xl p-3">
+            <div className="grid grid-cols-4 gap-2">
+              <LiveMacro label="Calories" value={live?.calories} unit="kcal" color="text-accent-orange" />
+              <LiveMacro label="Protein"  value={live?.protein}  unit="g"    color="text-accent-green" />
+              <LiveMacro label="Carbs"    value={live?.carbs}    unit="g"    color="text-accent-blue" />
+              <LiveMacro label="Fat"      value={live?.fat}      unit="g"    color="text-accent-red" />
+            </div>
+            <p className="text-[10px] text-muted mt-2 text-center">
+              For {qtyNum > 0 ? `${qtyNum} g` : "—"} serving
+              {selected.serving_size_g
+                ? ` · per 100 g: ${Math.round((selected.calories || 0) / (selected.serving_size_g / 100))} kcal`
+                : ""}
+            </p>
           </div>
 
           {error && <p className="text-red-400 text-xs">{error}</p>}
 
           <button
             onClick={handleLog}
-            disabled={logging || !qty}
+            disabled={logging || !qty || qtyNum <= 0}
             className="btn-primary flex items-center justify-center gap-2 w-full py-3 disabled:opacity-50">
             {logging && <Loader2 size={14} className="animate-spin" />}
-            Log to {defaultMealNumber ? `Meal ${defaultMealNumber}` : "New Meal"}
+            Log to Meal {mealNumber}
           </button>
         </div>
       )}
@@ -232,13 +294,15 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
   );
 }
 
-function MacroStat({ label, value, unit, color }) {
+function LiveMacro({ label, value, unit, color }) {
+  const display = value != null && !isNaN(value)
+    ? (value >= 10 ? Math.round(value) : value.toFixed(1))
+    : "—";
   return (
-    <div className="flex flex-col">
-      <span className={`text-sm font-bold font-mono ${color}`}>
-        {value != null ? (value % 1 === 0 ? value : value.toFixed(1)) : "–"}
-      </span>
-      <span className="text-[10px] text-muted">{label} {unit}</span>
+    <div className="flex flex-col items-center">
+      <span className={`text-base font-bold font-mono ${color}`}>{display}</span>
+      <span className="text-[10px] text-muted mt-0.5">{unit}</span>
+      <span className="text-[9px] text-subtle">{label}</span>
     </div>
   );
 }
