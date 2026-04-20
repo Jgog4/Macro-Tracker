@@ -126,22 +126,29 @@ def load_personal_foods(csv_path):
         gram_counts = Counter(round(e["grams"]) for e in entries)
         typical_g   = float(gram_counts.most_common(1)[0][0])
 
+        # Store macros AT the typical serving size (not per-100g).
+        # _scale_macros uses: ratio = qty_g / serving_size_g
+        # so macros must equal "nutrients at serving_size_g grams".
+        def at_serving(key):
+            v = w_avg(key)          # per-gram value
+            return round(v * typical_g, 4) if v is not None else None
+
         results.append({
             "id":               str(uuid.uuid4()),
             "name":             name,
             "source":           "personal",
             "serving_size_g":   typical_g,
             "serving_size_desc": f"{int(typical_g)} g",
-            "calories":         cal   or 0.0,
-            "protein_g":        prot  or 0.0,
-            "fat_g":            fat   or 0.0,
-            "carbs_g":          carbs or 0.0,
-            "fiber_g":          per100("fiber_g"),
-            "sugar_g":          per100("sugar_g"),
-            "sodium_mg":        per100("sodium_mg"),
-            "cholesterol_mg":   per100("cholesterol_mg"),
-            "sat_fat_g":        per100("sat_fat_g"),
-            "trans_fat_g":      per100("trans_fat_g"),
+            "calories":         at_serving("calories")       or 0.0,
+            "protein_g":        at_serving("protein_g")      or 0.0,
+            "fat_g":            at_serving("fat_g")          or 0.0,
+            "carbs_g":          at_serving("carbs_g")        or 0.0,
+            "fiber_g":          at_serving("fiber_g"),
+            "sugar_g":          at_serving("sugar_g"),
+            "sodium_mg":        at_serving("sodium_mg"),
+            "cholesterol_mg":   at_serving("cholesterol_mg"),
+            "sat_fat_g":        at_serving("sat_fat_g"),
+            "trans_fat_g":      at_serving("trans_fat_g"),
         })
     return results
 
