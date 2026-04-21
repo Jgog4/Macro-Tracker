@@ -4,7 +4,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import case, select, or_, func
+from sqlalchemy import and_, case, select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -29,12 +29,17 @@ async def search_local_foods(
     Full-text style search of the local ingredients table.
     Searches name + brand case-insensitively.
     """
-    stmt = select(Ingredient).where(
+    # Split query into words so "oat smoothie" matches "Peanut oat smoothie".
+    # Every word must appear somewhere in name or brand (AND across words, OR across fields).
+    words = [w for w in q.lower().split() if w]
+    word_clauses = [
         or_(
-            func.lower(Ingredient.name).contains(q.lower()),
-            func.lower(Ingredient.brand).contains(q.lower()),
+            func.lower(Ingredient.name).contains(word),
+            func.lower(Ingredient.brand).contains(word),
         )
-    )
+        for word in words
+    ]
+    stmt = select(Ingredient).where(and_(*word_clauses))
     if source:
         stmt = stmt.where(Ingredient.source == source)
     if brand:
