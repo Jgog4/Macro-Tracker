@@ -12,15 +12,17 @@ import MealSection from "../components/MealSection";
 import AddFoodModal from "../components/AddFoodModal";
 import VisionModal from "../components/VisionModal";
 import SuggestModal from "../components/SuggestModal";
-import { Plus, Camera, Sparkles, RefreshCw } from "lucide-react";
+import CustomMealModal from "../components/CustomMealModal";
+import { Plus, Camera, Sparkles, RefreshCw, ChefHat } from "lucide-react";
 
 export default function Dashboard({ currentDate }) {
   const [summary, setSummary]       = useState(null);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(null);
-  const [showAdd, setShowAdd]       = useState(false);
-  const [showVision, setShowVision] = useState(false);
+  const [showAdd, setShowAdd]         = useState(false);
+  const [showVision, setShowVision]   = useState(false);
   const [showSuggest, setShowSuggest] = useState(false);
+  const [showCustom, setShowCustom]   = useState(false);
   const [newMealNumber, setNewMealNumber] = useState(null);
 
   const dateStr = format(currentDate, "yyyy-MM-dd");
@@ -108,6 +110,12 @@ export default function Dashboard({ currentDate }) {
             accent="accent-purple"
           />
           <ActionButton
+            icon={<ChefHat size={18} />}
+            label="Build Meal"
+            onClick={() => setShowCustom(true)}
+            accent="accent-purple"
+          />
+          <ActionButton
             icon={<Sparkles size={18} />}
             label="Suggest"
             onClick={() => setShowSuggest(true)}
@@ -129,6 +137,14 @@ export default function Dashboard({ currentDate }) {
         <VisionModal
           onClose={() => setShowVision(false)}
           onSaved={handleVisionSaved}
+        />
+      )}
+      {showCustom && (
+        <CustomMealModal
+          dateStr={dateStr}
+          defaultMealNumber={(summary?.meals?.length ?? 0) + 1}
+          onClose={() => setShowCustom(false)}
+          onLogged={() => { setShowCustom(false); fetchSummary(); }}
         />
       )}
       {showSuggest && (

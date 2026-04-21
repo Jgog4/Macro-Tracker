@@ -16,7 +16,8 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models.models import MealLog, MealLogItem, Ingredient, Recipe, DailyTarget, User
 from app.schemas.schemas import (
-    MealLogCreate, MealLogRead, DailyTargetCreate, DailyTargetRead, DailySummaryRead, MacroStat,
+    MealLogCreate, MealLogRead, MealLogItemRead, MealLogItemUpdate,
+    DailyTargetCreate, DailyTargetRead, DailySummaryRead, MacroStat,
 )
 
 router = APIRouter(prefix="/meals", tags=["Meals"])
@@ -96,7 +97,7 @@ async def log_food(body: MealLogCreate, db: AsyncSession = Depends(get_db)):
     )
     meal = result.scalar_one_or_none()
     if not meal:
-        meal = MealLog(user_id=user.id, log_date=log_date, meal_number=meal_number)
+        meal = MealLog(user_id=user.id, log_date=log_date, meal_number=meal_number, logged_at=logged_at)
         db.add(meal)
         await db.flush()
 
@@ -224,6 +225,63 @@ async def get_daily_summary(
         cholesterol=stat(cho_c, cho_t),
         meals=meals,
     )
+
+
+# ── PATCH a meal log item (edit quantity / time) ──────────────────────────────
+
+@router.patch("/items/{item_id}", response_model=MealLogItemRead)
+async def update_log_item(
+    item_id: str,
+    body:    MealLogItemUpdate,
+    db:      AsyncSession = Depends(get_db),
+):
+    """Update quantity_g and/or logged_at for an existing log item. Macros are recalculated."""
+    item = await db.get(MealLogItem, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    if body.quantity_g is not None and body.quantity_g != item.quantity_g:
+        # Re-scale macros against the stored ingredient / recipe
+        if item.ingredient_id:
+            food = await db.get(Ingredient, item.ingredient_id)
+            if food:
+                macros = _scale_macros(food, body.quantity_g)
+                item.quantity_g = body.quantity_g
+                for k, v in macros.items():
+                    setattr(item, k, v)
+            else:
+                item.quantity_g = body.quantity_g
+        else:
+            # Recipe: just update quantity (macro re-scale via recipe)
+            recipe = await db.get(Recipe, item.recipe_id)
+            if recipe:
+                macros = _scale_macros(recipe, body.quantity_g)
+                item.quantity_g = body.quantity_g
+                for k, v in macros.items():
+                    setattr(item, k, v)
+            else:
+                item.quantity_g = body.quantity_g
+
+    if body.logged_at is not None:
+        item.logged_at = body.logged_at
+
+    await db.flush()
+
+    # Recompute meal totals
+    remaining = await db.execute(select(MealLogItem).where(MealLogItem.meal_log_id == item.meal_log_id))
+    all_items = remaining.scalars().all()
+    meal = await db.get(MealLog, item.meal_log_id)
+    if meal:
+        meal.total_calories       = round(sum(i.calories       for i in all_items), 2)
+        meal.total_protein_g      = round(sum(i.protein_g      for i in all_items), 2)
+        meal.total_fat_g          = round(sum(i.fat_g          for i in all_items), 2)
+        meal.total_carbs_g        = round(sum(i.carbs_g        for i in all_items), 2)
+        meal.total_sodium_mg      = round(sum(i.sodium_mg      for i in all_items), 2)
+        meal.total_cholesterol_mg = round(sum(i.cholesterol_mg for i in all_items), 2)
+
+    await db.flush()
+    await db.refresh(item)
+    return item
 
 
 # ── DELETE a meal log item ────────────────────────────────────────────────────

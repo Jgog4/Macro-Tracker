@@ -135,6 +135,11 @@ class MealLogCreate(BaseModel):
     items:       list[MealLogItemCreate] = Field(..., min_length=1)
 
 
+class MealLogItemUpdate(BaseModel):
+    quantity_g: Optional[float] = None
+    logged_at:  Optional[datetime] = None
+
+
 class MealLogItemRead(BaseModel):
     id:            str
     ingredient_id: Optional[str] = None
@@ -240,17 +245,18 @@ class SuggestionRead(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class VisionExtractResponse(BaseModel):
-    """Structured macros returned by GPT-4o-mini after analysing an image."""
-    name:           Optional[str]   = None
-    serving_size:   Optional[str]   = None
-    calories:       Optional[float] = None
-    protein_g:      Optional[float] = None
-    fat_g:          Optional[float] = None
-    carbs_g:        Optional[float] = None
-    sodium_mg:      Optional[float] = None
-    cholesterol_mg: Optional[float] = None
-    confidence:     float           = Field(default=1.0, ge=0, le=1)
-    raw_text:       Optional[str]   = None
+    """Structured macros returned by Claude after analysing an image."""
+    name:             Optional[str]   = None
+    serving_size:     Optional[str]   = None
+    serving_size_g:   Optional[float] = None   # parsed grams from serving_size
+    calories:         Optional[float] = None
+    protein_g:        Optional[float] = None
+    fat_g:            Optional[float] = None
+    carbs_g:          Optional[float] = None
+    sodium_mg:        Optional[float] = None
+    cholesterol_mg:   Optional[float] = None
+    confidence:       float           = Field(default=1.0, ge=0, le=1)
+    raw_text:         Optional[str]   = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
