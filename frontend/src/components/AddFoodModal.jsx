@@ -205,10 +205,10 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
           {/* Meal selector */}
           <div>
             <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5 block">Meal</label>
-            <div className="flex gap-1.5">
+            <div className="grid grid-cols-6 gap-1.5">
               {[1,2,3,4,5,6].map(n => (
                 <button key={n} onClick={() => setMealNumber(n)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors
+                  className={`py-2 rounded-xl text-sm font-bold transition-colors
                     ${n === mealNumber ? "bg-accent-blue text-white shadow-sm" : "bg-surface-2 text-muted hover:bg-surface-3"}`}>
                   {n}
                 </button>
@@ -276,8 +276,8 @@ export function ModalShell({ onClose, title, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-[430px] bg-white rounded-t-3xl p-5 flex flex-col gap-4 max-h-[92vh] overflow-y-auto overflow-x-hidden shadow-2xl"
-           style={{ paddingBottom: "calc(20px + env(safe-area-inset-bottom, 0px))" }}>
+      <div className="relative w-full max-w-[430px] bg-white rounded-t-3xl p-5 flex flex-col gap-4 max-h-[85vh] overflow-y-auto overflow-x-hidden shadow-2xl"
+           style={{ paddingBottom: "calc(90px + env(safe-area-inset-bottom, 0px))" }}>
         {/* Handle */}
         <div className="w-9 h-1 rounded-full bg-surface-3 mx-auto -mt-1 mb-1" />
         <div className="flex items-center justify-between">
