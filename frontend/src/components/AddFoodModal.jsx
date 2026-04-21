@@ -205,7 +205,7 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
           {/* Meal selector */}
           <div>
             <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5 block">Meal</label>
-            <div className="grid grid-cols-6 gap-1.5">
+            <div className="grid grid-cols-6 gap-1">
               {[1,2,3,4,5,6].map(n => (
                 <button key={n} onClick={() => setMealNumber(n)}
                   className={`py-2 rounded-xl text-sm font-bold transition-colors
@@ -276,12 +276,10 @@ export function ModalShell({ onClose, title, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      {/* Clip wrapper — overflow-hidden on a non-scrolling parent is the only
-          reliable way to prevent horizontal bleed in iOS WebKit, because
-          overflow-x:hidden is silently converted to auto when the same element
-          also has overflow-y:auto/scroll. */}
-      <div className="relative w-full max-w-[430px] overflow-hidden rounded-t-3xl shadow-2xl">
-        <div className="bg-white flex flex-col gap-4 max-h-[85vh] overflow-y-auto p-5"
+      {/* Clip wrapper — overflow-hidden on a non-scrolling parent reliably clips
+          in iOS WebKit; the inner div handles vertical scrolling only. */}
+      <div className="relative w-full max-w-[430px] max-w-full overflow-hidden rounded-t-3xl shadow-2xl">
+        <div className="bg-white flex flex-col gap-4 max-h-[85vh] overflow-y-auto px-4 pt-5"
              style={{ paddingBottom: "calc(90px + env(safe-area-inset-bottom, 0px))" }}>
           {/* Handle */}
           <div className="w-9 h-1 rounded-full bg-surface-3 mx-auto -mt-1 mb-1" />

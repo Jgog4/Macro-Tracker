@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models.models import MealLog, MealLogItem, Ingredient, Recipe, DailyTarget, User
 from app.schemas.schemas import (
-    MealLogCreate, MealLogRead, MealLogItemRead, MealLogItemUpdate,
+    MealLogCreate, MealLogRead, MealLogItemRead, MealLogItemUpdate, MealCopyRequest,
     DailyTargetCreate, DailyTargetRead, DailySummaryRead, MacroStat,
 )
 
@@ -285,6 +285,84 @@ async def update_log_item(
 
 
 # ── DELETE a meal log item ────────────────────────────────────────────────────
+
+@router.post("/{meal_id}/copy", response_model=MealLogRead, status_code=status.HTTP_201_CREATED)
+async def copy_meal(meal_id: str, body: MealCopyRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Copy all items from an existing meal to a new date / meal number.
+    Allows changing the meal number, target date, and time of the copied meal.
+    """
+    user = await _get_or_create_user(db)
+
+    # Load source meal with items
+    src_result = await db.execute(
+        select(MealLog)
+        .where(MealLog.id == meal_id, MealLog.user_id == user.id)
+        .options(selectinload(MealLog.items))
+    )
+    source = src_result.scalar_one_or_none()
+    if not source:
+        raise HTTPException(status_code=404, detail="Meal not found")
+    if not source.items:
+        raise HTTPException(status_code=400, detail="Meal has no items to copy")
+
+    logged_at = body.logged_at or datetime.now(timezone.utc)
+
+    # Get or create the target MealLog
+    tgt_result = await db.execute(
+        select(MealLog).where(
+            MealLog.user_id    == user.id,
+            MealLog.log_date   == body.target_date,
+            MealLog.meal_number == body.target_meal_number,
+        ).options(selectinload(MealLog.items))
+    )
+    target = tgt_result.scalar_one_or_none()
+    if not target:
+        target = MealLog(
+            user_id=user.id,
+            log_date=body.target_date,
+            meal_number=body.target_meal_number,
+            logged_at=logged_at,
+        )
+        db.add(target)
+        await db.flush()
+
+    # Copy each item
+    for src_item in source.items:
+        new_item = MealLogItem(
+            meal_log_id=target.id,
+            ingredient_id=src_item.ingredient_id,
+            recipe_id=src_item.recipe_id,
+            display_name=src_item.display_name,
+            quantity_g=src_item.quantity_g,
+            logged_at=logged_at,
+            calories=src_item.calories,
+            protein_g=src_item.protein_g,
+            fat_g=src_item.fat_g,
+            carbs_g=src_item.carbs_g,
+            sodium_mg=src_item.sodium_mg,
+            cholesterol_mg=src_item.cholesterol_mg,
+        )
+        db.add(new_item)
+
+    await db.flush()
+
+    # Recompute target meal totals
+    all_items_result = await db.execute(select(MealLogItem).where(MealLogItem.meal_log_id == target.id))
+    all_items = all_items_result.scalars().all()
+    target.total_calories       = round(sum(i.calories       for i in all_items), 2)
+    target.total_protein_g      = round(sum(i.protein_g      for i in all_items), 2)
+    target.total_fat_g          = round(sum(i.fat_g          for i in all_items), 2)
+    target.total_carbs_g        = round(sum(i.carbs_g        for i in all_items), 2)
+    target.total_sodium_mg      = round(sum(i.sodium_mg      for i in all_items), 2)
+    target.total_cholesterol_mg = round(sum(i.cholesterol_mg for i in all_items), 2)
+    await db.flush()
+
+    final = await db.execute(
+        select(MealLog).where(MealLog.id == target.id).options(selectinload(MealLog.items))
+    )
+    return final.scalar_one()
+
 
 @router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_log_item(item_id: str, db: AsyncSession = Depends(get_db)):

@@ -16,6 +16,7 @@ export default function App() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showAdd, setShowAdd]       = useState(false);
   const [showVision, setShowVision] = useState(false);
+  const [dashboardKey, setDashboardKey] = useState(0);
 
   const goBack    = () => setCurrentDate(d => subDays(d, 1));
   const goForward = () => setCurrentDate(d => addDays(d, 1));
@@ -63,7 +64,7 @@ export default function App() {
 
       {/* ── Page content ── */}
       <main className="px-4 pb-28">
-        {tab === "today"   && <Dashboard currentDate={currentDate} onOpenAdd={() => setShowAdd(true)} onOpenVision={() => setShowVision(true)} />}
+        {tab === "today"   && <Dashboard key={dashboardKey} currentDate={currentDate} onOpenAdd={() => setShowAdd(true)} onOpenVision={() => setShowVision(true)} />}
         {tab === "recipes" && <RecipesPage />}
       </main>
 
@@ -107,7 +108,7 @@ export default function App() {
           dateStr={dateStr}
           defaultMealNumber={null}
           onClose={() => setShowAdd(false)}
-          onLogged={() => { setShowAdd(false); }}
+          onLogged={() => { setShowAdd(false); setTab("today"); setDashboardKey(k => k + 1); }}
         />
       )}
       {showVision && (

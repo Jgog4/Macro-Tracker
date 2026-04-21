@@ -28,8 +28,9 @@ export const mealsApi = {
   logFood:        (data)               => api.post("/meals/", data),
   getToday:       ()                   => api.get("/meals/today"),
   getDay:         (dateStr)            => api.get(`/meals/day/${dateStr}`),
-  updateItem:     (itemId, data)        => api.patch(`/meals/items/${itemId}`, data),
+  updateItem:     (itemId, data)       => api.patch(`/meals/items/${itemId}`, data),
   deleteItem:     (itemId)             => api.delete(`/meals/items/${itemId}`),
+  copyMeal:       (mealId, data)       => api.post(`/meals/${mealId}/copy`, data),
   setTarget:      (data)               => api.post("/meals/targets", data),
   getLatestTarget:()                   => api.get("/meals/targets/latest"),
 };

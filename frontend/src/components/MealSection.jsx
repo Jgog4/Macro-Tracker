@@ -3,8 +3,9 @@
  */
 import { useState, useRef } from "react";
 import { format, parseISO } from "date-fns";
-import { ChevronDown, ChevronUp, ChevronRight, Plus, Trash2, Utensils, Pencil, Check, X, BookmarkPlus, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Trash2, Utensils, Pencil, Check, X, BookmarkPlus, Copy, Loader2 } from "lucide-react";
 import { mealsApi, recipesApi } from "../api/client";
+import CopyMealModal from "./CopyMealModal";
 
 export default function MealSection({ meal, onAddToMeal, onRefresh }) {
   const [open, setOpen]             = useState(true);
@@ -15,6 +16,7 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
   const [savingRecipe, setSavingRecipe] = useState(false);
   const [recipePrompt, setRecipePrompt] = useState(false);
   const [recipeName, setRecipeName]     = useState("");
+  const [showCopy, setShowCopy]         = useState(false);
   const recipeInputRef = useRef();
 
   const time = meal.logged_at
@@ -88,6 +90,14 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
       </button>
 
       {/* ── Items ── */}
+      {showCopy && (
+        <CopyMealModal
+          meal={meal}
+          onClose={() => setShowCopy(false)}
+          onCopied={(dateStr) => { setShowCopy(false); onRefresh(); }}
+        />
+      )}
+
       {open && (
         <div className="border-t border-surface-3">
           {meal.items?.map(item => (
@@ -167,10 +177,15 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
             {!recipePrompt && meal.items?.some(i => i.ingredient_id) && (
               <button
                 onClick={() => { setRecipePrompt(true); setTimeout(() => recipeInputRef.current?.focus(), 50); }}
-                className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-medium text-muted hover:text-accent-blue hover:bg-surface-2 transition-colors border-l border-surface-3">
-                <BookmarkPlus size={13} /> Save as recipe
+                className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-medium text-muted hover:text-accent-blue hover:bg-surface-2 transition-colors border-l border-surface-3">
+                <BookmarkPlus size={13} /> Save recipe
               </button>
             )}
+            <button
+              onClick={() => setShowCopy(true)}
+              className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-medium text-muted hover:text-accent-blue hover:bg-surface-2 transition-colors border-l border-surface-3">
+              <Copy size={13} /> Copy
+            </button>
           </div>
         </div>
       )}

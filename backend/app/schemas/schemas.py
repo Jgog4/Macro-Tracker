@@ -152,6 +152,12 @@ class MealLogItemUpdate(BaseModel):
     logged_at:  Optional[datetime] = None
 
 
+class MealCopyRequest(BaseModel):
+    target_date:        date
+    target_meal_number: int
+    logged_at:          Optional[datetime] = None   # time for copied items; defaults to now()
+
+
 class MealLogItemRead(BaseModel):
     id:            str
     ingredient_id: Optional[str] = None
