@@ -89,6 +89,9 @@ async def log_food(body: MealLogCreate, db: AsyncSession = Depends(get_db)):
     else:
         meal_number = body.meal_number
 
+    # Resolve logged_at timestamp (use client-supplied time or fall back to now)
+    logged_at = body.logged_at or datetime.now(timezone.utc)
+
     # Get or create the MealLog row
     result = await db.execute(
         select(MealLog)
@@ -100,9 +103,6 @@ async def log_food(body: MealLogCreate, db: AsyncSession = Depends(get_db)):
         meal = MealLog(user_id=user.id, log_date=log_date, meal_number=meal_number, logged_at=logged_at)
         db.add(meal)
         await db.flush()
-
-    # Resolve logged_at timestamp (use client-supplied time or fall back to now)
-    logged_at = body.logged_at or datetime.now(timezone.utc)
 
     # Add each item
     for item_body in body.items:

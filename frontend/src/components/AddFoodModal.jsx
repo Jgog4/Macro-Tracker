@@ -189,11 +189,16 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-2 ml-3 shrink-0">
+                <div className="flex items-center gap-1.5 ml-2 shrink-0">
                   {food.calories != null && (
-                    <span className="text-xs font-mono text-subtle">{Math.round(food.calories)} kcal</span>
+                    <span className="text-xs font-mono text-subtle whitespace-nowrap">
+                      {food.serving_size_g
+                        ? Math.round(food.calories / food.serving_size_g * 100)
+                        : Math.round(food.calories)
+                      }<span className="text-[10px] ml-0.5 text-muted">cal/100g</span>
+                    </span>
                   )}
-                  <ChevronRight size={14} className="text-muted group-hover:text-white transition-colors" />
+                  <ChevronRight size={14} className="text-muted group-hover:text-white transition-colors shrink-0" />
                 </div>
               </button>
             );
@@ -237,18 +242,9 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
             </div>
           </div>
 
-          {/* Time + Quantity row */}
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="text-xs text-subtle mb-1 block">Time</label>
-              <input
-                type="time"
-                value={time}
-                onChange={e => setTime(e.target.value)}
-                className="input font-mono w-full"
-              />
-            </div>
-            <div className="flex-1">
+          {/* Quantity + Time row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
               <label className="text-xs text-subtle mb-1 block">Quantity (g)</label>
               <input
                 ref={qtyRef}
@@ -259,6 +255,15 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
                 placeholder="100"
                 min="1"
                 step="0.5"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-subtle mb-1 block">Time</label>
+              <input
+                type="time"
+                value={time}
+                onChange={e => setTime(e.target.value)}
+                className="input font-mono w-full"
               />
             </div>
           </div>
