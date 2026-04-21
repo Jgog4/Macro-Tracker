@@ -4,8 +4,9 @@
 
 @layer base {
   body {
-    @apply bg-surface text-white;
-    font-family: "Inter", system-ui, sans-serif;
+    @apply bg-surface text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
 
   ::-webkit-scrollbar        { width: 4px; height: 4px; }
@@ -14,23 +15,61 @@
 }
 
 @layer components {
+  /* ── Cards ── */
   .card {
-    @apply bg-surface-1 border border-border rounded-xl p-4;
+    @apply bg-surface-1 rounded-xl p-4 shadow-card;
   }
   .card-sm {
-    @apply bg-surface-2 border border-border rounded-lg p-3;
+    @apply bg-surface-1 rounded-lg p-3 shadow-card;
   }
+  .card-no-pad {
+    @apply bg-surface-1 rounded-xl overflow-hidden shadow-card;
+  }
+
+  /* ── Buttons ── */
   .btn-primary {
-    @apply bg-accent-blue hover:bg-blue-600 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm;
+    @apply bg-accent-blue text-white font-semibold px-4 py-2.5 rounded-xl
+           transition-all text-sm active:scale-[0.98] active:opacity-80;
   }
+  .btn-primary:hover { @apply opacity-90; }
+
   .btn-ghost {
-    @apply text-subtle hover:text-white hover:bg-surface-3 px-3 py-2 rounded-lg transition-colors text-sm;
+    @apply text-accent-blue font-medium px-3 py-2 rounded-xl transition-colors text-sm;
   }
+  .btn-ghost:hover { @apply bg-surface-3; }
+
+  .btn-outline {
+    @apply border border-accent-blue text-accent-blue font-medium px-4 py-2.5 rounded-xl
+           transition-colors text-sm;
+  }
+  .btn-outline:hover { @apply bg-blue-50; }
+
+  .btn-danger {
+    @apply bg-accent-red text-white font-semibold px-4 py-2.5 rounded-xl
+           transition-all text-sm;
+  }
+
+  /* ── Inputs ── */
   .input {
-    @apply bg-surface-2 border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-muted
-           focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue w-full;
+    @apply bg-surface-2 border border-transparent rounded-xl px-3 py-2.5 text-sm
+           text-foreground placeholder-muted w-full
+           focus:outline-none focus:border-accent-blue focus:bg-white transition-colors;
   }
+
+  /* ── Progress bar ── */
   .macro-bar {
     @apply h-1.5 rounded-full overflow-hidden bg-surface-3;
+  }
+
+  /* ── List row (separator-divided) ── */
+  .list-row {
+    @apply flex items-center justify-between px-4 py-3
+           border-b border-surface-3 last:border-0
+           hover:bg-surface-2 transition-colors cursor-pointer;
+  }
+
+  /* ── Section label ── */
+  .section-label {
+    @apply text-xs font-semibold text-muted uppercase tracking-wider px-4 pt-5 pb-1;
   }
 }

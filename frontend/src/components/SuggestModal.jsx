@@ -37,7 +37,7 @@ export default function SuggestModal({ dateStr, remaining, onClose }) {
           <Loader2 size={20} className="animate-spin text-muted" />
         </div>
       ) : error ? (
-        <p className="text-red-400 text-sm">{error}</p>
+        <p className="text-accent-red text-sm">{error}</p>
       ) : suggestions.length === 0 ? (
         <p className="text-muted text-sm text-center py-8">No suggestions — macros may already be met!</p>
       ) : (

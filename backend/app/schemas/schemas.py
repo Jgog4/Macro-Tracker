@@ -87,6 +87,13 @@ class RecipeCreate(BaseModel):
     ingredients:    list[RecipeIngredientCreate] = Field(..., min_length=1)
 
 
+class RecipeUpdate(BaseModel):
+    name:           Optional[str]   = None
+    description:    Optional[str]   = None
+    serving_size_g: Optional[float] = None
+    ingredients:    Optional[list[RecipeIngredientCreate]] = None
+
+
 class RecipeRead(BaseModel):
     id:             str
     name:           str

@@ -4,27 +4,34 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Brand palette — "Management Consultant Dark"
+        // iOS-style light theme — matching the workout tracker app
         surface: {
-          DEFAULT: "#0f1117",
-          1:       "#161b27",
-          2:       "#1c2333",
-          3:       "#232d42",
+          DEFAULT: "#F2F2F7",   // main background (light gray)
+          1:       "#FFFFFF",   // card / sheet
+          2:       "#F2F2F7",   // input bg / secondary
+          3:       "#E5E5EA",   // hover / pressed / separator
         },
-        border:  "#2a3347",
+        border:     "#C6C6C8",
+        foreground: "#111827",  // primary text
         accent: {
-          green:  "#22c55e",
-          blue:   "#3b82f6",
-          orange: "#f97316",
-          red:    "#ef4444",
-          purple: "#a855f7",
+          blue:   "#007AFF",
+          green:  "#34C759",
+          orange: "#FF9500",
+          red:    "#FF3B30",
+          purple: "#AF52DE",
         },
-        muted:   "#6b7280",
-        subtle:  "#9ca3af",
+        muted:  "#8E8E93",
+        subtle: "#6C6C70",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "monospace"],
+        sans: ["-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica", "Arial", "sans-serif"],
+        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+      },
+      boxShadow: {
+        card:      "0 1px 3px rgba(0,0,0,0.08)",
+        "card-md": "0 2px 8px rgba(0,0,0,0.10)",
+        nav:       "0 -1px 0 #E5E5EA",
+        "blue-glow": "0 4px 12px rgba(0,122,255,0.35)",
       },
     },
   },

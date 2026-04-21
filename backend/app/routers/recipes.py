@@ -4,14 +4,16 @@
 The recipe engine scales constituent ingredient macros by gram weight
 and stores computed totals on the Recipe row for fast reads.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.models import Ingredient, Recipe, RecipeIngredient
-from app.schemas.schemas import RecipeCreate, RecipeRead
+from app.schemas.schemas import RecipeCreate, RecipeRead, RecipeUpdate
 
 router = APIRouter(prefix="/recipes", tags=["Recipes"])
 
@@ -78,12 +80,19 @@ async def create_recipe(body: RecipeCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/", response_model=list[RecipeRead])
-async def list_recipes(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(Recipe)
-        .options(selectinload(Recipe.ingredients).selectinload(RecipeIngredient.ingredient))
-        .order_by(Recipe.name)
+async def list_recipes(
+    q:  Optional[str] = Query(None, description="Search term for recipe name"),
+    db: AsyncSession  = Depends(get_db),
+):
+    stmt = select(Recipe).options(
+        selectinload(Recipe.ingredients).selectinload(RecipeIngredient.ingredient)
     )
+    if q:
+        words = [w for w in q.lower().split() if w]
+        for word in words:
+            stmt = stmt.where(func.lower(Recipe.name).contains(word))
+    stmt = stmt.order_by(Recipe.name)
+    result = await db.execute(stmt)
     return result.scalars().all()
 
 
@@ -97,6 +106,55 @@ async def get_recipe(recipe_id: str, db: AsyncSession = Depends(get_db)):
     if not row:
         raise HTTPException(status_code=404, detail="Recipe not found")
     return row
+
+
+@router.patch("/{recipe_id}", response_model=RecipeRead)
+async def update_recipe(recipe_id: str, body: RecipeUpdate, db: AsyncSession = Depends(get_db)):
+    """
+    Partially update a recipe. If ingredients are provided, the full list is replaced
+    and totals are recomputed. serving_size_g stores the cooked/final weight.
+    """
+    result = await db.execute(
+        select(Recipe).where(Recipe.id == recipe_id)
+        .options(selectinload(Recipe.ingredients).selectinload(RecipeIngredient.ingredient))
+    )
+    recipe = result.scalar_one_or_none()
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+
+    if body.name is not None:
+        recipe.name = body.name
+    if body.description is not None:
+        recipe.description = body.description
+    if body.serving_size_g is not None:
+        recipe.serving_size_g = body.serving_size_g
+
+    if body.ingredients is not None:
+        # Delete existing ingredient rows
+        for ri in list(recipe.ingredients):
+            await db.delete(ri)
+        await db.flush()
+
+        # Add new ones and recompute totals
+        pairs: list[tuple[Ingredient, float]] = []
+        for item in body.ingredients:
+            ing = await db.get(Ingredient, item.ingredient_id)
+            if not ing:
+                raise HTTPException(status_code=404, detail=f"Ingredient {item.ingredient_id} not found")
+            ri = RecipeIngredient(recipe_id=recipe.id, ingredient_id=ing.id, quantity_g=item.quantity_g)
+            db.add(ri)
+            pairs.append((ing, item.quantity_g))
+
+        totals = _compute_recipe_totals(pairs)
+        for field, val in totals.items():
+            setattr(recipe, field, val)
+
+    await db.flush()
+    result = await db.execute(
+        select(Recipe).where(Recipe.id == recipe_id)
+        .options(selectinload(Recipe.ingredients).selectinload(RecipeIngredient.ingredient))
+    )
+    return result.scalar_one()
 
 
 @router.delete("/{recipe_id}", status_code=status.HTTP_204_NO_CONTENT)

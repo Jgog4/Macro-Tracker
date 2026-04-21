@@ -5,15 +5,17 @@
  */
 import { useState, useEffect, useRef } from "react";
 import { foodsApi, mealsApi, recipesApi } from "../api/client";
+
 import { ModalShell } from "./AddFoodModal";
 import { Search, Loader2, ChevronRight, X, Plus, Trash2, BookmarkPlus, Check } from "lucide-react";
 
 const SOURCE_BADGE = {
-  personal:   { label: "My Foods",   color: "bg-green-500/20 text-green-400" },
-  restaurant: { label: "Restaurant", color: "bg-orange-500/20 text-orange-400" },
-  usda:       { label: "USDA",       color: "bg-blue-500/20 text-blue-400" },
-  custom:     { label: "Custom",     color: "bg-purple-500/20 text-purple-400" },
-  usda_live:  { label: "USDA",       color: "bg-blue-500/20 text-blue-400" },
+  personal:   { label: "My Foods",   color: "bg-green-100 text-green-700" },
+  restaurant: { label: "Restaurant", color: "bg-orange-100 text-orange-700" },
+  usda:       { label: "USDA",       color: "bg-blue-100 text-blue-700" },
+  custom:     { label: "Custom",     color: "bg-purple-100 text-purple-700" },
+  usda_live:  { label: "USDA",       color: "bg-blue-100 text-blue-700" },
+  recipe:     { label: "Recipe",     color: "bg-emerald-100 text-emerald-700" },
 };
 
 function nowTimeStr() {
@@ -57,9 +59,10 @@ export default function CustomMealModal({ dateStr, defaultMealNumber, onClose, o
       if (gen !== searchGen.current) return;
       setSearching(true);
       try {
-        const [localRes, usdaRes] = await Promise.allSettled([
+        const [localRes, usdaRes, recipesRes] = await Promise.allSettled([
           foodsApi.search(query, { limit: 15 }),
           foodsApi.usdaSearch(query, 4),
+          recipesApi.search(query),
         ]);
         if (gen !== searchGen.current) return;
 
@@ -78,10 +81,19 @@ export default function CustomMealModal({ dateStr, defaultMealNumber, onClose, o
               serving_size_g: f.serving_unit?.toLowerCase() === "g" ? f.serving_size : null,
             }))
           : [];
+        const recipeItems = recipesRes.status === "fulfilled"
+          ? recipesRes.value.data.map(r => ({
+              id: null, recipe_id: r.id, source: "recipe",
+              name: r.name, brand: null,
+              calories: r.calories, protein_g: r.protein_g,
+              fat_g: r.fat_g, carbs_g: r.carbs_g,
+              serving_size_g: r.serving_size_g || r.total_weight_g,
+            }))
+          : [];
 
         const localFdcIds  = new Set(localItems.map(i => i.usda_fdc_id).filter(Boolean));
         const filteredUsda = usdaItems.filter(i => !localFdcIds.has(i.fdc_id));
-        setResults([...localItems, ...filteredUsda]);
+        setResults([...recipeItems, ...localItems, ...filteredUsda]);
       } catch {
         if (gen !== searchGen.current) return;
         setResults([]);
@@ -127,9 +139,10 @@ export default function CustomMealModal({ dateStr, defaultMealNumber, onClose, o
     setLogging(true);
     setLogError("");
     try {
-      // Import any USDA live items first
+      // Import any USDA live items first; pass recipe_id for recipe items
       const items = await Promise.all(
         basket.map(async ({ food, qty }) => {
+          if (food.recipe_id) return { recipe_id: food.recipe_id, quantity_g: parseFloat(qty) };
           let ingredient_id = food.id;
           if (!ingredient_id && food.fdc_id) {
             const imported = await foodsApi.importUsda(food.fdc_id);
@@ -199,7 +212,7 @@ export default function CustomMealModal({ dateStr, defaultMealNumber, onClose, o
         />
         {query && (
           <button onClick={() => { setQuery(""); setResults([]); }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-white">
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground">
             <X size={13} />
           </button>
         )}
@@ -219,10 +232,10 @@ export default function CustomMealModal({ dateStr, defaultMealNumber, onClose, o
             return (
               <button key={food.id || food.fdc_id || i}
                 onClick={() => addToBasket(food)}
-                className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-surface-3 text-left transition-colors group w-full">
+                className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-surface-2 text-left transition-colors group w-full">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm text-white truncate">{food.name}</p>
+                    <p className="text-sm text-foreground truncate">{food.name}</p>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 ${badge.color}`}>
                       {badge.label}
                     </span>
@@ -231,7 +244,12 @@ export default function CustomMealModal({ dateStr, defaultMealNumber, onClose, o
                 </div>
                 <div className="flex items-center gap-2 ml-2 shrink-0">
                   {food.calories != null && (
-                    <span className="text-xs font-mono text-subtle">{Math.round(food.calories)} kcal</span>
+                    <span className="text-xs font-mono text-muted">
+                      {food.serving_size_g
+                        ? Math.round(food.calories / food.serving_size_g * 100)
+                        : Math.round(food.calories)
+                      }<span className="text-[10px] ml-0.5">cal/100g</span>
+                    </span>
                   )}
                   <Plus size={14} className="text-muted group-hover:text-accent-blue transition-colors" />
                 </div>
@@ -253,7 +271,7 @@ export default function CustomMealModal({ dateStr, defaultMealNumber, onClose, o
             return (
               <div key={key} className="flex items-center gap-2 px-3 py-2 bg-surface-2 rounded-lg">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white truncate">{food.name}</p>
+                  <p className="text-sm text-foreground truncate">{food.name}</p>
                   {food.brand && <p className="text-[10px] text-muted truncate">{food.brand}</p>}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -268,7 +286,7 @@ export default function CustomMealModal({ dateStr, defaultMealNumber, onClose, o
                   <span className="text-[11px] text-muted">g</span>
                   <span className="text-[11px] font-mono text-subtle w-14 text-right">{kcal} kcal</span>
                   <button onClick={() => removeFromBasket(key)}
-                    className="p-1 rounded hover:bg-red-500/20 text-muted hover:text-red-400">
+                    className="p-1 rounded hover:bg-red-50 text-muted hover:text-accent-red">
                     <Trash2 size={11} />
                   </button>
                 </div>
@@ -277,12 +295,12 @@ export default function CustomMealModal({ dateStr, defaultMealNumber, onClose, o
           })}
 
           {/* ── Live totals ── */}
-          <div className="bg-surface-2 border border-border rounded-xl p-3 mt-1">
+          <div className="bg-surface-2 rounded-xl p-3 mt-1">
             <div className="grid grid-cols-4 gap-2">
-              <TotalMacro label="Calories" value={totals.calories} unit="kcal" color="text-accent-orange" />
-              <TotalMacro label="Protein"  value={totals.protein}  unit="g"    color="text-accent-green" />
-              <TotalMacro label="Carbs"    value={totals.carbs}    unit="g"    color="text-accent-blue" />
-              <TotalMacro label="Fat"      value={totals.fat}      unit="g"    color="text-accent-red" />
+              <TotalMacro label="Calories" value={totals.calories} unit="kcal" color="#FF9500" />
+              <TotalMacro label="Protein"  value={totals.protein}  unit="g"    color="#34C759" />
+              <TotalMacro label="Carbs"    value={totals.carbs}    unit="g"    color="#007AFF" />
+              <TotalMacro label="Fat"      value={totals.fat}      unit="g"    color="#FF3B30" />
             </div>
           </div>
         </div>
@@ -297,7 +315,7 @@ export default function CustomMealModal({ dateStr, defaultMealNumber, onClose, o
               {[1, 2, 3, 4, 5, 6].map(n => (
                 <button key={n} onClick={() => setMealNumber(n)}
                   className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                    n === mealNumber ? "bg-accent-blue text-white" : "bg-surface-3 text-muted hover:text-white"
+                    n === mealNumber ? "bg-accent-blue text-white" : "bg-surface-2 text-muted hover:bg-surface-3"
                   }`}>
                   {n}
                 </button>
@@ -339,13 +357,13 @@ export default function CustomMealModal({ dateStr, defaultMealNumber, onClose, o
             Save
           </button>
           <button onClick={() => { setRecipePrompt(false); setRecipeName(""); }}
-            className="p-2 rounded hover:bg-surface-3 text-muted hover:text-white">
+            className="p-2 rounded hover:bg-surface-3 text-muted hover:text-foreground">
             <X size={14} />
           </button>
         </div>
       )}
 
-      {logError && <p className="text-red-400 text-xs">{logError}</p>}
+      {logError && <p className="text-accent-red text-xs">{logError}</p>}
 
       {/* ── Actions ── */}
       {basket.length > 0 && !recipePrompt && (
@@ -378,9 +396,9 @@ function TotalMacro({ label, value, unit, color }) {
   const display = value >= 10 ? Math.round(value) : value.toFixed(1);
   return (
     <div className="flex flex-col items-center">
-      <span className={`text-base font-bold font-mono ${color}`}>{display}</span>
+      <span className="text-base font-bold font-mono" style={{ color }}>{display}</span>
       <span className="text-[10px] text-muted mt-0.5">{unit}</span>
-      <span className="text-[9px] text-subtle">{label}</span>
+      <span className="text-[9px] text-muted">{label}</span>
     </div>
   );
 }

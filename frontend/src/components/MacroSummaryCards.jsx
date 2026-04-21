@@ -1,14 +1,11 @@
 /**
- * Top summary bar — 4 macro cards exactly as in the app but consultant-dark styled.
- * Energy / Protein / Net Carbs / Fat
- * Each card: consumed / target, colour-coded progress bar, % used.
+ * Top summary — 4 macro cards: Energy / Protein / Net Carbs / Fat
  */
-
 const MACROS = [
-  { key: "energy",    label: "Energy",    unit: "kcal", color: "#f97316" },
-  { key: "protein",   label: "Protein",   unit: "g",    color: "#22c55e" },
-  { key: "net_carbs", label: "Net Carbs", unit: "g",    color: "#3b82f6" },
-  { key: "fat",       label: "Fat",       unit: "g",    color: "#ef4444" },
+  { key: "energy",    label: "Energy",    unit: "kcal", color: "#FF9500" },
+  { key: "protein",   label: "Protein",   unit: "g",    color: "#34C759" },
+  { key: "net_carbs", label: "Net Carbs", unit: "g",    color: "#007AFF" },
+  { key: "fat",       label: "Fat",       unit: "g",    color: "#FF3B30" },
 ];
 
 export default function MacroSummaryCards({ summary, loading }) {
@@ -16,7 +13,7 @@ export default function MacroSummaryCards({ summary, loading }) {
     return (
       <div className="grid grid-cols-2 gap-2 animate-pulse">
         {[1,2,3,4].map(i => (
-          <div key={i} className="card h-[88px] bg-surface-2" />
+          <div key={i} className="bg-surface-1 rounded-xl h-24 shadow-card" />
         ))}
       </div>
     );
@@ -25,7 +22,7 @@ export default function MacroSummaryCards({ summary, loading }) {
   return (
     <div className="grid grid-cols-2 gap-2">
       {MACROS.map(({ key, label, unit, color }) => {
-        const stat = summary?.[key];
+        const stat      = summary?.[key];
         const consumed  = stat?.consumed  ?? 0;
         const target    = stat?.target    ?? 1;
         const remaining = stat?.remaining ?? target;
@@ -35,19 +32,20 @@ export default function MacroSummaryCards({ summary, loading }) {
 
         return (
           <div key={key} className="card flex flex-col gap-2">
-            {/* Header row */}
+            {/* Header */}
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-subtle uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wide">
                 {label}
               </span>
-              <span className={`text-[10px] font-mono font-medium px-1.5 py-0.5 rounded ${over ? "bg-red-500/20 text-red-400" : "bg-surface-3 text-subtle"}`}>
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md
+                ${over ? "bg-red-100 text-accent-red" : "bg-surface-3 text-muted"}`}>
                 {pct.toFixed(0)}%
               </span>
             </div>
 
             {/* Consumed / Target */}
             <div className="flex items-baseline gap-1">
-              <span className="text-lg font-bold font-mono" style={{ color }}>
+              <span className="text-xl font-bold font-mono" style={{ color }}>
                 {consumed.toFixed(key === "energy" ? 0 : 1)}
               </span>
               <span className="text-xs text-muted">
@@ -59,18 +57,15 @@ export default function MacroSummaryCards({ summary, loading }) {
             <div className="macro-bar">
               <div
                 className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${clamped}%`,
-                  backgroundColor: over ? "#ef4444" : color,
-                }}
+                style={{ width: `${clamped}%`, backgroundColor: over ? "#FF3B30" : color }}
               />
             </div>
 
             {/* Remaining */}
-            <p className="text-[11px] text-subtle">
+            <p className="text-[11px] text-muted">
               {over
-                ? <span className="text-red-400">+{(consumed - target).toFixed(1)} over</span>
-                : <>{remaining.toFixed(key === "energy" ? 0 : 1)} {unit} remaining</>
+                ? <span className="text-accent-red font-medium">+{(consumed - target).toFixed(1)} over</span>
+                : <>{remaining.toFixed(key === "energy" ? 0 : 1)} {unit} left</>
               }
             </p>
           </div>

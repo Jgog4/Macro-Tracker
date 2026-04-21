@@ -94,7 +94,7 @@ export default function VisionModal({ onClose, onSaved }) {
 
           {/* Photo 1 — required */}
           <div>
-            <p className="text-xs text-subtle mb-1.5">Photo 1 — Nutrition label <span className="text-accent-red">*</span></p>
+            <p className="text-xs text-muted font-semibold mb-1.5">Photo 1 — Nutrition label <span className="text-accent-red">*</span></p>
             {preview1 ? (
               <div className="relative">
                 <img src={preview1} alt="Label" className="w-full max-h-44 object-contain rounded-xl border border-border" />
@@ -120,7 +120,7 @@ export default function VisionModal({ onClose, onSaved }) {
 
           {/* Photo 2 — optional */}
           <div>
-            <p className="text-xs text-subtle mb-1.5">Photo 2 — Package front / ingredients <span className="text-muted">(optional)</span></p>
+            <p className="text-xs text-muted font-semibold mb-1.5">Photo 2 — Package front / ingredients <span className="font-normal">(optional)</span></p>
             {preview2 ? (
               <div className="relative">
                 <img src={preview2} alt="Package" className="w-full max-h-44 object-contain rounded-xl border border-border" />
@@ -151,7 +151,7 @@ export default function VisionModal({ onClose, onSaved }) {
               <Loader2 size={16} className="animate-spin" /> Extracting macros…
             </div>
           )}
-          {error && <p className="text-red-400 text-sm">{error}</p>}
+          {error && <p className="text-accent-red text-sm">{error}</p>}
 
           <button
             onClick={handleExtract}
@@ -177,17 +177,17 @@ export default function VisionModal({ onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="text-xs text-subtle mb-1 block">Food Name</label>
+            <label className="text-xs text-muted mb-1 block font-semibold uppercase tracking-wide">Food Name</label>
             <input value={name} onChange={e => setName(e.target.value)} className="input" />
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-subtle mb-1 block">Serving size (label)</label>
+              <label className="text-xs text-muted mb-1 block font-semibold uppercase tracking-wide">Serving size (label)</label>
               <input value={servingSize} onChange={e => setServingSize(e.target.value)} className="input text-sm" placeholder="e.g. 1 cup (240mL)" />
             </div>
             <div>
-              <label className="text-xs text-subtle mb-1 block">Serving size (g)</label>
+              <label className="text-xs text-muted mb-1 block font-semibold uppercase tracking-wide">Serving size (g)</label>
               <input
                 type="number"
                 value={servingSizeG}
@@ -211,7 +211,7 @@ export default function VisionModal({ onClose, onSaved }) {
             ].map(({ label, value, unit }) => (
               <div key={label} className="flex flex-col">
                 <span className="text-[10px] text-muted">{label}</span>
-                <span className="text-sm font-mono font-semibold text-white">
+                <span className="text-sm font-mono font-semibold text-foreground">
                   {value != null ? `${value}${unit}` : "–"}
                 </span>
               </div>
@@ -223,7 +223,7 @@ export default function VisionModal({ onClose, onSaved }) {
             Confidence: {(extracted.confidence * 100).toFixed(0)}%
           </div>
 
-          {error && <p className="text-red-400 text-xs">{error}</p>}
+          {error && <p className="text-accent-red text-xs">{error}</p>}
 
           <div className="flex gap-2">
             <button onClick={() => setStep("upload")} className="btn-ghost flex-1">Retake</button>

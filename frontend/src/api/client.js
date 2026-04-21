@@ -37,8 +37,10 @@ export const mealsApi = {
 // ── Recipes ──────────────────────────────────────────────────────────────────
 export const recipesApi = {
   list:           ()                   => api.get("/recipes/"),
+  search:         (q)                  => api.get("/recipes/", { params: { q } }),
   create:         (data)               => api.post("/recipes/", data),
   get:            (id)                 => api.get(`/recipes/${id}`),
+  update:         (id, data)           => api.patch(`/recipes/${id}`, data),
   delete:         (id)                 => api.delete(`/recipes/${id}`),
 };
 
