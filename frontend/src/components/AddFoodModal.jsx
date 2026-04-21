@@ -164,27 +164,24 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
             return (
               <button key={food.id || food.fdc_id || i}
                 onClick={() => handleSelect(food)}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-surface-2 text-left transition-colors group w-full">
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-surface-2 text-left transition-colors w-full">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm text-foreground truncate">{food.name}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-sm text-foreground">{food.name}</p>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold shrink-0 ${badge.color}`}>
                       {badge.label}
                     </span>
                   </div>
-                  {food.brand && <p className="text-[11px] text-muted truncate">{food.brand}</p>}
-                </div>
-                <div className="flex items-center gap-1.5 ml-2 shrink-0">
-                  {food.calories != null && (
-                    <span className="text-xs font-mono text-muted whitespace-nowrap">
-                      {food.serving_size_g
+                  <p className="text-[11px] text-muted mt-0.5">
+                    {food.brand ? `${food.brand} · ` : ""}
+                    {food.calories != null && (
+                      `${food.serving_size_g
                         ? Math.round(food.calories / food.serving_size_g * 100)
-                        : Math.round(food.calories)
-                      }<span className="text-[10px] ml-0.5">cal/100g</span>
-                    </span>
-                  )}
-                  <ChevronRight size={14} className="text-muted shrink-0" />
+                        : Math.round(food.calories)} cal/100g`
+                    )}
+                  </p>
                 </div>
+                <ChevronRight size={14} className="text-muted shrink-0" />
               </button>
             );
           })}
@@ -279,7 +276,7 @@ export function ModalShell({ onClose, title, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-[430px] bg-white rounded-t-3xl p-5 flex flex-col gap-4 max-h-[92vh] overflow-y-auto shadow-2xl"
+      <div className="relative w-full max-w-[430px] bg-white rounded-t-3xl p-5 flex flex-col gap-4 max-h-[92vh] overflow-y-auto overflow-x-hidden shadow-2xl"
            style={{ paddingBottom: "calc(20px + env(safe-area-inset-bottom, 0px))" }}>
         {/* Handle */}
         <div className="w-9 h-1 rounded-full bg-surface-3 mx-auto -mt-1 mb-1" />

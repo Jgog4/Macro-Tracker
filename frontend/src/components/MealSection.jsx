@@ -66,7 +66,12 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
           </div>
           <div className="text-left">
             <p className="text-sm font-semibold text-foreground">Meal {meal.meal_number}</p>
-            {time && <p className="text-[11px] text-muted">{time}</p>}
+            <p className="text-[11px] text-muted">
+              <span className="font-semibold font-mono" style={{ color: "#FF9500" }}>
+                {meal.total_calories.toFixed(0)} kcal
+              </span>
+              {time && <span> · {time}</span>}
+            </p>
           </div>
         </div>
 

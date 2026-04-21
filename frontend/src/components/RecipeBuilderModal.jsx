@@ -254,27 +254,20 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
                 return (
                   <button key={food.id || food.fdc_id || i}
                     onClick={() => addToBasket(food)}
-                    className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-surface-2 text-left transition-colors w-full">
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-2 text-left transition-colors w-full">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm text-foreground truncate">{food.name}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm text-foreground">{food.name}</p>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold shrink-0 ${badge.color}`}>
                           {badge.label}
                         </span>
                       </div>
-                      {food.brand && <p className="text-[11px] text-muted truncate">{food.brand}</p>}
+                      <p className="text-[11px] text-muted mt-0.5">
+                        {food.brand ? `${food.brand} · ` : ""}
+                        {food.calories != null && `${food.serving_size_g ? Math.round(food.calories / food.serving_size_g * 100) : Math.round(food.calories)} cal/100g`}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2 ml-2 shrink-0">
-                      {food.calories != null && (
-                        <span className="text-xs font-mono text-muted">
-                          {food.serving_size_g
-                            ? Math.round(food.calories / food.serving_size_g * 100)
-                            : Math.round(food.calories)
-                          }<span className="text-[10px] ml-0.5">cal/100g</span>
-                        </span>
-                      )}
-                      <Plus size={14} className="text-muted" />
-                    </div>
+                    <Plus size={14} className="text-muted shrink-0" />
                   </button>
                 );
               })}
