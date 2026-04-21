@@ -14,6 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from sqlalchemy import text
+
 from app.config import get_settings
 from app.database import Base, engine
 from app.routers import foods, meals, recipes, vision, suggest, api_keys
@@ -32,6 +34,17 @@ async def lifespan(app: FastAPI):
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            # Idempotent column additions — safe to run on every deploy.
+            # create_all only creates missing tables; ALTER TABLE adds missing columns.
+            new_cols = [
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS added_sugar_g  FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS potassium_mg   FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS vitamin_d_mcg  FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS calcium_mg     FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS iron_mg        FLOAT",
+            ]
+            for stmt in new_cols:
+                await conn.execute(text(stmt))
         print("✅ Database tables ready", flush=True)
     except Exception as e:
         print(f"❌ Database connection failed: {e}", flush=True)

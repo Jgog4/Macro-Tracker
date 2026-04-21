@@ -23,28 +23,45 @@ You are a nutrition label reader. The user will send one or two images:
   - Image 1 (required): a nutrition facts label, restaurant menu, or packaged food item.
   - Image 2 (optional): the front of the package or ingredients list — use this to help identify the product name.
 
-Extract the following fields and return ONLY valid JSON — no markdown, no prose:
+Extract ALL of the following fields and return ONLY valid JSON — no markdown, no prose:
 
 {
-  "name":             "<product or dish name, or null>",
-  "serving_size":     "<serving size as printed, e.g. '1 cup (240mL)', or null>",
-  "serving_size_g":   <serving size in grams as a number, or null — parse from label e.g. '28g' → 28, '1 oz (28g)' → 28>,
-  "calories":         <number or null>,
-  "protein_g":        <number or null>,
-  "fat_g":            <number or null>,
-  "carbs_g":          <number or null>,
-  "sodium_mg":        <number or null>,
-  "cholesterol_mg":   <number or null>,
-  "confidence":       <0.0-1.0 — how confident you are in the extraction>,
-  "raw_text":         "<all text you could read from the label, or null>"
+  "name":           "<product or dish name, or null>",
+  "serving_size":   "<serving size as printed on label, e.g. '1 cup (240mL)', or null>",
+  "serving_size_g": <serving size in grams as a number, or null — parse '28g' → 28, '1 oz (28g)' → 28, '1 oz' → 28.35>,
+
+  "calories":       <number or null>,
+
+  "protein_g":      <number or null>,
+
+  "fat_g":          <Total Fat in grams, or null>,
+  "sat_fat_g":      <Saturated Fat in grams, or null>,
+  "trans_fat_g":    <Trans Fat in grams, or null>,
+
+  "carbs_g":        <Total Carbohydrate in grams, or null>,
+  "fiber_g":        <Dietary Fiber in grams, or null>,
+  "sugar_g":        <Total Sugars in grams, or null>,
+  "added_sugar_g":  <Added Sugars in grams, or null>,
+
+  "sodium_mg":      <Sodium in milligrams, or null>,
+  "cholesterol_mg": <Cholesterol in milligrams, or null>,
+  "potassium_mg":   <Potassium in milligrams, or null>,
+  "calcium_mg":     <Calcium in milligrams — convert %DV if needed: 1%DV = 13mg, or null>,
+  "iron_mg":        <Iron in milligrams — convert %DV if needed: 1%DV = 0.18mg, or null>,
+  "vitamin_d_mcg":  <Vitamin D in micrograms — convert %DV if needed: 1%DV = 0.2mcg, or null>,
+
+  "confidence":     <0.0–1.0 — how confident you are in the overall extraction>,
+  "raw_text":       "<all text readable from the label, or null>"
 }
 
 Rules:
-- All numeric values must be floats (e.g. 12.0, not "12g").
-- Omit units from numeric fields — only the number.
-- serving_size_g must be in grams; convert from oz if needed (1 oz = 28.35 g).
-- If a value is clearly not present, use null.
-- Do not invent values. If the image is unclear, lower confidence.
+- All numeric values must be plain floats (e.g. 12.0, not "12g").
+- Omit units — numbers only.
+- serving_size_g must be in grams; convert from oz (1 oz = 28.35 g) if needed.
+- If a value is not present on the label, use null. Do not invent values.
+- If the label shows a % Daily Value for a mineral/vitamin instead of an absolute amount,
+  convert using the factors listed above.
+- If the image is blurry or a value is unclear, lower confidence accordingly.
 """.strip()
 
 
@@ -97,7 +114,7 @@ async def extract_nutrition_from_images(
 
     payload = {
         "model":      settings.ANTHROPIC_VISION_MODEL,
-        "max_tokens": 600,
+        "max_tokens": 900,
         "system":     SYSTEM_PROMPT,
         "messages":   [{"role": "user", "content": content}],
     }

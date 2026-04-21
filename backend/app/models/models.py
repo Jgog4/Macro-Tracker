@@ -95,8 +95,14 @@ class Ingredient(Base):
     carbs_g:        Mapped[float]       = mapped_column(Float, default=0.0)
     fiber_g:        Mapped[float | None] = mapped_column(Float)
     sugar_g:        Mapped[float | None] = mapped_column(Float)
+    added_sugar_g:  Mapped[float | None] = mapped_column(Float)
     sodium_mg:      Mapped[float | None] = mapped_column(Float)
     cholesterol_mg: Mapped[float | None] = mapped_column(Float)
+    potassium_mg:   Mapped[float | None] = mapped_column(Float)
+    # Micronutrients — required on US Nutrition Facts labels since 2020
+    vitamin_d_mcg:  Mapped[float | None] = mapped_column(Float)
+    calcium_mg:     Mapped[float | None] = mapped_column(Float)
+    iron_mg:        Mapped[float | None] = mapped_column(Float)
 
     usda_fdc_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
     recipe_id:   Mapped[str | None] = mapped_column(ForeignKey("mt_recipes.id", ondelete="SET NULL"))

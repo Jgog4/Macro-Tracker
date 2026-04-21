@@ -26,8 +26,13 @@ class IngredientBase(BaseModel):
     carbs_g:           float           = 0.0
     fiber_g:           Optional[float] = None
     sugar_g:           Optional[float] = None
+    added_sugar_g:     Optional[float] = None
     sodium_mg:         Optional[float] = None
     cholesterol_mg:    Optional[float] = None
+    potassium_mg:      Optional[float] = None
+    vitamin_d_mcg:     Optional[float] = None
+    calcium_mg:        Optional[float] = None
+    iron_mg:           Optional[float] = None
 
 
 class IngredientCreate(IngredientBase):
@@ -252,16 +257,27 @@ class SuggestionRead(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class VisionExtractResponse(BaseModel):
-    """Structured macros returned by Claude after analysing an image."""
+    """Structured nutrition data returned by Claude after analysing an image."""
     name:             Optional[str]   = None
     serving_size:     Optional[str]   = None
-    serving_size_g:   Optional[float] = None   # parsed grams from serving_size
+    serving_size_g:   Optional[float] = None
+    # Macros
     calories:         Optional[float] = None
     protein_g:        Optional[float] = None
     fat_g:            Optional[float] = None
+    sat_fat_g:        Optional[float] = None
+    trans_fat_g:      Optional[float] = None
     carbs_g:          Optional[float] = None
+    fiber_g:          Optional[float] = None
+    sugar_g:          Optional[float] = None
+    added_sugar_g:    Optional[float] = None
+    # Electrolytes / minerals
     sodium_mg:        Optional[float] = None
     cholesterol_mg:   Optional[float] = None
+    potassium_mg:     Optional[float] = None
+    calcium_mg:       Optional[float] = None
+    iron_mg:          Optional[float] = None
+    vitamin_d_mcg:    Optional[float] = None
     confidence:       float           = Field(default=1.0, ge=0, le=1)
     raw_text:         Optional[str]   = None
 

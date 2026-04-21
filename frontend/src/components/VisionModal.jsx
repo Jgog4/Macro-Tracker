@@ -200,22 +200,52 @@ export default function VisionModal({ onClose, onSaved }) {
             </div>
           </div>
 
-          <div className="card-sm grid grid-cols-3 gap-y-3">
-            {[
-              { label: "Calories",    value: extracted.calories,       unit: "kcal" },
-              { label: "Protein",     value: extracted.protein_g,      unit: "g" },
-              { label: "Fat",         value: extracted.fat_g,          unit: "g" },
-              { label: "Carbs",       value: extracted.carbs_g,        unit: "g" },
-              { label: "Sodium",      value: extracted.sodium_mg,      unit: "mg" },
-              { label: "Cholesterol", value: extracted.cholesterol_mg, unit: "mg" },
-            ].map(({ label, value, unit }) => (
-              <div key={label} className="flex flex-col">
-                <span className="text-[10px] text-muted">{label}</span>
-                <span className="text-sm font-mono font-semibold text-foreground">
-                  {value != null ? `${value}${unit}` : "–"}
-                </span>
-              </div>
-            ))}
+          {/* ── Macros ── */}
+          <div className="card-sm flex flex-col gap-3">
+            <p className="text-[10px] text-muted font-semibold uppercase tracking-wide">Macros</p>
+            <div className="grid grid-cols-3 gap-y-3">
+              {[
+                { label: "Calories",    value: extracted.calories,       unit: "kcal", color: "#FF9500" },
+                { label: "Protein",     value: extracted.protein_g,      unit: "g",    color: "#34C759" },
+                { label: "Total Fat",   value: extracted.fat_g,          unit: "g",    color: "#FF3B30" },
+                { label: "Sat. Fat",    value: extracted.sat_fat_g,      unit: "g",    color: null },
+                { label: "Trans Fat",   value: extracted.trans_fat_g,    unit: "g",    color: null },
+                { label: "Total Carbs", value: extracted.carbs_g,        unit: "g",    color: "#007AFF" },
+                { label: "Fiber",       value: extracted.fiber_g,        unit: "g",    color: null },
+                { label: "Sugars",      value: extracted.sugar_g,        unit: "g",    color: null },
+                { label: "Added Sugar", value: extracted.added_sugar_g,  unit: "g",    color: null },
+              ].map(({ label, value, unit, color }) => (
+                <div key={label} className="flex flex-col">
+                  <span className="text-[10px] text-muted">{label}</span>
+                  <span className="text-sm font-mono font-semibold"
+                        style={{ color: color || "#111827" }}>
+                    {value != null ? `${value}${unit}` : "–"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Micronutrients ── */}
+          <div className="card-sm flex flex-col gap-3">
+            <p className="text-[10px] text-muted font-semibold uppercase tracking-wide">Micronutrients</p>
+            <div className="grid grid-cols-3 gap-y-3">
+              {[
+                { label: "Sodium",      value: extracted.sodium_mg,      unit: "mg" },
+                { label: "Cholesterol", value: extracted.cholesterol_mg, unit: "mg" },
+                { label: "Potassium",   value: extracted.potassium_mg,   unit: "mg" },
+                { label: "Calcium",     value: extracted.calcium_mg,     unit: "mg" },
+                { label: "Iron",        value: extracted.iron_mg,        unit: "mg" },
+                { label: "Vitamin D",   value: extracted.vitamin_d_mcg,  unit: "mcg" },
+              ].map(({ label, value, unit }) => (
+                <div key={label} className="flex flex-col">
+                  <span className="text-[10px] text-muted">{label}</span>
+                  <span className="text-sm font-mono font-semibold text-foreground">
+                    {value != null ? `${value}${unit}` : "–"}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center gap-2 text-[11px] text-muted">

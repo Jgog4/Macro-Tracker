@@ -88,9 +88,18 @@ async def extract_and_save(
         calories=extracted.calories or 0,
         protein_g=extracted.protein_g or 0,
         fat_g=extracted.fat_g or 0,
+        sat_fat_g=extracted.sat_fat_g,
+        trans_fat_g=extracted.trans_fat_g,
         carbs_g=extracted.carbs_g or 0,
+        fiber_g=extracted.fiber_g,
+        sugar_g=extracted.sugar_g,
+        added_sugar_g=extracted.added_sugar_g,
         sodium_mg=extracted.sodium_mg,
         cholesterol_mg=extracted.cholesterol_mg,
+        potassium_mg=extracted.potassium_mg,
+        calcium_mg=extracted.calcium_mg,
+        iron_mg=extracted.iron_mg,
+        vitamin_d_mcg=extracted.vitamin_d_mcg,
     )
     db.add(ingredient)
     await db.flush()
