@@ -276,18 +276,24 @@ export function ModalShell({ onClose, title, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-[430px] bg-white rounded-t-3xl p-5 flex flex-col gap-4 max-h-[85vh] overflow-y-auto overflow-x-hidden shadow-2xl"
-           style={{ paddingBottom: "calc(90px + env(safe-area-inset-bottom, 0px))" }}>
-        {/* Handle */}
-        <div className="w-9 h-1 rounded-full bg-surface-3 mx-auto -mt-1 mb-1" />
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground">{title}</h2>
-          <button onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-muted hover:bg-surface-3 transition-colors">
-            <X size={16} />
-          </button>
+      {/* Clip wrapper — overflow-hidden on a non-scrolling parent is the only
+          reliable way to prevent horizontal bleed in iOS WebKit, because
+          overflow-x:hidden is silently converted to auto when the same element
+          also has overflow-y:auto/scroll. */}
+      <div className="relative w-full max-w-[430px] overflow-hidden rounded-t-3xl shadow-2xl">
+        <div className="bg-white flex flex-col gap-4 max-h-[85vh] overflow-y-auto p-5"
+             style={{ paddingBottom: "calc(90px + env(safe-area-inset-bottom, 0px))" }}>
+          {/* Handle */}
+          <div className="w-9 h-1 rounded-full bg-surface-3 mx-auto -mt-1 mb-1" />
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-foreground">{title}</h2>
+            <button onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-muted hover:bg-surface-3 transition-colors">
+              <X size={16} />
+            </button>
+          </div>
+          {children}
         </div>
-        {children}
       </div>
     </div>
   );
