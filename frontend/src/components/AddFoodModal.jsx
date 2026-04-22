@@ -274,19 +274,20 @@ function LiveMacro({ label, value, unit, color }) {
 
 export function ModalShell({ onClose, title, children }) {
   return (
-    <div className="fixed inset-0 z-50">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+    <>
+      {/* Backdrop — fixed to the viewport so it always covers the whole screen */}
+      <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
 
-      {/* Sheet — absolute inset-x-0 hard-pins left+right to screen edges,
-          avoiding the flex-item expansion bug where w-full children can grow
-          wider than the viewport. overflow-hidden clips rounded corners AND
-          any content that tries to escape horizontally. */}
-      <div className="absolute bottom-0 inset-x-0 overflow-hidden rounded-t-3xl shadow-2xl">
+      {/* Sheet — `fixed` binds it strictly to the device viewport, so it
+          can't be pushed off-screen by a parent container that's
+          accidentally wider than 100vw. max-w-md + mx-auto centers it on
+          tablets, w-full + box-border guarantees 100% of the viewport
+          width INCLUDING padding — never more. */}
+      <div className="fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto box-border z-50 overflow-hidden rounded-t-3xl shadow-2xl">
         {/* Only overflow-y here — setting overflow-x:hidden on the same element
             as overflow-y:auto triggers an iOS WebKit bug that converts hidden→auto. */}
         <div
-          className="bg-white w-full min-w-0 flex flex-col gap-4 overflow-y-auto px-4 pt-5"
+          className="bg-white w-full min-w-0 box-border flex flex-col gap-4 overflow-y-auto px-4 pt-5"
           style={{
             maxHeight: "85dvh",
             paddingBottom: "calc(90px + env(safe-area-inset-bottom, 0px))",
@@ -306,6 +307,6 @@ export function ModalShell({ onClose, title, children }) {
           {children}
         </div>
       </div>
-    </div>
+    </>
   );
 }

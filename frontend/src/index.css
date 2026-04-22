@@ -3,12 +3,16 @@
 @tailwind utilities;
 
 @layer base {
-  /* Prevent any horizontal scrolling — on iOS Safari a single overflowing
-     element makes the whole page scrollable, which shifts fixed/absolute
-     modals off-screen when the keyboard appears. */
+  /* Global CSS Lockdown — physically forbid horizontal scrolling at the
+     OS/browser level. On iOS Safari a single overflowing element makes the
+     whole page scrollable, which shifts fixed/absolute modals off-screen
+     when the keyboard appears. max-width:100vw caps the viewport width,
+     position:relative gives fixed children a clean containing block. */
   html, body {
+    max-width: 100vw;
     overflow-x: hidden;
     width: 100%;
+    position: relative;
   }
 
   body {
@@ -57,10 +61,14 @@
            transition-all text-sm;
   }
 
-  /* ── Inputs ── */
+  /* ── Inputs ──
+     text-base (16px) is REQUIRED — iOS Safari auto-zooms the viewport
+     horizontally whenever a focused <input> has a font-size smaller than
+     16px. Never downgrade this to text-sm. Also box-border so w-full +
+     padding never exceeds the parent's width. */
   .input {
-    @apply bg-surface-2 border border-transparent rounded-xl px-3 py-2.5 text-sm
-           text-foreground placeholder-muted w-full
+    @apply bg-surface-2 border border-transparent rounded-xl px-3 py-2.5 text-base
+           text-foreground placeholder-muted w-full box-border
            focus:outline-none focus:border-accent-blue focus:bg-white transition-colors;
   }
 

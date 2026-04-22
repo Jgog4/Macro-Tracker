@@ -184,7 +184,7 @@ export default function VisionModal({ onClose, onSaved }) {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-muted mb-1 block font-semibold uppercase tracking-wide">Serving size (label)</label>
-              <input value={servingSize} onChange={e => setServingSize(e.target.value)} className="input text-sm" placeholder="e.g. 1 cup (240mL)" />
+              <input value={servingSize} onChange={e => setServingSize(e.target.value)} className="input" placeholder="e.g. 1 cup (240mL)" />
             </div>
             <div>
               <label className="text-xs text-muted mb-1 block font-semibold uppercase tracking-wide">Serving size (g)</label>
@@ -192,7 +192,7 @@ export default function VisionModal({ onClose, onSaved }) {
                 type="number"
                 value={servingSizeG}
                 onChange={e => setServingSizeG(e.target.value)}
-                className="input text-sm font-mono"
+                className="input font-mono"
                 placeholder="100"
                 min="0.1"
                 step="0.5"

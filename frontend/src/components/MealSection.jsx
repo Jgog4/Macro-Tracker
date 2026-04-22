@@ -109,7 +109,7 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
                     type="number"
                     value={editQty}
                     onChange={e => setEditQty(e.target.value)}
-                    className="input w-20 text-sm py-1 px-2"
+                    className="input w-20 py-1 px-2"
                     autoFocus min="0.5" step="0.5"
                     onKeyDown={e => { if (e.key === "Enter") handleSaveEdit(item.id); if (e.key === "Escape") cancelEdit(); }}
                   />
@@ -155,7 +155,7 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
                 value={recipeName}
                 onChange={e => setRecipeName(e.target.value)}
                 placeholder="Recipe name…"
-                className="input flex-1 text-sm py-1.5 px-2"
+                className="input flex-1 py-1.5 px-2"
                 autoFocus
                 onKeyDown={e => { if (e.key === "Enter") handleSaveAsRecipe(); if (e.key === "Escape") { setRecipePrompt(false); setRecipeName(""); } }}
               />

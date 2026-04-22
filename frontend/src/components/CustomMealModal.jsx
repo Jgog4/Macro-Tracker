@@ -201,7 +201,7 @@ export default function CustomMealModal({ dateStr, defaultMealNumber, onClose, o
     <ModalShell onClose={onClose} title="Build Meal">
 
       {/* ── Search ── */}
-      <div className="relative">
+      <div className="relative w-full min-w-0 box-border">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
         <input
           ref={inputRef}
@@ -220,7 +220,7 @@ export default function CustomMealModal({ dateStr, defaultMealNumber, onClose, o
 
       {/* ── Search results dropdown ── */}
       {query.length >= 2 && (
-        <div className="max-h-48 overflow-y-auto flex flex-col gap-0.5 -mx-1 px-1 -mt-2">
+        <div className="max-h-48 overflow-y-auto flex flex-col gap-0.5 -mt-2 w-full min-w-0 box-border">
           {searching ? (
             <div className="flex justify-center py-6">
               <Loader2 size={18} className="animate-spin text-muted" />
@@ -272,7 +272,7 @@ export default function CustomMealModal({ dateStr, defaultMealNumber, onClose, o
                     type="number"
                     value={qty}
                     onChange={e => updateQty(key, e.target.value)}
-                    className="input w-16 text-sm font-mono py-0.5 px-2 text-right"
+                    className="input w-16 font-mono py-0.5 px-2 text-right"
                     min="0.5"
                     step="0.5"
                   />
