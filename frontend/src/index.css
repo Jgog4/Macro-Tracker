@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 @layer base {
+  /* Prevent any horizontal scrolling — on iOS Safari a single overflowing
+     element makes the whole page scrollable, which shifts fixed/absolute
+     modals off-screen when the keyboard appears. */
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+  }
+
   body {
     @apply bg-surface text-foreground;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;

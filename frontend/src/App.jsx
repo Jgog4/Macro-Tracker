@@ -24,7 +24,7 @@ export default function App() {
   const dateStr   = format(currentDate, "yyyy-MM-dd");
 
   return (
-    <div className="min-h-screen bg-surface" style={{ maxWidth: 430, margin: "0 auto" }}>
+    <div className="min-h-screen bg-surface" style={{ maxWidth: 430, margin: "0 auto", overflowX: "hidden" }}>
 
       {/* ── Sticky header ── */}
       <header className="sticky top-0 z-40 bg-surface-1 shadow-nav">
