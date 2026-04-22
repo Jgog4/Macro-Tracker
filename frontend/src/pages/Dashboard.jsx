@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { mealsApi } from "../api/client";
 import MacroSummaryCards from "../components/MacroSummaryCards";
 import MealSection from "../components/MealSection";
+import MicronutrientPanel from "../components/MicronutrientPanel";
 import AddFoodModal from "../components/AddFoodModal";
 import SuggestModal from "../components/SuggestModal";
 import CustomMealModal from "../components/CustomMealModal";
@@ -94,6 +95,11 @@ export default function Dashboard({ currentDate, onOpenAdd, onOpenVision }) {
             onRefresh={fetchSummary}
           />
         ))
+      )}
+
+      {/* ── Micronutrients ── */}
+      {!loading && (
+        <MicronutrientPanel currentDate={currentDate} />
       )}
 
       {/* ── Modals ── */}

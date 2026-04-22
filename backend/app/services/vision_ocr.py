@@ -23,32 +23,55 @@ You are a nutrition label reader. The user will send one or two images:
   - Image 1 (required): a nutrition facts label, restaurant menu, or packaged food item.
   - Image 2 (optional): the front of the package or ingredients list — use this to help identify the product name.
 
-Extract ALL of the following fields and return ONLY valid JSON — no markdown, no prose:
+Extract ALL visible nutrition fields and return ONLY valid JSON — no markdown, no prose.
+
+Return this exact structure (use null for any field not present on the label):
 
 {
   "name":           "<product or dish name, or null>",
-  "serving_size":   "<serving size as printed on label, e.g. '1 cup (240mL)', or null>",
+  "serving_size":   "<serving size as printed, e.g. '1 cup (240mL)', or null>",
   "serving_size_g": <serving size in grams as a number, or null — parse '28g' → 28, '1 oz (28g)' → 28, '1 oz' → 28.35>,
 
   "calories":       <number or null>,
 
   "protein_g":      <number or null>,
 
-  "fat_g":          <Total Fat in grams, or null>,
-  "sat_fat_g":      <Saturated Fat in grams, or null>,
-  "trans_fat_g":    <Trans Fat in grams, or null>,
+  "fat_g":                  <Total Fat in grams, or null>,
+  "sat_fat_g":              <Saturated Fat in grams, or null>,
+  "trans_fat_g":            <Trans Fat in grams, or null>,
+  "monounsaturated_fat_g":  <Monounsaturated Fat in grams, or null>,
+  "polyunsaturated_fat_g":  <Polyunsaturated Fat in grams, or null>,
+  "omega3_ala_g":           <ALA (Omega-3) in grams, or null>,
+  "omega3_dha_g":           <DHA (Omega-3) in grams, or null>,
+  "omega3_epa_g":           <EPA (Omega-3) in grams, or null>,
 
-  "carbs_g":        <Total Carbohydrate in grams, or null>,
-  "fiber_g":        <Dietary Fiber in grams, or null>,
-  "sugar_g":        <Total Sugars in grams, or null>,
-  "added_sugar_g":  <Added Sugars in grams, or null>,
+  "carbs_g":            <Total Carbohydrate in grams, or null>,
+  "fiber_g":            <Dietary Fiber in grams, or null>,
+  "soluble_fiber_g":    <Soluble Fiber in grams, or null>,
+  "insoluble_fiber_g":  <Insoluble Fiber in grams, or null>,
+  "sugar_g":            <Total Sugars in grams, or null>,
+  "added_sugar_g":      <Added Sugars in grams, or null>,
 
-  "sodium_mg":      <Sodium in milligrams, or null>,
-  "cholesterol_mg": <Cholesterol in milligrams, or null>,
-  "potassium_mg":   <Potassium in milligrams, or null>,
-  "calcium_mg":     <Calcium in milligrams — convert %DV if needed: 1%DV = 13mg, or null>,
-  "iron_mg":        <Iron in milligrams — convert %DV if needed: 1%DV = 0.18mg, or null>,
-  "vitamin_d_mcg":  <Vitamin D in micrograms — convert %DV if needed: 1%DV = 0.2mcg, or null>,
+  "sodium_mg":        <Sodium in milligrams, or null>,
+  "cholesterol_mg":   <Cholesterol in milligrams, or null>,
+  "potassium_mg":     <Potassium in milligrams, or null>,
+  "calcium_mg":       <Calcium in milligrams — convert %DV if needed: 1%DV = 13mg, or null>,
+  "iron_mg":          <Iron in milligrams — convert %DV if needed: 1%DV = 0.18mg, or null>,
+  "vitamin_d_mcg":    <Vitamin D in micrograms — convert %DV if needed: 1%DV = 0.2mcg, or null>,
+  "magnesium_mg":     <Magnesium in milligrams — convert %DV if needed: 1%DV = 4.2mg, or null>,
+  "zinc_mg":          <Zinc in milligrams — convert %DV if needed: 1%DV = 0.11mg, or null>,
+  "phosphorus_mg":    <Phosphorus in milligrams — convert %DV if needed: 1%DV = 7mg, or null>,
+  "vitamin_a_mcg":    <Vitamin A in mcg RAE — convert %DV if needed: 1%DV = 9mcg, or null>,
+  "vitamin_c_mg":     <Vitamin C in milligrams — convert %DV if needed: 1%DV = 0.9mg, or null>,
+  "vitamin_e_mg":     <Vitamin E in milligrams — convert %DV if needed: 1%DV = 0.15mg, or null>,
+  "vitamin_k_mcg":    <Vitamin K in micrograms — convert %DV if needed: 1%DV = 1.2mcg, or null>,
+  "thiamine_mg":      <Thiamin / B1 in milligrams — convert %DV if needed: 1%DV = 0.012mg, or null>,
+  "riboflavin_mg":    <Riboflavin / B2 in milligrams — convert %DV if needed: 1%DV = 0.013mg, or null>,
+  "niacin_mg":        <Niacin / B3 in milligrams — convert %DV if needed: 1%DV = 0.16mg, or null>,
+  "folate_mcg":       <Folate / Folic Acid in mcg DFE — convert %DV if needed: 1%DV = 4mcg, or null>,
+  "cobalamin_mcg":    <Vitamin B12 in micrograms — convert %DV if needed: 1%DV = 0.024mcg, or null>,
+  "caffeine_mg":      <Caffeine in milligrams, or null>,
+  "alcohol_g":        <Alcohol in grams, or null>,
 
   "confidence":     <0.0–1.0 — how confident you are in the overall extraction>,
   "raw_text":       "<all text readable from the label, or null>"
@@ -62,6 +85,7 @@ Rules:
 - If the label shows a % Daily Value for a mineral/vitamin instead of an absolute amount,
   convert using the factors listed above.
 - If the image is blurry or a value is unclear, lower confidence accordingly.
+- Only include fields that are PRINTED on the label — do not infer or estimate unlisted nutrients.
 """.strip()
 
 
@@ -114,7 +138,7 @@ async def extract_nutrition_from_images(
 
     payload = {
         "model":      settings.ANTHROPIC_VISION_MODEL,
-        "max_tokens": 900,
+        "max_tokens": 1500,   # increased to accommodate larger response
         "system":     SYSTEM_PROMPT,
         "messages":   [{"role": "user", "content": content}],
     }
@@ -143,7 +167,10 @@ async def extract_nutrition_from_images(
 
     try:
         parsed = json.loads(raw_content)
-        result = VisionExtractResponse(**parsed)
+        # Filter to only known VisionExtractResponse fields to avoid validation errors
+        known = set(VisionExtractResponse.model_fields.keys())
+        filtered = {k: v for k, v in parsed.items() if k in known}
+        result = VisionExtractResponse(**filtered)
         # Fallback: parse serving_size_g from string if model didn't supply it
         if result.serving_size_g is None and result.serving_size:
             result.serving_size_g = _parse_serving_size_g(result.serving_size)

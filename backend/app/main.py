@@ -34,17 +34,105 @@ async def lifespan(app: FastAPI):
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-            # Idempotent column additions — safe to run on every deploy.
+
+            # ── Idempotent column additions ────────────────────────────────
             # create_all only creates missing tables; ALTER TABLE adds missing columns.
+            # Safe to run on every deploy — IF NOT EXISTS is a no-op.
             new_cols = [
-                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS added_sugar_g  FLOAT",
-                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS potassium_mg   FLOAT",
-                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS vitamin_d_mcg  FLOAT",
-                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS calcium_mg     FLOAT",
-                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS iron_mg        FLOAT",
+                # ── Legacy columns (may already exist) ──
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS added_sugar_g     FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS potassium_mg      FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS vitamin_d_mcg     FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS calcium_mg        FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS iron_mg           FLOAT",
+
+                # ── Vitamins ──
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS vitamin_a_mcg            FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS vitamin_c_mg             FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS vitamin_e_mg             FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS vitamin_k_mcg            FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS thiamine_mg              FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS riboflavin_mg            FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS niacin_mg                FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS pantothenic_acid_mg      FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS pyridoxine_mg            FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS cobalamin_mcg            FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS biotin_mcg               FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS folate_mcg               FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS choline_mg               FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS retinol_mcg              FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS alpha_carotene_mcg       FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS beta_carotene_mcg        FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS beta_cryptoxanthin_mcg   FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS lutein_zeaxanthin_mcg    FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS lycopene_mcg             FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS beta_tocopherol_mg       FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS delta_tocopherol_mg      FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS gamma_tocopherol_mg      FLOAT",
+
+                # ── Minerals ──
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS magnesium_mg     FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS phosphorus_mg    FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS zinc_mg          FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS copper_mg        FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS manganese_mg     FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS selenium_mcg     FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS chromium_mcg     FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS iodine_mcg       FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS molybdenum_mcg   FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS fluoride_mg      FLOAT",
+
+                # ── Amino acids ──
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS alanine_g        FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS arginine_g       FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS aspartic_acid_g  FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS cystine_g        FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS glutamic_acid_g  FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS glycine_g        FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS histidine_g      FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS hydroxyproline_g FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS isoleucine_g     FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS leucine_g        FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS lysine_g         FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS methionine_g     FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS phenylalanine_g  FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS proline_g        FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS serine_g         FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS threonine_g      FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS tryptophan_g     FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS tyrosine_g       FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS valine_g         FLOAT",
+
+                # ── Fatty acids ──
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS monounsaturated_fat_g  FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS polyunsaturated_fat_g  FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS omega3_ala_g            FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS omega3_dha_g            FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS omega3_epa_g            FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS omega6_aa_g             FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS omega6_la_g             FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS phytosterol_mg          FLOAT",
+
+                # ── Carb details & other ──
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS soluble_fiber_g         FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS insoluble_fiber_g       FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS fructose_g              FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS galactose_g             FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS glucose_g               FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS lactose_g               FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS maltose_g               FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS sucrose_g               FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS oxalate_mg              FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS phytate_mg              FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS caffeine_mg             FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS water_g                 FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS ash_g                   FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS alcohol_g               FLOAT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS beta_hydroxybutyrate_g  FLOAT",
             ]
             for stmt in new_cols:
                 await conn.execute(text(stmt))
+
         print("✅ Database tables ready", flush=True)
     except Exception as e:
         print(f"❌ Database connection failed: {e}", flush=True)

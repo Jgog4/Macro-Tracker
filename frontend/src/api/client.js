@@ -52,6 +52,12 @@ export const visionApi = {
   extractAndSave: (formData)           => api.post("/vision/extract-and-save", formData, { headers: { "Content-Type": "multipart/form-data" } }),
 };
 
+// ── Micronutrients ───────────────────────────────────────────────────────────
+export const micronutrientsApi = {
+  // start / end are "yyyy-MM-dd" strings
+  getRange: (start, end) => api.get("/meals/micronutrients", { params: { start, end } }),
+};
+
 // ── Suggest ──────────────────────────────────────────────────────────────────
 export const suggestApi = {
   suggest:        (params = {})        => api.get("/suggest/", { params }),

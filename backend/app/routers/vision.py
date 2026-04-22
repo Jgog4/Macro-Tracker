@@ -80,6 +80,12 @@ async def extract_and_save(
 
     extracted = await extract_nutrition_from_images(images)
 
+    # Map all VisionExtractResponse fields that have matching Ingredient columns
+    from app.models.models import Ingredient as IngredientModel
+    valid_cols = {c.key for c in IngredientModel.__table__.columns}
+    extracted_dict = extracted.model_dump(exclude={"confidence", "raw_text", "serving_size", "name"})
+    nutrient_kwargs = {k: v for k, v in extracted_dict.items() if k in valid_cols and v is not None}
+
     ingredient = Ingredient(
         source="custom",
         name=name or extracted.name or "Unnamed (Vision)",
@@ -88,18 +94,9 @@ async def extract_and_save(
         calories=extracted.calories or 0,
         protein_g=extracted.protein_g or 0,
         fat_g=extracted.fat_g or 0,
-        sat_fat_g=extracted.sat_fat_g,
-        trans_fat_g=extracted.trans_fat_g,
         carbs_g=extracted.carbs_g or 0,
-        fiber_g=extracted.fiber_g,
-        sugar_g=extracted.sugar_g,
-        added_sugar_g=extracted.added_sugar_g,
-        sodium_mg=extracted.sodium_mg,
-        cholesterol_mg=extracted.cholesterol_mg,
-        potassium_mg=extracted.potassium_mg,
-        calcium_mg=extracted.calcium_mg,
-        iron_mg=extracted.iron_mg,
-        vitamin_d_mcg=extracted.vitamin_d_mcg,
+        **{k: v for k, v in nutrient_kwargs.items()
+           if k not in ("calories", "protein_g", "fat_g", "carbs_g", "serving_size_g")},
     )
     db.add(ingredient)
     await db.flush()

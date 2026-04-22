@@ -1,9 +1,13 @@
 /**
  * Collapsible meal section — iOS-style white card with separator-divided rows.
+ * Recipe items have a chevron to expand their sub-ingredient breakdown.
  */
 import { useState, useRef } from "react";
 import { format, parseISO } from "date-fns";
-import { ChevronDown, ChevronUp, Plus, Trash2, Utensils, Pencil, Check, X, BookmarkPlus, Copy, Loader2 } from "lucide-react";
+import {
+  ChevronDown, ChevronUp, ChevronRight,
+  Plus, Trash2, Utensils, Pencil, Check, X, BookmarkPlus, Copy, Loader2,
+} from "lucide-react";
 import { mealsApi, recipesApi } from "../api/client";
 import CopyMealModal from "./CopyMealModal";
 
@@ -17,11 +21,16 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
   const [recipePrompt, setRecipePrompt] = useState(false);
   const [recipeName, setRecipeName]     = useState("");
   const [showCopy, setShowCopy]         = useState(false);
+  // Track which recipe items have their sub-ingredient panel expanded
+  const [expandedItems, setExpandedItems] = useState({});
   const recipeInputRef = useRef();
 
   const time = meal.logged_at
     ? format(parseISO(meal.logged_at), "h:mm a")
     : null;
+
+  const toggleItemExpand = (itemId) =>
+    setExpandedItems(prev => ({ ...prev, [itemId]: !prev[itemId] }));
 
   const handleDelete = async (itemId) => {
     setDeleting(itemId);
@@ -89,19 +98,20 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
           : <ChevronDown size={16} className="text-muted shrink-0" />}
       </button>
 
-      {/* ── Items ── */}
       {showCopy && (
         <CopyMealModal
           meal={meal}
           onClose={() => setShowCopy(false)}
-          onCopied={(dateStr) => { setShowCopy(false); onRefresh(); }}
+          onCopied={() => { setShowCopy(false); onRefresh(); }}
         />
       )}
 
       {open && (
         <div className="border-t border-surface-3">
           {meal.items?.map(item => (
-            <div key={item.id} className="group border-b border-surface-3 last:border-0">
+            <div key={item.id} className="border-b border-surface-3 last:border-0">
+
+              {/* ── Edit mode ── */}
               {editing === item.id ? (
                 <div className="flex items-center gap-2 px-4 py-2.5">
                   <p className="text-sm text-foreground truncate flex-1 min-w-0">{item.display_name}</p>
@@ -111,7 +121,10 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
                     onChange={e => setEditQty(e.target.value)}
                     className="input w-20 py-1 px-2"
                     autoFocus min="0.5" step="0.5"
-                    onKeyDown={e => { if (e.key === "Enter") handleSaveEdit(item.id); if (e.key === "Escape") cancelEdit(); }}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") handleSaveEdit(item.id);
+                      if (e.key === "Escape") cancelEdit();
+                    }}
                   />
                   <span className="text-xs text-muted">g</span>
                   <button onClick={() => handleSaveEdit(item.id)} disabled={saving === item.id}
@@ -122,32 +135,80 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
                     <X size={13} />
                   </button>
                 </div>
+
               ) : (
-                <div className="flex w-full items-center justify-between px-4 py-2.5 hover:bg-surface-2 transition-colors">
-                  <div className="flex flex-col flex-1 min-w-0">
-                    <p className="text-sm text-foreground truncate">{item.display_name}</p>
-                    <p className="text-[11px] text-muted">{item.quantity_g}g</p>
+                /* ── Normal view ── */
+                <>
+                  <div className="group flex w-full items-center justify-between px-4 py-2.5 hover:bg-surface-2 transition-colors">
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                      {/* Expand chevron — only for recipe items that have components */}
+                      {item.recipe_id && item.components?.length > 0 && (
+                        <button
+                          onClick={() => toggleItemExpand(item.id)}
+                          className="shrink-0 p-0.5 text-muted hover:text-accent-blue transition-colors"
+                          aria-label="Toggle ingredients">
+                          <ChevronRight
+                            size={13}
+                            className={`transition-transform ${expandedItems[item.id] ? "rotate-90" : ""}`}
+                          />
+                        </button>
+                      )}
+                      {/* Indent spacer when no chevron */}
+                      {!(item.recipe_id && item.components?.length > 0) && (
+                        <span className="w-[17px] shrink-0" />
+                      )}
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <p className="text-sm text-foreground truncate">{item.display_name}</p>
+                        <p className="text-[11px] text-muted">
+                          {item.quantity_g}g
+                          {item.recipe_id && item.components?.length > 0 && (
+                            <span className="ml-1 text-[10px] text-muted/60">
+                              · {item.components.length} ingredient{item.components.length !== 1 ? "s" : ""}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 ml-3 shrink-0">
+                      <span className="text-xs font-mono text-muted">{item.calories.toFixed(0)} kcal</span>
+                      <span className="text-[11px] font-medium" style={{ color: "#34C759" }}>{item.protein_g.toFixed(1)}P</span>
+                      <span className="text-[11px] font-medium" style={{ color: "#007AFF" }}>{item.carbs_g.toFixed(1)}C</span>
+                      <span className="text-[11px] font-medium" style={{ color: "#FF3B30" }}>{item.fat_g.toFixed(1)}F</span>
+                      <button onClick={() => startEdit(item)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-surface-3 text-muted">
+                        <Pencil size={11} />
+                      </button>
+                      <button onClick={() => handleDelete(item.id)} disabled={deleting === item.id}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-red-50 text-muted hover:text-accent-red">
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 ml-3 shrink-0">
-                    <span className="text-xs font-mono text-muted">{item.calories.toFixed(0)} kcal</span>
-                    <span className="text-[11px] font-medium" style={{ color: "#34C759" }}>{item.protein_g.toFixed(1)}P</span>
-                    <span className="text-[11px] font-medium" style={{ color: "#007AFF" }}>{item.carbs_g.toFixed(1)}C</span>
-                    <span className="text-[11px] font-medium" style={{ color: "#FF3B30" }}>{item.fat_g.toFixed(1)}F</span>
-                    <button onClick={() => startEdit(item)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-surface-3 text-muted">
-                      <Pencil size={11} />
-                    </button>
-                    <button onClick={() => handleDelete(item.id)} disabled={deleting === item.id}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-red-50 text-muted hover:text-accent-red">
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                </div>
+
+                  {/* ── Sub-ingredient breakdown (recipe expand) ── */}
+                  {item.recipe_id && expandedItems[item.id] && item.components?.length > 0 && (
+                    <div className="bg-surface-2 border-t border-surface-3">
+                      {item.components.map(comp => (
+                        <div key={comp.id}
+                          className="flex items-center justify-between px-4 py-1.5 border-b border-surface-3 last:border-0">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-muted/40 text-xs shrink-0 select-none">└</span>
+                            <p className="text-xs text-subtle truncate">{comp.ingredient_name}</p>
+                          </div>
+                          <p className="text-[11px] font-mono text-muted shrink-0 ml-2">
+                            {comp.quantity_g.toFixed(1)}g
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ))}
 
-          {/* Recipe prompt */}
+          {/* Recipe name prompt */}
           {recipePrompt && (
             <div className="flex items-center gap-2 px-4 py-2.5 border-t border-surface-3 bg-blue-50">
               <input
@@ -157,7 +218,10 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
                 placeholder="Recipe name…"
                 className="input flex-1 py-1.5 px-2"
                 autoFocus
-                onKeyDown={e => { if (e.key === "Enter") handleSaveAsRecipe(); if (e.key === "Escape") { setRecipePrompt(false); setRecipeName(""); } }}
+                onKeyDown={e => {
+                  if (e.key === "Enter") handleSaveAsRecipe();
+                  if (e.key === "Escape") { setRecipePrompt(false); setRecipeName(""); }
+                }}
               />
               <button onClick={handleSaveAsRecipe} disabled={savingRecipe || !recipeName.trim()}
                 className="btn-primary py-1.5 px-3 text-xs flex items-center gap-1">
@@ -168,7 +232,7 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
             </div>
           )}
 
-          {/* Footer */}
+          {/* Footer actions */}
           <div className="flex border-t border-surface-3">
             <button onClick={onAddToMeal}
               className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-accent-blue hover:bg-surface-2 transition-colors">
