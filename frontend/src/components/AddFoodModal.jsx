@@ -152,7 +152,7 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
 
       {/* Results list */}
       {!selected && (
-        <div className="max-h-64 overflow-y-auto -mx-1 px-1">
+        <div className="max-h-64 overflow-y-auto">
           {loading ? (
             <div className="flex justify-center py-10"><Loader2 size={20} className="animate-spin text-muted" /></div>
           ) : query.length < 2 ? (
@@ -274,19 +274,32 @@ function LiveMacro({ label, value, unit, color }) {
 
 export function ModalShell({ onClose, title, children }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div className="fixed inset-0 z-50">
+      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      {/* Clip wrapper — overflow-hidden on a non-scrolling parent reliably clips
-          in iOS WebKit; the inner div handles vertical scrolling only. */}
-      <div className="relative w-full max-w-[430px] max-w-full overflow-hidden rounded-t-3xl shadow-2xl">
-        <div className="bg-white flex flex-col gap-4 max-h-[85vh] overflow-y-auto px-4 pt-5"
-             style={{ paddingBottom: "calc(90px + env(safe-area-inset-bottom, 0px))" }}>
+
+      {/* Sheet — absolute inset-x-0 hard-pins left+right to screen edges,
+          avoiding the flex-item expansion bug where w-full children can grow
+          wider than the viewport. overflow-hidden clips rounded corners AND
+          any content that tries to escape horizontally. */}
+      <div className="absolute bottom-0 inset-x-0 overflow-hidden rounded-t-3xl shadow-2xl">
+        {/* Only overflow-y here — setting overflow-x:hidden on the same element
+            as overflow-y:auto triggers an iOS WebKit bug that converts hidden→auto. */}
+        <div
+          className="bg-white flex flex-col gap-4 overflow-y-auto px-4 pt-5"
+          style={{
+            maxHeight: "85dvh",
+            paddingBottom: "calc(90px + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
           {/* Handle */}
-          <div className="w-9 h-1 rounded-full bg-surface-3 mx-auto -mt-1 mb-1" />
-          <div className="flex items-center justify-between">
+          <div className="w-9 h-1 rounded-full bg-surface-3 mx-auto shrink-0" />
+          <div className="flex items-center justify-between shrink-0">
             <h2 className="text-lg font-bold text-foreground">{title}</h2>
-            <button onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-muted hover:bg-surface-3 transition-colors">
+            <button
+              onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-muted hover:bg-surface-3 transition-colors"
+            >
               <X size={16} />
             </button>
           </div>
