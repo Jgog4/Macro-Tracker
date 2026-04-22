@@ -62,11 +62,11 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
       <button
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-2 transition-colors">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
             <Utensils size={14} className="text-accent-blue" />
           </div>
-          <div className="text-left">
+          <div className="text-left min-w-0">
             <p className="text-sm font-semibold text-foreground">Meal {meal.meal_number}</p>
             <p className="text-[11px] text-muted">
               <span className="font-semibold font-mono" style={{ color: "#FF9500" }}>
@@ -123,8 +123,8 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center justify-between px-4 py-2.5 hover:bg-surface-2 transition-colors">
-                  <div className="flex flex-col min-w-0">
+                <div className="flex w-full items-center justify-between px-4 py-2.5 hover:bg-surface-2 transition-colors">
+                  <div className="flex flex-col flex-1 min-w-0">
                     <p className="text-sm text-foreground truncate">{item.display_name}</p>
                     <p className="text-[11px] text-muted">{item.quantity_g}g</p>
                   </div>

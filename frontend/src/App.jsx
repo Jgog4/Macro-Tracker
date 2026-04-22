@@ -24,7 +24,7 @@ export default function App() {
   const dateStr   = format(currentDate, "yyyy-MM-dd");
 
   return (
-    <div className="min-h-screen bg-surface" style={{ maxWidth: 430, margin: "0 auto", overflowX: "hidden" }}>
+    <div className="min-h-screen bg-surface w-full max-w-md mx-auto">
 
       {/* ── Sticky header ── */}
       <header className="sticky top-0 z-40 bg-surface-1 shadow-nav">
@@ -69,7 +69,7 @@ export default function App() {
       </main>
 
       {/* ── Bottom navigation ── */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white/95 backdrop-blur shadow-nav border-t border-surface-3 flex z-50"
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white/95 backdrop-blur shadow-nav border-t border-surface-3 flex z-50"
            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         {/* Today */}
         <NavItem label="Today" active={tab === "today"} onClick={() => setTab("today")}>

@@ -109,7 +109,7 @@ function RecipesTab() {
               <button
                 key={recipe.id}
                 onClick={() => openEdit(recipe)}
-                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors text-left group
+                className={`flex w-full items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors text-left group
                   ${i !== filtered.length - 1 ? "border-b border-surface-3" : ""}`}
               >
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
@@ -207,7 +207,7 @@ function MyFoodsTab() {
           {filtered.map((food, i) => (
             <div
               key={food.id}
-              className={`group flex items-center gap-2 px-4 py-3 hover:bg-surface-2 transition-colors
+              className={`group flex w-full items-center gap-2 px-4 py-3 hover:bg-surface-2 transition-colors
                 ${i !== filtered.length - 1 ? "border-b border-surface-3" : ""}`}
             >
               {/* Icon */}
@@ -351,13 +351,13 @@ function RestaurantsTab() {
           <div key={brand} className="card-no-pad">
             <button
               onClick={() => toggleBrand(brand)}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors"
+              className="flex w-full items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors"
             >
               <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
                 <span className="text-sm font-bold text-orange-500">{brand.charAt(0).toUpperCase()}</span>
               </div>
-              <div className="flex-1 text-left min-w-0">
-                <p className="text-sm font-semibold text-foreground">{brand}</p>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-sm font-semibold text-foreground truncate">{brand}</p>
                 <p className="text-[11px] text-muted">{items.length} item{items.length !== 1 ? "s" : ""}</p>
               </div>
               {isOpen
@@ -370,7 +370,7 @@ function RestaurantsTab() {
                 {items.map((food, i) => (
                   <div
                     key={food.id}
-                    className={`group flex items-center gap-2 px-4 py-2.5 hover:bg-surface-2 transition-colors
+                    className={`group flex w-full items-center gap-2 px-4 py-2.5 hover:bg-surface-2 transition-colors
                       ${i !== items.length - 1 ? "border-b border-surface-3" : ""}`}
                   >
                     <div className="flex-1 min-w-0">
@@ -428,13 +428,13 @@ function RestaurantsTab() {
 
 function SearchBox({ value, onChange, placeholder }) {
   return (
-    <div className="relative w-full">
+    <div className="relative w-full min-w-0">
       <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
       <input
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="input pl-8 w-full"
+        className="input pl-8 w-full min-w-0"
       />
       {value && (
         <button

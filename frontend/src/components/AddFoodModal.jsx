@@ -133,14 +133,14 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
     <ModalShell onClose={onClose} title={selected ? "Log Food" : "Add Food"}>
 
       {/* Search box */}
-      <div className="relative">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+      <div className="relative w-full min-w-0">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
         <input
           ref={inputRef}
           value={query}
           onChange={e => { setQuery(e.target.value); setSelected(null); }}
           placeholder="Search foods, restaurants, or ingredients…"
-          className="input pl-8"
+          className="input pl-8 w-full min-w-0"
         />
         {query && (
           <button onClick={() => { setQuery(""); setSelected(null); setResults([]); }}
@@ -164,15 +164,15 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
             return (
               <button key={food.id || food.fdc_id || i}
                 onClick={() => handleSelect(food)}
-                className="flex items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-surface-2 text-left transition-colors w-full">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <p className="text-sm text-foreground">{food.name}</p>
+                className="flex w-full items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-surface-2 text-left transition-colors">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <p className="text-sm text-foreground truncate">{food.name}</p>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold shrink-0 ${badge.color}`}>
                       {badge.label}
                     </span>
                   </div>
-                  <p className="text-[11px] text-muted mt-0.5">
+                  <p className="text-[11px] text-muted mt-0.5 truncate">
                     {food.brand ? `${food.brand} · ` : ""}
                     {food.calories != null && (
                       `${food.serving_size_g
@@ -286,7 +286,7 @@ export function ModalShell({ onClose, title, children }) {
         {/* Only overflow-y here — setting overflow-x:hidden on the same element
             as overflow-y:auto triggers an iOS WebKit bug that converts hidden→auto. */}
         <div
-          className="bg-white flex flex-col gap-4 overflow-y-auto px-4 pt-5"
+          className="bg-white w-full min-w-0 flex flex-col gap-4 overflow-y-auto px-4 pt-5"
           style={{
             maxHeight: "85dvh",
             paddingBottom: "calc(90px + env(safe-area-inset-bottom, 0px))",
@@ -294,11 +294,11 @@ export function ModalShell({ onClose, title, children }) {
         >
           {/* Handle */}
           <div className="w-9 h-1 rounded-full bg-surface-3 mx-auto shrink-0" />
-          <div className="flex items-center justify-between shrink-0">
-            <h2 className="text-lg font-bold text-foreground">{title}</h2>
+          <div className="flex items-center justify-between gap-2 shrink-0 min-w-0">
+            <h2 className="text-lg font-bold text-foreground min-w-0 truncate">{title}</h2>
             <button
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-muted hover:bg-surface-3 transition-colors"
+              className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full bg-surface-2 text-muted hover:bg-surface-3 transition-colors"
             >
               <X size={16} />
             </button>
