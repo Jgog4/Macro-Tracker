@@ -15,6 +15,27 @@ from app.services.usda import search_usda, import_usda_food
 router = APIRouter(prefix="/foods", tags=["Foods"])
 
 
+# ── List all ingredients by source ───────────────────────────────────────────
+
+@router.get("/", response_model=list[IngredientRead])
+async def list_ingredients(
+    source: Optional[str] = Query(None, description="Filter: custom | restaurant | usda"),
+    db:     AsyncSession = Depends(get_db),
+):
+    """
+    List all ingredients, optionally filtered by source.
+    source=custom returns both 'custom' (photo-scanned) and 'personal' rows.
+    """
+    stmt = select(Ingredient)
+    if source == "custom":
+        stmt = stmt.where(or_(Ingredient.source == "custom", Ingredient.source == "personal"))
+    elif source:
+        stmt = stmt.where(Ingredient.source == source)
+    stmt = stmt.order_by(Ingredient.name)
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+
 # ── Local database search ─────────────────────────────────────────────────────
 
 @router.get("/search", response_model=list[IngredientRead])

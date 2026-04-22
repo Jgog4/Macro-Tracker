@@ -13,6 +13,7 @@ export const api = axios.create({
 
 // ── Foods ────────────────────────────────────────────────────────────────────
 export const foodsApi = {
+  list:           (source)             => api.get("/foods/",               { params: source ? { source } : {} }),
   search:         (q, params = {})     => api.get("/foods/search",        { params: { q, ...params } }),
   getRestaurant:  (brand)              => api.get("/foods/restaurant",     { params: { brand } }),
   usdaSearch:     (q, limit = 10)      => api.get("/foods/usda/search",   { params: { q, limit } }),

@@ -2,13 +2,13 @@ import { useState } from "react";
 import { format, addDays, subDays } from "date-fns";
 import { CalendarDays, BookOpen, Plus, Camera, Sparkles } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
-import RecipesPage from "./pages/RecipesPage";
+import LibraryPage from "./pages/LibraryPage";
 import AddFoodModal from "./components/AddFoodModal";
 import VisionModal from "./components/VisionModal";
 
 const TABS = [
   { id: "today",   label: "Today",   Icon: CalendarDays },
-  { id: "recipes", label: "Recipes", Icon: BookOpen },
+  { id: "library", label: "Library", Icon: BookOpen },
 ];
 
 export default function App() {
@@ -54,8 +54,8 @@ export default function App() {
             </div>
           )}
 
-          {tab === "recipes" && (
-            <span className="text-base font-bold text-foreground">Recipes</span>
+          {tab === "library" && (
+            <span className="text-base font-bold text-foreground">Library</span>
           )}
 
           <div className="w-28" />
@@ -65,7 +65,7 @@ export default function App() {
       {/* ── Page content ── */}
       <main className="px-4 pb-28">
         {tab === "today"   && <Dashboard key={dashboardKey} currentDate={currentDate} onOpenAdd={() => setShowAdd(true)} onOpenVision={() => setShowVision(true)} />}
-        {tab === "recipes" && <RecipesPage />}
+        {tab === "library" && <LibraryPage />}
       </main>
 
       {/* ── Bottom navigation ── */}
@@ -76,8 +76,8 @@ export default function App() {
           <CalendarDays size={22} />
         </NavItem>
 
-        {/* Recipes */}
-        <NavItem label="Recipes" active={tab === "recipes"} onClick={() => setTab("recipes")}>
+        {/* Library */}
+        <NavItem label="Library" active={tab === "library"} onClick={() => setTab("library")}>
           <BookOpen size={22} />
         </NavItem>
 
