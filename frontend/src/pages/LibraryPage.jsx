@@ -1,8 +1,8 @@
 /**
  * Library page — three tabs:
  *   Recipes      — saved multi-ingredient recipes (create / edit / delete)
- *   My Foods     — custom ingredients from photo scanner (edit / delete)
- *   Restaurants  — restaurant brand items, grouped by brand (delete)
+ *   My Foods     — custom ingredients from photo scanner (log / edit / delete)
+ *   Restaurants  — restaurant brand items, grouped by brand (log / delete)
  */
 import { useState, useEffect, useCallback } from "react";
 import { foodsApi, recipesApi } from "../api/client";
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import RecipeBuilderModal  from "../components/RecipeBuilderModal";
 import IngredientEditModal from "../components/IngredientEditModal";
+import LogFoodModal        from "../components/LogFoodModal";
 
 const TABS = ["Recipes", "My Foods", "Restaurants"];
 
@@ -117,17 +118,16 @@ function RecipesTab() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">{recipe.name}</p>
                   <p className="text-[11px] text-muted mt-0.5">
-                    {recipe.ingredients.length} ingredient{recipe.ingredients.length !== 1 ? "s" : ""}
-                    {recipe.serving_size_g ? ` · ${recipe.serving_size_g}g cooked` : ""}
+                    {Math.round(per100)} kcal/100g
+                    {" · "}
+                    <span style={{ color: "#34C759" }}>{recipe.protein_g.toFixed(1)}P</span>
+                    {" · "}
+                    <span style={{ color: "#007AFF" }}>{recipe.carbs_g.toFixed(1)}C</span>
+                    {" · "}
+                    <span style={{ color: "#FF3B30" }}>{recipe.fat_g.toFixed(1)}F</span>
                   </p>
                 </div>
-                <div className="flex flex-col items-end gap-0.5 shrink-0">
-                  <span className="text-xs font-mono font-semibold" style={{ color: "#FF9500" }}>
-                    {Math.round(per100)} <span className="text-muted font-normal text-[10px]">kcal/100g</span>
-                  </span>
-                  <MacroLine p={recipe.protein_g} c={recipe.carbs_g} f={recipe.fat_g} />
-                </div>
-                <div className="flex items-center gap-1 ml-1 shrink-0">
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={e => handleDelete(e, recipe)}
                     disabled={deleting === recipe.id}
@@ -158,7 +158,8 @@ function MyFoodsTab() {
   const [foods,    setFoods]    = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [query,    setQuery]    = useState("");
-  const [editing,  setEditing]  = useState(null);
+  const [logging,  setLogging]  = useState(null);   // food to log
+  const [editing,  setEditing]  = useState(null);   // food to edit
   const [deleting, setDeleting] = useState(null);
 
   const fetchFoods = useCallback(async () => {
@@ -174,7 +175,8 @@ function MyFoodsTab() {
     ? foods
     : foods.filter(f => f.name.toLowerCase().includes(query.toLowerCase()));
 
-  const handleDelete = async (food) => {
+  const handleDelete = async (e, food) => {
+    e.stopPropagation();
     if (!window.confirm(`Delete "${food.name}"?`)) return;
     setDeleting(food.id);
     try { await foodsApi.delete(food.id); fetchFoods(); }
@@ -205,37 +207,54 @@ function MyFoodsTab() {
           {filtered.map((food, i) => (
             <div
               key={food.id}
-              className={`group flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors
+              className={`group flex items-center gap-2 px-4 py-3 hover:bg-surface-2 transition-colors
                 ${i !== filtered.length - 1 ? "border-b border-surface-3" : ""}`}
             >
-              <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
-                <Camera size={15} className="text-purple-500" />
+              {/* Icon */}
+              <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
+                <Camera size={14} className="text-purple-500" />
               </div>
+
+              {/* Name + macros subtitle — takes all available space */}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground truncate">{food.name}</p>
                 <p className="text-[11px] text-muted mt-0.5">
-                  {Math.round(food.calories)} kcal
-                  {food.serving_size_g ? ` · per ${food.serving_size_g}g` : " · per 100g"}
+                  <span style={{ color: "#FF9500" }}>{Math.round(food.calories)} kcal</span>
+                  {food.serving_size_g ? ` · ${food.serving_size_g}g` : ""}
+                  {" · "}
+                  <span style={{ color: "#34C759" }}>{(food.protein_g || 0).toFixed(1)}P</span>
+                  {" · "}
+                  <span style={{ color: "#007AFF" }}>{(food.carbs_g || 0).toFixed(1)}C</span>
+                  {" · "}
+                  <span style={{ color: "#FF3B30" }}>{(food.fat_g || 0).toFixed(1)}F</span>
                 </p>
               </div>
-              <div className="shrink-0">
-                <MacroLine p={food.protein_g} c={food.carbs_g} f={food.fat_g} />
-              </div>
-              <div className="flex items-center gap-1 ml-1 shrink-0">
+
+              {/* Actions — always visible + button, hover for edit/delete */}
+              <div className="flex items-center gap-0.5 shrink-0">
                 <button
-                  onClick={() => setEditing(food)}
-                  className="p-1.5 rounded-lg hover:bg-surface-3 text-muted transition-colors opacity-0 group-hover:opacity-100"
+                  onClick={() => setLogging(food)}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-accent-blue text-white hover:opacity-80 transition-opacity"
+                  title="Log to meal"
                 >
-                  <Pencil size={12} />
+                  <Plus size={15} />
                 </button>
                 <button
-                  onClick={() => handleDelete(food)}
+                  onClick={() => setEditing(food)}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl text-muted hover:bg-surface-3 transition-colors opacity-0 group-hover:opacity-100"
+                  title="Edit"
+                >
+                  <Pencil size={13} />
+                </button>
+                <button
+                  onClick={e => handleDelete(e, food)}
                   disabled={deleting === food.id}
-                  className="p-1.5 rounded-lg hover:bg-red-50 text-muted hover:text-accent-red transition-colors opacity-0 group-hover:opacity-100"
+                  className="w-8 h-8 flex items-center justify-center rounded-xl text-muted hover:bg-red-50 hover:text-accent-red transition-colors opacity-0 group-hover:opacity-100"
+                  title="Delete"
                 >
                   {deleting === food.id
                     ? <Loader2 size={12} className="animate-spin" />
-                    : <Trash2 size={12} />}
+                    : <Trash2 size={13} />}
                 </button>
               </div>
             </div>
@@ -243,6 +262,13 @@ function MyFoodsTab() {
         </div>
       )}
 
+      {logging && (
+        <LogFoodModal
+          food={logging}
+          onClose={() => setLogging(null)}
+          onLogged={() => setLogging(null)}
+        />
+      )}
       {editing && (
         <IngredientEditModal
           ingredient={editing}
@@ -260,6 +286,7 @@ function RestaurantsTab() {
   const [foods,      setFoods]      = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [openBrands, setOpenBrands] = useState({});
+  const [logging,    setLogging]    = useState(null);
   const [deleting,   setDeleting]   = useState(null);
 
   useEffect(() => {
@@ -267,7 +294,6 @@ function RestaurantsTab() {
       try {
         const res = await foodsApi.getRestaurant();
         setFoods(res.data);
-        // Default-open the first brand
         const brands = [...new Set(res.data.map(f => f.brand).filter(Boolean))];
         if (brands.length) setOpenBrands({ [brands[0]]: true });
       } catch { /* silent */ }
@@ -275,7 +301,6 @@ function RestaurantsTab() {
     })();
   }, []);
 
-  // Group by brand
   const grouped = foods.reduce((acc, food) => {
     const b = food.brand || "Other";
     if (!acc[b]) acc[b] = [];
@@ -287,7 +312,8 @@ function RestaurantsTab() {
   const toggleBrand = (brand) =>
     setOpenBrands(s => ({ ...s, [brand]: !s[brand] }));
 
-  const handleDelete = async (food) => {
+  const handleDelete = async (e, food) => {
+    e.stopPropagation();
     if (!window.confirm(`Remove "${food.name}" from your library?`)) return;
     setDeleting(food.id);
     try {
@@ -323,7 +349,6 @@ function RestaurantsTab() {
 
         return (
           <div key={brand} className="card-no-pad">
-            {/* Brand header */}
             <button
               onClick={() => toggleBrand(brand)}
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors"
@@ -340,32 +365,44 @@ function RestaurantsTab() {
                 : <ChevronDown size={14} className="text-muted shrink-0" />}
             </button>
 
-            {/* Item rows */}
             {isOpen && (
               <div className="border-t border-surface-3">
                 {items.map((food, i) => (
                   <div
                     key={food.id}
-                    className={`group flex items-center gap-3 px-4 py-2.5 hover:bg-surface-2 transition-colors
+                    className={`group flex items-center gap-2 px-4 py-2.5 hover:bg-surface-2 transition-colors
                       ${i !== items.length - 1 ? "border-b border-surface-3" : ""}`}
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-foreground truncate">{food.name}</p>
                       <p className="text-[11px] text-muted mt-0.5">
-                        {Math.round(food.calories)} kcal
+                        <span style={{ color: "#FF9500" }}>{Math.round(food.calories)} kcal</span>
                         {food.serving_size_g ? ` · ${food.serving_size_g}g` : ""}
+                        {" · "}
+                        <span style={{ color: "#34C759" }}>{(food.protein_g || 0).toFixed(1)}P</span>
+                        {" · "}
+                        <span style={{ color: "#007AFF" }}>{(food.carbs_g || 0).toFixed(1)}C</span>
+                        {" · "}
+                        <span style={{ color: "#FF3B30" }}>{(food.fat_g || 0).toFixed(1)}F</span>
                       </p>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <MacroLine p={food.protein_g} c={food.carbs_g} f={food.fat_g} />
+                    <div className="flex items-center gap-0.5 shrink-0">
                       <button
-                        onClick={() => handleDelete(food)}
+                        onClick={() => setLogging(food)}
+                        className="w-8 h-8 flex items-center justify-center rounded-xl bg-accent-blue text-white hover:opacity-80 transition-opacity"
+                        title="Log to meal"
+                      >
+                        <Plus size={15} />
+                      </button>
+                      <button
+                        onClick={e => handleDelete(e, food)}
                         disabled={deleting === food.id}
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-muted hover:text-accent-red transition-colors opacity-0 group-hover:opacity-100"
+                        className="w-8 h-8 flex items-center justify-center rounded-xl text-muted hover:bg-red-50 hover:text-accent-red transition-colors opacity-0 group-hover:opacity-100"
+                        title="Remove"
                       >
                         {deleting === food.id
                           ? <Loader2 size={12} className="animate-spin" />
-                          : <Trash2 size={12} />}
+                          : <Trash2 size={13} />}
                       </button>
                     </div>
                   </div>
@@ -375,6 +412,14 @@ function RestaurantsTab() {
           </div>
         );
       })}
+
+      {logging && (
+        <LogFoodModal
+          food={logging}
+          onClose={() => setLogging(null)}
+          onLogged={() => setLogging(null)}
+        />
+      )}
     </div>
   );
 }
@@ -383,13 +428,13 @@ function RestaurantsTab() {
 
 function SearchBox({ value, onChange, placeholder }) {
   return (
-    <div className="relative">
-      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+    <div className="relative w-full">
+      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
       <input
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="input pl-8"
+        className="input pl-8 w-full"
       />
       {value && (
         <button
@@ -400,18 +445,6 @@ function SearchBox({ value, onChange, placeholder }) {
         </button>
       )}
     </div>
-  );
-}
-
-function MacroLine({ p, c, f }) {
-  return (
-    <span className="text-[11px] font-mono">
-      <span style={{ color: "#34C759" }}>{(p || 0).toFixed(1)}P</span>
-      <span className="text-muted"> · </span>
-      <span style={{ color: "#007AFF" }}>{(c || 0).toFixed(1)}C</span>
-      <span className="text-muted"> · </span>
-      <span style={{ color: "#FF3B30" }}>{(f || 0).toFixed(1)}F</span>
-    </span>
   );
 }
 
