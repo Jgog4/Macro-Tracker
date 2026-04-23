@@ -1,18 +1,21 @@
 /**
  * Library page — three tabs:
  *   Recipes      — saved multi-ingredient recipes (create / edit / delete)
- *   My Foods     — custom ingredients from photo scanner (log / edit / delete)
+ *   My Foods     — custom (camera scan) + personal (Cronometer import) ingredients
  *   Restaurants  — restaurant brand items, grouped by brand (log / delete)
+ *
+ * Tapping any food or recipe row opens FoodDetailModal for full nutrition info.
  */
 import { useState, useEffect, useCallback } from "react";
 import { foodsApi, recipesApi } from "../api/client";
 import {
   Search, Plus, ChevronRight, ChevronDown, ChevronUp,
-  Loader2, Utensils, Trash2, X, Pencil, Camera,
+  Loader2, Utensils, Trash2, X, Pencil, Camera, User,
 } from "lucide-react";
 import RecipeBuilderModal  from "../components/RecipeBuilderModal";
 import IngredientEditModal from "../components/IngredientEditModal";
 import LogFoodModal        from "../components/LogFoodModal";
+import FoodDetailModal     from "../components/FoodDetailModal";
 
 const TABS = ["Recipes", "My Foods", "Restaurants"];
 
@@ -55,6 +58,7 @@ function RecipesTab() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [editing,     setEditing]     = useState(null);
   const [deleting,    setDeleting]    = useState(null);
+  const [detail,      setDetail]      = useState(null); // recipe shown in detail
 
   const fetchRecipes = useCallback(async () => {
     setLoading(true);
@@ -82,6 +86,24 @@ function RecipesTab() {
   const openNew  = ()        => { setEditing(null);   setShowBuilder(true); };
   const onSaved  = ()        => { setShowBuilder(false); fetchRecipes(); };
 
+  // Build a pseudo-ingredient object so FoodDetailModal can render recipe macros
+  const recipeAsFood = (r) => ({
+    name:             r.name,
+    source:           "personal",   // show "Personal" badge for recipes
+    serving_size_g:   r.serving_size_g  ?? r.total_weight_g ?? null,
+    serving_size_desc:r.serving_size_g
+      ? `${r.serving_size_g} g`
+      : r.total_weight_g
+        ? `${r.total_weight_g} g total`
+        : "full recipe",
+    calories:  r.calories  ?? 0,
+    protein_g: r.protein_g ?? 0,
+    carbs_g:   r.carbs_g   ?? 0,
+    fat_g:     r.fat_g     ?? 0,
+    fiber_g:   r.fiber_g,
+    sugar_g:   r.sugar_g,
+  });
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -108,7 +130,7 @@ function RecipesTab() {
             return (
               <button
                 key={recipe.id}
-                onClick={() => openEdit(recipe)}
+                onClick={() => setDetail(recipeAsFood(recipe))}
                 className={`flex w-full items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors text-left group
                   ${i !== filtered.length - 1 ? "border-b border-surface-3" : ""}`}
               >
@@ -116,7 +138,8 @@ function RecipesTab() {
                   <Utensils size={15} className="text-emerald-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{recipe.name}</p>
+                  {/* No truncate — let name wrap */}
+                  <p className="text-sm font-semibold text-foreground">{recipe.name}</p>
                   <p className="text-[11px] text-muted mt-0.5">
                     {Math.round(per100)} kcal/100g
                     {" · "}
@@ -129,13 +152,20 @@ function RecipesTab() {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button
-                    onClick={e => handleDelete(e, recipe)}
+                    onClick={e => { e.stopPropagation(); handleDelete(e, recipe); }}
                     disabled={deleting === recipe.id}
                     className="p-1.5 rounded-lg hover:bg-red-50 text-muted hover:text-accent-red transition-colors opacity-0 group-hover:opacity-100"
                   >
                     {deleting === recipe.id
                       ? <Loader2 size={12} className="animate-spin" />
                       : <Trash2 size={12} />}
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); openEdit(recipe); }}
+                    className="p-1.5 rounded-lg hover:bg-surface-3 text-muted transition-colors opacity-0 group-hover:opacity-100"
+                    title="Edit recipe"
+                  >
+                    <Pencil size={12} />
                   </button>
                   <ChevronRight size={14} className="text-muted" />
                 </div>
@@ -148,32 +178,50 @@ function RecipesTab() {
       {showBuilder && (
         <RecipeBuilderModal recipe={editing} onClose={() => setShowBuilder(false)} onSaved={onSaved} />
       )}
+      {detail && (
+        <FoodDetailModal food={detail} onClose={() => setDetail(null)} />
+      )}
     </div>
   );
 }
 
 // ── My Foods tab ──────────────────────────────────────────────────────────────
+// Shows both source=custom (camera-scanned) and source=personal (Cronometer import).
 
 function MyFoodsTab() {
-  const [foods,    setFoods]    = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [query,    setQuery]    = useState("");
-  const [logging,  setLogging]  = useState(null);   // food to log
-  const [editing,  setEditing]  = useState(null);   // food to edit
-  const [deleting, setDeleting] = useState(null);
+  const [customFoods,   setCustomFoods]   = useState([]);
+  const [personalFoods, setPersonalFoods] = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [query,         setQuery]         = useState("");
+  const [logging,       setLogging]       = useState(null);
+  const [editing,       setEditing]       = useState(null);
+  const [deleting,      setDeleting]      = useState(null);
+  const [detail,        setDetail]        = useState(null);
 
   const fetchFoods = useCallback(async () => {
     setLoading(true);
-    try { const res = await foodsApi.list("custom"); setFoods(res.data); }
-    catch { /* silent */ }
+    try {
+      const [cRes, pRes] = await Promise.all([
+        foodsApi.list("custom"),
+        foodsApi.list("personal"),
+      ]);
+      setCustomFoods(cRes.data);
+      setPersonalFoods(pRes.data);
+    } catch { /* silent */ }
     finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchFoods(); }, [fetchFoods]);
 
+  // Merge + sort, tagging each with its source for icon differentiation
+  const allFoods = [
+    ...customFoods.map(f => ({ ...f, _src: "custom" })),
+    ...personalFoods.map(f => ({ ...f, _src: "personal" })),
+  ].sort((a, b) => a.name.localeCompare(b.name));
+
   const filtered = query.length < 1
-    ? foods
-    : foods.filter(f => f.name.toLowerCase().includes(query.toLowerCase()));
+    ? allFoods
+    : allFoods.filter(f => f.name.toLowerCase().includes(query.toLowerCase()));
 
   const handleDelete = async (e, food) => {
     e.stopPropagation();
@@ -184,9 +232,21 @@ function MyFoodsTab() {
     finally { setDeleting(null); }
   };
 
+  const totalCount = customFoods.length + personalFoods.length;
+
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-muted text-sm">{foods.length} custom food{foods.length !== 1 ? "s" : ""}</p>
+      <div className="flex items-center justify-between">
+        <p className="text-muted text-sm">
+          {totalCount} food{totalCount !== 1 ? "s" : ""}
+          {personalFoods.length > 0 && (
+            <span className="ml-1">
+              · <span className="text-green-600">{personalFoods.length} personal</span>
+              {customFoods.length > 0 && <span className="text-purple-500"> · {customFoods.length} scanned</span>}
+            </span>
+          )}
+        </p>
+      </div>
 
       <SearchBox value={query} onChange={setQuery} placeholder="Search your foods…" />
 
@@ -194,12 +254,12 @@ function MyFoodsTab() {
         <Spinner />
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center py-16 gap-3 text-center">
-          <span className="text-4xl">📷</span>
+          <span className="text-4xl">{query ? "🔍" : "📷"}</span>
           <p className="font-semibold text-foreground">
-            {query ? `No foods matching "${query}"` : "No custom foods yet"}
+            {query ? `No foods matching "${query}"` : "No foods yet"}
           </p>
           <p className="text-muted text-sm">
-            {query ? "Try a different search term" : "Foods you scan with the camera will appear here"}
+            {query ? "Try a different search term" : "Foods you scan or import will appear here"}
           </p>
         </div>
       ) : (
@@ -207,17 +267,24 @@ function MyFoodsTab() {
           {filtered.map((food, i) => (
             <div
               key={food.id}
-              className={`group flex w-full items-center gap-2 px-4 py-3 hover:bg-surface-2 transition-colors
+              className={`group flex w-full items-center gap-2 px-4 py-3 hover:bg-surface-2 transition-colors cursor-pointer
                 ${i !== filtered.length - 1 ? "border-b border-surface-3" : ""}`}
+              onClick={() => setDetail(food)}
             >
-              {/* Icon */}
-              <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
-                <Camera size={14} className="text-purple-500" />
-              </div>
+              {/* Icon — purple Camera for scanned, green User for personal import */}
+              {food._src === "custom" ? (
+                <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
+                  <Camera size={14} className="text-purple-500" />
+                </div>
+              ) : (
+                <div className="w-8 h-8 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
+                  <User size={14} className="text-green-600" />
+                </div>
+              )}
 
-              {/* Name + macros subtitle — takes all available space */}
+              {/* Name + macros — takes all available space, name wraps freely */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground truncate">{food.name}</p>
+                <p className="text-sm font-semibold text-foreground">{food.name}</p>
                 <p className="text-[11px] text-muted mt-0.5">
                   <span style={{ color: "#FF9500" }}>{Math.round(food.calories)} kcal</span>
                   {food.serving_size_g ? ` · ${food.serving_size_g}g` : ""}
@@ -230,8 +297,8 @@ function MyFoodsTab() {
                 </p>
               </div>
 
-              {/* Actions — always visible + button, hover for edit/delete */}
-              <div className="flex items-center gap-0.5 shrink-0">
+              {/* Actions */}
+              <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
                 <button
                   onClick={() => setLogging(food)}
                   className="w-8 h-8 flex items-center justify-center rounded-xl bg-accent-blue text-white hover:opacity-80 transition-opacity"
@@ -239,13 +306,15 @@ function MyFoodsTab() {
                 >
                   <Plus size={15} />
                 </button>
-                <button
-                  onClick={() => setEditing(food)}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl text-muted hover:bg-surface-3 transition-colors opacity-0 group-hover:opacity-100"
-                  title="Edit"
-                >
-                  <Pencil size={13} />
-                </button>
+                {food._src === "custom" && (
+                  <button
+                    onClick={() => setEditing(food)}
+                    className="w-8 h-8 flex items-center justify-center rounded-xl text-muted hover:bg-surface-3 transition-colors opacity-0 group-hover:opacity-100"
+                    title="Edit"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                )}
                 <button
                   onClick={e => handleDelete(e, food)}
                   disabled={deleting === food.id}
@@ -276,6 +345,13 @@ function MyFoodsTab() {
           onSaved={() => { setEditing(null); fetchFoods(); }}
         />
       )}
+      {detail && (
+        <FoodDetailModal
+          food={detail}
+          onClose={() => setDetail(null)}
+          onLog={() => { setDetail(null); setLogging(detail); }}
+        />
+      )}
     </div>
   );
 }
@@ -286,8 +362,10 @@ function RestaurantsTab() {
   const [foods,      setFoods]      = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [openBrands, setOpenBrands] = useState({});
+  const [query,      setQuery]      = useState("");
   const [logging,    setLogging]    = useState(null);
   const [deleting,   setDeleting]   = useState(null);
+  const [detail,     setDetail]     = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -301,7 +379,14 @@ function RestaurantsTab() {
     })();
   }, []);
 
-  const grouped = foods.reduce((acc, food) => {
+  const filtered = query.length < 1
+    ? foods
+    : foods.filter(f =>
+        f.name.toLowerCase().includes(query.toLowerCase()) ||
+        (f.brand || "").toLowerCase().includes(query.toLowerCase())
+      );
+
+  const grouped = filtered.reduce((acc, food) => {
     const b = food.brand || "Other";
     if (!acc[b]) acc[b] = [];
     acc[b].push(food);
@@ -325,13 +410,13 @@ function RestaurantsTab() {
 
   if (loading) return <Spinner />;
 
-  if (brands.length === 0) {
+  if (brands.length === 0 && !query) {
     return (
       <div className="flex flex-col items-center py-16 gap-3 text-center">
         <span className="text-4xl">🍽️</span>
         <p className="font-semibold text-foreground">No restaurant items yet</p>
         <p className="text-muted text-sm">
-          Search for Chipotle, Cactus Club, and others when adding food
+          Search for Chipotle, Cactus Club, Pokerrito, and others when adding food
         </p>
       </div>
     );
@@ -340,8 +425,17 @@ function RestaurantsTab() {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-muted text-sm">
-        {brands.length} restaurant{brands.length !== 1 ? "s" : ""} · {foods.length} item{foods.length !== 1 ? "s" : ""}
+        {brands.length} restaurant{brands.length !== 1 ? "s" : ""} · {filtered.length} item{filtered.length !== 1 ? "s" : ""}
       </p>
+
+      <SearchBox value={query} onChange={setQuery} placeholder="Search restaurants & items…" />
+
+      {brands.length === 0 && query && (
+        <div className="flex flex-col items-center py-12 gap-2 text-center">
+          <span className="text-3xl">🔍</span>
+          <p className="text-muted text-sm">No items matching "{query}"</p>
+        </div>
+      )}
 
       {brands.map(brand => {
         const items  = grouped[brand];
@@ -357,7 +451,7 @@ function RestaurantsTab() {
                 <span className="text-sm font-bold text-orange-500">{brand.charAt(0).toUpperCase()}</span>
               </div>
               <div className="flex-1 min-w-0 text-left">
-                <p className="text-sm font-semibold text-foreground truncate">{brand}</p>
+                <p className="text-sm font-semibold text-foreground">{brand}</p>
                 <p className="text-[11px] text-muted">{items.length} item{items.length !== 1 ? "s" : ""}</p>
               </div>
               {isOpen
@@ -370,11 +464,13 @@ function RestaurantsTab() {
                 {items.map((food, i) => (
                   <div
                     key={food.id}
-                    className={`group flex w-full items-center gap-2 px-4 py-2.5 hover:bg-surface-2 transition-colors
+                    className={`group flex w-full items-center gap-2 px-4 py-2.5 hover:bg-surface-2 transition-colors cursor-pointer
                       ${i !== items.length - 1 ? "border-b border-surface-3" : ""}`}
+                    onClick={() => setDetail(food)}
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground truncate">{food.name}</p>
+                      {/* Name wraps fully — no truncate */}
+                      <p className="text-sm text-foreground">{food.name}</p>
                       <p className="text-[11px] text-muted mt-0.5">
                         <span style={{ color: "#FF9500" }}>{Math.round(food.calories)} kcal</span>
                         {food.serving_size_g ? ` · ${food.serving_size_g}g` : ""}
@@ -386,7 +482,7 @@ function RestaurantsTab() {
                         <span style={{ color: "#FF3B30" }}>{(food.fat_g || 0).toFixed(1)}F</span>
                       </p>
                     </div>
-                    <div className="flex items-center gap-0.5 shrink-0">
+                    <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
                       <button
                         onClick={() => setLogging(food)}
                         className="w-8 h-8 flex items-center justify-center rounded-xl bg-accent-blue text-white hover:opacity-80 transition-opacity"
@@ -418,6 +514,13 @@ function RestaurantsTab() {
           food={logging}
           onClose={() => setLogging(null)}
           onLogged={() => setLogging(null)}
+        />
+      )}
+      {detail && (
+        <FoodDetailModal
+          food={detail}
+          onClose={() => setDetail(null)}
+          onLog={() => { setDetail(null); setLogging(detail); }}
         />
       )}
     </div>
