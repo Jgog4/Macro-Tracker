@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { format, addDays, subDays } from "date-fns";
-import { CalendarDays, BookOpen, Plus, Camera, Sparkles } from "lucide-react";
+import { CalendarDays, BookOpen, Plus, Camera, Sparkles, Menu, BarChart2 } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import LibraryPage from "./pages/LibraryPage";
+import ReportsPage from "./pages/ReportsPage";
 import AddFoodModal from "./components/AddFoodModal";
 import VisionModal from "./components/VisionModal";
 
@@ -17,6 +18,20 @@ export default function App() {
   const [showAdd, setShowAdd]       = useState(false);
   const [showVision, setShowVision] = useState(false);
   const [dashboardKey, setDashboardKey] = useState(0);
+  const [showMenu, setShowMenu]     = useState(false);
+  const [showReports, setShowReports] = useState(false);
+  const menuRef = useRef(null);
+
+  // Close dropdown when tapping outside
+  useEffect(() => {
+    if (!showMenu) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("touchstart", handler); };
+  }, [showMenu]);
 
   const goBack    = () => setCurrentDate(d => subDays(d, 1));
   const goForward = () => setCurrentDate(d => addDays(d, 1));
@@ -58,7 +73,27 @@ export default function App() {
             <span className="text-base font-bold text-foreground">Library</span>
           )}
 
-          <div className="w-28" />
+          {/* Hamburger menu */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setShowMenu(m => !m)}
+              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-2 transition-colors text-muted"
+            >
+              <Menu size={20} />
+            </button>
+
+            {showMenu && (
+              <div className="absolute right-0 top-11 w-44 bg-white rounded-xl shadow-lg border border-surface-3 overflow-hidden z-50">
+                <button
+                  onClick={() => { setShowMenu(false); setShowReports(true); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-surface-2 transition-colors"
+                >
+                  <BarChart2 size={15} className="text-accent-blue shrink-0" />
+                  Reports
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -116,6 +151,9 @@ export default function App() {
           onClose={() => setShowVision(false)}
           onSaved={() => setShowVision(false)}
         />
+      )}
+      {showReports && (
+        <ReportsPage onClose={() => setShowReports(false)} />
       )}
     </div>
   );

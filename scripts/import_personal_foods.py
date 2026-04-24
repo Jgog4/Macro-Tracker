@@ -46,7 +46,7 @@ from collections import defaultdict
 from pathlib import Path
 
 # ── Config ────────────────────────────────────────────────────────────────────
-CSV_PATH = Path(__file__).parent.parent / "Nutrition data" / "personal_foods.csv"
+CSV_PATH_DEFAULT = Path(__file__).parent.parent / "Nutrition data" / "personal_foods.csv"
 API_URL  = os.environ.get("API_URL", "http://localhost:8000").rstrip("/")
 
 # ── Column → ingredient field mapping ────────────────────────────────────────
@@ -266,7 +266,11 @@ def main():
     parser.add_argument("--dry-run",   action="store_true")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--limit",     type=int)
+    parser.add_argument("--csv",       type=Path, default=CSV_PATH_DEFAULT,
+                        help="Path to Cronometer CSV (default: Nutrition data/personal_foods.csv)")
     args = parser.parse_args()
+
+    CSV_PATH = args.csv
 
     if not CSV_PATH.exists():
         print(f"❌ CSV not found: {CSV_PATH}")
