@@ -81,16 +81,15 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
               <span className="font-semibold font-mono" style={{ color: "#FF9500" }}>
                 {meal.total_calories.toFixed(0)} kcal
               </span>
-              {time && <span> · {time}</span>}
+              <span className="mx-1">·</span>
+              <span style={{ color: "#34C759" }}>{meal.total_protein_g.toFixed(1)}P</span>
+              <span className="mx-1">·</span>
+              <span style={{ color: "#007AFF" }}>{meal.total_carbs_g.toFixed(1)}C</span>
+              <span className="mx-1">·</span>
+              <span style={{ color: "#FF3B30" }}>{meal.total_fat_g.toFixed(1)}F</span>
+              {time && <span className="text-muted"> · {time}</span>}
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-4 mr-2">
-          <MacroChip value={meal.total_calories}  unit="kcal" color="#FF9500" />
-          <MacroChip value={meal.total_protein_g} unit="P"    color="#34C759" />
-          <MacroChip value={meal.total_carbs_g}   unit="C"    color="#007AFF" />
-          <MacroChip value={meal.total_fat_g}     unit="F"    color="#FF3B30" />
         </div>
 
         {open
@@ -257,10 +256,3 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
   );
 }
 
-function MacroChip({ value, unit, color }) {
-  return (
-    <span className="text-[11px] font-semibold font-mono hidden sm:block" style={{ color }}>
-      {value.toFixed(unit === "kcal" ? 0 : 1)}<span className="text-muted ml-0.5 font-normal">{unit}</span>
-    </span>
-  );
-}
