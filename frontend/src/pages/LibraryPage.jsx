@@ -201,22 +201,22 @@ function MyFoodsTab() {
   const fetchFoods = useCallback(async () => {
     setLoading(true);
     try {
-      const [cRes, pRes] = await Promise.all([
-        foodsApi.list("custom"),
-        foodsApi.list("personal"),
-      ]);
-      setCustomFoods(cRes.data);
-      setPersonalFoods(pRes.data);
+      // Backend source=custom returns BOTH custom + personal foods combined.
+      // One call is enough — split client-side by food.source for icon/count display.
+      const res = await foodsApi.list("custom");
+      const all = res.data ?? [];
+      setCustomFoods(all.filter(f => f.source === "custom"));
+      setPersonalFoods(all.filter(f => f.source === "personal"));
     } catch { /* silent */ }
     finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchFoods(); }, [fetchFoods]);
 
-  // Merge + sort, tagging each with its source for icon differentiation
+  // Merge + sort; food.source already contains "custom" or "personal"
   const allFoods = [
-    ...customFoods.map(f => ({ ...f, _src: "custom" })),
-    ...personalFoods.map(f => ({ ...f, _src: "personal" })),
+    ...customFoods,
+    ...personalFoods,
   ].sort((a, b) => a.name.localeCompare(b.name));
 
   const filtered = query.length < 1
@@ -272,7 +272,7 @@ function MyFoodsTab() {
               onClick={() => setDetail(food)}
             >
               {/* Icon — purple Camera for scanned, green User for personal import */}
-              {food._src === "custom" ? (
+              {food.source === "custom" ? (
                 <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
                   <Camera size={14} className="text-purple-500" />
                 </div>
@@ -306,7 +306,7 @@ function MyFoodsTab() {
                 >
                   <Plus size={15} />
                 </button>
-                {food._src === "custom" && (
+                {food.source === "custom" && (
                   <button
                     onClick={() => setEditing(food)}
                     className="w-8 h-8 flex items-center justify-center rounded-xl text-muted hover:bg-surface-3 transition-colors opacity-0 group-hover:opacity-100"
