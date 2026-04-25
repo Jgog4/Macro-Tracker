@@ -10,12 +10,14 @@ import { useState, useEffect, useCallback } from "react";
 import { foodsApi, recipesApi } from "../api/client";
 import {
   Search, Plus, ChevronRight, ChevronDown, ChevronUp,
-  Loader2, Utensils, Trash2, X, Pencil, Camera, User,
+  Loader2, Utensils, Trash2, X, Pencil, Camera, User, Link, ImagePlus,
 } from "lucide-react";
 import RecipeBuilderModal  from "../components/RecipeBuilderModal";
 import IngredientEditModal from "../components/IngredientEditModal";
 import LogFoodModal        from "../components/LogFoodModal";
 import FoodDetailModal     from "../components/FoodDetailModal";
+import UrlFoodModal        from "../components/UrlFoodModal";
+import VisionModal         from "../components/VisionModal";
 
 const TABS = ["Recipes", "My Foods", "Restaurants"];
 
@@ -197,6 +199,9 @@ function MyFoodsTab() {
   const [editing,       setEditing]       = useState(null);
   const [deleting,      setDeleting]      = useState(null);
   const [detail,        setDetail]        = useState(null);
+  const [showSheet,     setShowSheet]     = useState(false);
+  const [showUrl,       setShowUrl]       = useState(false);
+  const [showScan,      setShowScan]      = useState(false);
 
   const fetchFoods = useCallback(async () => {
     setLoading(true);
@@ -246,6 +251,12 @@ function MyFoodsTab() {
             </span>
           )}
         </p>
+        <button
+          onClick={() => setShowSheet(true)}
+          className="btn-primary py-2 px-3 text-sm flex items-center gap-1.5"
+        >
+          <Plus size={13} /> Add Food
+        </button>
       </div>
 
       <SearchBox value={query} onChange={setQuery} placeholder="Search your foods…" />
@@ -350,6 +361,70 @@ function MyFoodsTab() {
           food={detail}
           onClose={() => setDetail(null)}
           onLog={() => { setDetail(null); setLogging(detail); }}
+        />
+      )}
+
+      {/* ── Add Food action sheet ── */}
+      {showSheet && (
+        <div
+          className="fixed inset-0 flex flex-col justify-end"
+          style={{ zIndex: 9998, backgroundColor: "rgba(0,0,0,0.4)" }}
+          onClick={() => setShowSheet(false)}
+        >
+          <div
+            className="bg-white rounded-t-2xl px-4 pt-4 pb-8 flex flex-col gap-2"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 bg-surface-3 rounded-full mx-auto mb-2" />
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide px-1 mb-1">Add to My Foods</p>
+
+            <button
+              onClick={() => { setShowSheet(false); setShowUrl(true); }}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface-2 transition-colors text-left"
+            >
+              <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                <Link size={16} className="text-accent-blue" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Add from Link</p>
+                <p className="text-[11px] text-muted">Paste a recipe URL — AI estimates the nutrition</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => { setShowSheet(false); setShowScan(true); }}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface-2 transition-colors text-left"
+            >
+              <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
+                <ImagePlus size={16} className="text-accent-purple" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Upload Screenshot</p>
+                <p className="text-[11px] text-muted">Photo of an ingredient list — AI estimates the nutrition</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setShowSheet(false)}
+              className="mt-1 py-3 rounded-xl text-sm font-semibold text-muted hover:bg-surface-2 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showUrl && (
+        <UrlFoodModal
+          onClose={() => setShowUrl(false)}
+          onSaved={() => { setShowUrl(false); fetchFoods(); }}
+        />
+      )}
+      {showScan && (
+        <VisionModal
+          mode="estimate"
+          onClose={() => setShowScan(false)}
+          onSaved={() => { setShowScan(false); fetchFoods(); }}
         />
       )}
     </div>

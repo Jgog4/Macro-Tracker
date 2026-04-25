@@ -7,7 +7,9 @@ import { visionApi } from "../api/client";
 import { ModalShell } from "./AddFoodModal";
 import { Camera, Upload, Loader2, Check, Plus, X } from "lucide-react";
 
-export default function VisionModal({ onClose, onSaved }) {
+export default function VisionModal({ onClose, onSaved, mode = "label" }) {
+  // mode="label"    → reads a nutrition label (existing behaviour)
+  // mode="estimate" → estimates from an ingredient list / screenshot
   const [step, setStep]           = useState("upload");   // upload | reviewing | saved
   const [preview1, setPreview1]   = useState(null);
   const [preview2, setPreview2]   = useState(null);
@@ -71,7 +73,12 @@ export default function VisionModal({ onClose, onSaved }) {
       fd.append("file", file1);
       if (file2) fd.append("file2", file2);
       if (name) fd.append("name", name);
-      await visionApi.extractAndSave(fd);
+      // Use the estimate endpoint when in ingredient-list mode
+      if (mode === "estimate") {
+        await visionApi.estimateFromIngredients(fd);
+      } else {
+        await visionApi.extractAndSave(fd);
+      }
       setStep("saved");
       setTimeout(onSaved, 1200);
     } catch (e) {
@@ -82,14 +89,15 @@ export default function VisionModal({ onClose, onSaved }) {
   };
 
   return (
-    <ModalShell onClose={onClose} title="Scan Nutrition Label">
+    <ModalShell onClose={onClose} title={mode === "estimate" ? "Estimate from Screenshot" : "Scan Nutrition Label"}>
 
       {/* ── Upload step ── */}
       {step === "upload" && (
         <div className="flex flex-col gap-4">
           <p className="text-xs text-muted">
-            Upload a photo of a nutrition facts label. Optionally add a second photo of the
-            front of the package or ingredients list to help identify the product name.
+            {mode === "estimate"
+              ? "Upload a screenshot of an ingredient list, food package back, or meal-tracking app. Claude will estimate the nutrition profile."
+              : "Upload a photo of a nutrition facts label. Optionally add a second photo of the front of the package or ingredients list to help identify the product name."}
           </p>
 
           {/* Photo 1 — required */}
@@ -158,7 +166,7 @@ export default function VisionModal({ onClose, onSaved }) {
             disabled={!file1 || loading}
             className="btn-primary flex items-center justify-center gap-2 py-3 disabled:opacity-40">
             {loading ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
-            Extract Nutrition Info
+            {mode === "estimate" ? "Estimate Nutrition" : "Extract Nutrition Info"}
           </button>
         </div>
       )}

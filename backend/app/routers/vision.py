@@ -11,7 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.models import Ingredient
 from app.schemas.schemas import VisionExtractResponse, IngredientRead
-from app.services.vision_ocr import extract_nutrition_from_images
+from app.services.vision_ocr import (
+    extract_nutrition_from_images,
+    estimate_from_ingredient_images,
+    analyze_recipe_url,
+)
+from pydantic import BaseModel as _BaseModel
 
 router = APIRouter(prefix="/vision", tags=["Vision / OCR"])
 
@@ -95,6 +100,115 @@ async def extract_and_save(
         protein_g=extracted.protein_g or 0,
         fat_g=extracted.fat_g or 0,
         carbs_g=extracted.carbs_g or 0,
+        **{k: v for k, v in nutrient_kwargs.items()
+           if k not in ("calories", "protein_g", "fat_g", "carbs_g", "serving_size_g")},
+    )
+    db.add(ingredient)
+    await db.flush()
+    return ingredient
+
+
+# ── POST /vision/estimate-from-ingredients — ingredient list photo ────────────
+
+@router.post(
+    "/estimate-from-ingredients",
+    response_model=IngredientRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def estimate_from_ingredients(
+    file:  UploadFile           = File(..., description="Photo of ingredient list / package back / meal screenshot"),
+    file2: Optional[UploadFile] = File(None, description="Second image (optional)"),
+    name:  Optional[str]        = Form(None, description="Override the inferred name"),
+    db:    AsyncSession         = Depends(get_db),
+):
+    """
+    Upload a photo of an ingredient list, package back, or meal-tracking
+    screenshot. Claude ESTIMATES the nutrition (not reads a label).
+    Saves as a personal Ingredient and returns it.
+    """
+    images = []
+    raw1 = await file.read()
+    if len(raw1) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image too large (max 20 MB)")
+    images.append((base64.b64encode(raw1).decode(), file.content_type or "image/jpeg"))
+
+    if file2 and file2.filename:
+        raw2 = await file2.read()
+        images.append((base64.b64encode(raw2).decode(), file2.content_type or "image/jpeg"))
+
+    estimated = await estimate_from_ingredient_images(images)
+
+    from app.models.models import Ingredient as IngredientModel
+    valid_cols    = {c.key for c in IngredientModel.__table__.columns}
+    estimated_dict = estimated.model_dump(exclude={"confidence", "raw_text", "serving_size", "name"})
+    nutrient_kwargs = {k: v for k, v in estimated_dict.items() if k in valid_cols and v is not None}
+
+    ingredient = Ingredient(
+        source="personal",
+        name=name or estimated.name or "Unnamed (Estimate)",
+        serving_size_desc=estimated.serving_size,
+        serving_size_g=estimated.serving_size_g,
+        calories=estimated.calories or 0,
+        protein_g=estimated.protein_g or 0,
+        fat_g=estimated.fat_g or 0,
+        carbs_g=estimated.carbs_g or 0,
+        **{k: v for k, v in nutrient_kwargs.items()
+           if k not in ("calories", "protein_g", "fat_g", "carbs_g", "serving_size_g")},
+    )
+    db.add(ingredient)
+    await db.flush()
+    return ingredient
+
+
+# ── POST /vision/from-url — recipe URL analysis ───────────────────────────────
+
+class _UrlRequest(_BaseModel):
+    url:  str
+    name: Optional[str] = None
+
+
+@router.post(
+    "/from-url",
+    response_model=IngredientRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def analyze_from_url(
+    body: _UrlRequest,
+    db:   AsyncSession = Depends(get_db),
+):
+    """
+    Fetch a recipe / menu URL and let Claude estimate per-serving nutrition.
+    Saves as a personal Ingredient and returns it.
+    """
+    import httpx as _httpx
+    try:
+        estimated = await analyze_recipe_url(body.url, body.name)
+    except _httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not fetch URL (HTTP {e.response.status_code}). "
+                   "The site may be blocking automated requests."
+        )
+    except _httpx.RequestError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not reach URL: {e}. Check the link and try again."
+        )
+
+    from app.models.models import Ingredient as IngredientModel
+    valid_cols    = {c.key for c in IngredientModel.__table__.columns}
+    estimated_dict = estimated.model_dump(exclude={"confidence", "raw_text", "serving_size", "name"})
+    nutrient_kwargs = {k: v for k, v in estimated_dict.items() if k in valid_cols and v is not None}
+
+    ingredient = Ingredient(
+        source="personal",
+        name=body.name or estimated.name or "Recipe (URL)",
+        serving_size_desc=estimated.serving_size,
+        serving_size_g=estimated.serving_size_g,
+        calories=estimated.calories or 0,
+        protein_g=estimated.protein_g or 0,
+        fat_g=estimated.fat_g or 0,
+        carbs_g=estimated.carbs_g or 0,
         **{k: v for k, v in nutrient_kwargs.items()
            if k not in ("calories", "protein_g", "fat_g", "carbs_g", "serving_size_g")},
     )
