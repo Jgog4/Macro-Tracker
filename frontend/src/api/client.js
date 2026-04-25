@@ -51,7 +51,8 @@ export const visionApi = {
   extract:                 (formData)       => api.post("/vision/extract", formData, { headers: { "Content-Type": "multipart/form-data" } }),
   extractAndSave:          (formData)       => api.post("/vision/extract-and-save", formData, { headers: { "Content-Type": "multipart/form-data" } }),
   estimateFromIngredients: (formData)       => api.post("/vision/estimate-from-ingredients", formData, { headers: { "Content-Type": "multipart/form-data" } }),
-  fromUrl:                 (url, name)      => api.post("/vision/from-url", { url, name: name || null }),
+  fromUrl:                 (url, name)             => api.post("/vision/from-url", { url, name: name || null }),
+  fromText:                (ingredients_text, name) => api.post("/vision/from-url", { ingredients_text, name: name || null }),
 };
 
 // ── Micronutrients ───────────────────────────────────────────────────────────

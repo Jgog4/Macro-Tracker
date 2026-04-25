@@ -163,8 +163,9 @@ async def estimate_from_ingredients(
 # ── POST /vision/from-url — recipe URL analysis ───────────────────────────────
 
 class _UrlRequest(_BaseModel):
-    url:  str
-    name: Optional[str] = None
+    url:              Optional[str] = None   # fetch a URL
+    ingredients_text: Optional[str] = None  # or paste raw ingredient text
+    name:             Optional[str] = None
 
 
 @router.post(
@@ -177,23 +178,42 @@ async def analyze_from_url(
     db:   AsyncSession = Depends(get_db),
 ):
     """
-    Fetch a recipe / menu URL and let Claude estimate per-serving nutrition.
+    Estimate per-serving nutrition from either:
+      • a recipe URL  (body.url)
+      • pasted ingredient text (body.ingredients_text)
     Saves as a personal Ingredient and returns it.
     """
+    from app.services.vision_ocr import _call_claude_text, RECIPE_URL_PROMPT
     import httpx as _httpx
-    try:
-        estimated = await analyze_recipe_url(body.url, body.name)
-    except _httpx.HTTPStatusError as e:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Could not fetch URL (HTTP {e.response.status_code}). "
-                   "The site may be blocking automated requests."
+
+    if body.ingredients_text:
+        # Direct text path — no URL fetch needed
+        user_msg  = (
+            f"Please estimate the nutrition per serving for this recipe.\n\n"
+            f"{body.ingredients_text.strip()}"
+            + (f"\n\nFood name: {body.name}" if body.name else "")
         )
-    except _httpx.RequestError as e:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Could not reach URL: {e}. Check the link and try again."
-        )
+        estimated = await _call_claude_text(RECIPE_URL_PROMPT, user_msg)
+        if body.name and not estimated.name:
+            estimated.name = body.name
+
+    elif body.url:
+        try:
+            estimated = await analyze_recipe_url(body.url, body.name)
+        except _httpx.HTTPStatusError as e:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Could not fetch URL (HTTP {e.response.status_code}). "
+                       "The site may be blocking automated requests — "
+                       "try pasting the ingredient list as text instead."
+            )
+        except _httpx.RequestError as e:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Could not reach URL: {e}. Try pasting the ingredient list as text instead."
+            )
+    else:
+        raise HTTPException(status_code=400, detail="Provide either url or ingredients_text.")
 
     from app.models.models import Ingredient as IngredientModel
     valid_cols    = {c.key for c in IngredientModel.__table__.columns}
