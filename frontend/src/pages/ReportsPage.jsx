@@ -1,7 +1,6 @@
 /**
  * ReportsPage — macro & nutrient averages over a selectable date range.
  * Opened from the hamburger menu in the app header.
- * Rendered via React portal so it sits above all other content.
  */
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
@@ -9,36 +8,50 @@ import { format, subDays } from "date-fns";
 import { ArrowLeft, Loader2, BarChart2 } from "lucide-react";
 import { micronutrientsApi } from "../api/client";
 
+// ── Helpers ────────────────────────────────────────────────────────────────
+const todayStr  = () => format(new Date(), "yyyy-MM-dd");
+const daysAgo   = (n) => format(subDays(new Date(), n - 1), "yyyy-MM-dd");
+const yesterday = () => format(subDays(new Date(), 1), "yyyy-MM-dd");
+
 // ── Period presets ─────────────────────────────────────────────────────────
 const PRESETS = [
-  { id: "1w",  label: "1 Week",  days: 7  },
-  { id: "2w",  label: "2 Weeks", days: 14 },
-  { id: "1m",  label: "1 Month", days: 30 },
-  { id: "custom", label: "Custom", days: null },
+  { id: "1w",     label: "1 Week",  days: 7  },
+  { id: "2w",     label: "2 Weeks", days: 14 },
+  { id: "1m",     label: "1 Month", days: 30 },
+  { id: "custom", label: "Custom",  days: null },
 ];
-
-const today = () => format(new Date(), "yyyy-MM-dd");
-const daysAgo = (n) => format(subDays(new Date(), n - 1), "yyyy-MM-dd");
 
 // ── Main component ─────────────────────────────────────────────────────────
 export default function ReportsPage({ onClose }) {
-  const [preset, setPreset]           = useState("1w");
-  const [customStart, setCustomStart] = useState(daysAgo(7));
-  const [customEnd,   setCustomEnd]   = useState(today());
-  const [data,        setData]        = useState(null);
-  const [loading,     setLoading]     = useState(false);
-  const [error,       setError]       = useState(null);
+  const [preset,       setPreset]       = useState("1w");
+  const [customStart,  setCustomStart]  = useState(daysAgo(7));
+  const [customEnd,    setCustomEnd]    = useState(todayStr());
+  const [includeToday, setIncludeToday] = useState(true);
+  const [data,         setData]         = useState(null);
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState(null);
 
+  // Compute start / end dates from preset + toggle
   const { start, end } = useMemo(() => {
+    const endDate = includeToday ? todayStr() : yesterday();
     if (preset !== "custom") {
       const p = PRESETS.find(p => p.id === preset);
-      return { start: daysAgo(p.days), end: today() };
+      return { start: daysAgo(p.days), end: endDate };
     }
-    return { start: customStart, end: customEnd };
-  }, [preset, customStart, customEnd]);
+    return {
+      start: customStart,
+      end:   includeToday ? customEnd : (customEnd >= todayStr() ? yesterday() : customEnd),
+    };
+  }, [preset, customStart, customEnd, includeToday]);
+
+  // Total calendar days in range
+  const totalDays = useMemo(() => {
+    if (!start || !end || start > end) return 0;
+    return Math.round((new Date(end) - new Date(start)) / 86400000) + 1;
+  }, [start, end]);
 
   useEffect(() => {
-    if (preset === "custom" && (!customStart || !customEnd || customStart > customEnd)) return;
+    if (!start || !end || start > end) return;
     setData(null);
     setError(null);
     setLoading(true);
@@ -46,17 +59,10 @@ export default function ReportsPage({ onClose }) {
       .then(res => setData(res.data))
       .catch(() => setError("Could not load report data"))
       .finally(() => setLoading(false));
-  }, [start, end, preset, customStart, customEnd]);
-
-  const avg = data?.daily_avg ?? null;
-  const daysLogged = data?.days_with_data ?? 0;
-
-  // Total calendar days in the selected range
-  const totalDays = useMemo(() => {
-    if (!start || !end) return 0;
-    const ms = new Date(end) - new Date(start);
-    return Math.round(ms / 86400000) + 1;
   }, [start, end]);
+
+  const avg        = data?.daily_avg ?? null;
+  const daysLogged = data?.days_with_data ?? 0;
 
   return createPortal(
     <div className="fixed inset-0 flex flex-col" style={{ zIndex: 9999, backgroundColor: "white" }}>
@@ -115,7 +121,7 @@ export default function ReportsPage({ onClose }) {
                   type="date"
                   value={customEnd}
                   min={customStart}
-                  max={today()}
+                  max={todayStr()}
                   onChange={e => setCustomEnd(e.target.value)}
                   className="input w-full text-sm"
                 />
@@ -123,11 +129,31 @@ export default function ReportsPage({ onClose }) {
             </div>
           )}
 
-          {/* Days logged badge */}
+          {/* Include today toggle */}
+          <div className="flex items-center justify-between bg-surface-1 rounded-xl px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-foreground">Include today</p>
+              <p className="text-[11px] text-muted">Toggle off to exclude today's partial data</p>
+            </div>
+            <button
+              onClick={() => setIncludeToday(v => !v)}
+              className={`w-11 h-6 rounded-full transition-colors relative shrink-0
+                ${includeToday ? "bg-accent-blue" : "bg-surface-3"}`}
+            >
+              <span
+                className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform
+                  ${includeToday ? "translate-x-5" : "translate-x-0.5"}`}
+              />
+            </button>
+          </div>
+
+          {/* Date range + days logged badge */}
           {data && (
             <p className="text-[11px] text-muted text-center">
+              {start} → {end}
+              {" · "}
               {daysLogged} of {totalDays} day{totalDays !== 1 ? "s" : ""} logged
-              {daysLogged > 0 && " · showing daily averages"}
+              {daysLogged > 0 && " · daily averages"}
             </p>
           )}
         </div>
@@ -142,49 +168,49 @@ export default function ReportsPage({ onClose }) {
         ) : !data || daysLogged === 0 ? (
           <div className="flex flex-col items-center py-16 gap-3 text-center">
             <span className="text-4xl">📊</span>
-            <p className="font-semibold text-foreground">No data for this period</p>
-            <p className="text-muted text-sm">Log some meals to see your averages here</p>
+            <p className="font-semibold text-foreground">No meals logged in this period</p>
+            <p className="text-muted text-sm">Log meals on the Today tab to see your averages here</p>
           </div>
         ) : (
           <>
             {/* ── Macro average cards ── */}
             <Section title="Daily Averages">
               <div className="grid grid-cols-2 gap-3">
-                <MacroCard label="Calories" value={avg.calories}  unit="kcal" color="#FF9500" decimals={0} />
-                <MacroCard label="Protein"  value={avg.protein_g} unit="g"    color="#34C759" decimals={1} />
-                <MacroCard label="Carbs"    value={avg.carbs_g}   unit="g"    color="#007AFF" decimals={1} />
-                <MacroCard label="Fat"      value={avg.fat_g}     unit="g"    color="#FF3B30" decimals={1} />
+                <MacroCard label="Calories" value={avg?.calories}   unit="kcal" color="#FF9500" decimals={0} />
+                <MacroCard label="Protein"  value={avg?.protein_g}  unit="g"    color="#34C759" decimals={1} />
+                <MacroCard label="Carbs"    value={avg?.carbs_g}    unit="g"    color="#007AFF" decimals={1} />
+                <MacroCard label="Fat"      value={avg?.fat_g}      unit="g"    color="#FF3B30" decimals={1} />
               </div>
             </Section>
 
             {/* ── Secondary nutrients ── */}
             <Section title="Other Nutrients (daily avg)">
               <div className="card-no-pad divide-y divide-surface-3">
-                <NutrientRow label="Fiber"      value={avg.fiber_g}        unit="g"  />
-                <NutrientRow label="Sugar"      value={avg.sugar_g}        unit="g"  />
-                <NutrientRow label="Sodium"     value={avg.sodium_mg}      unit="mg" />
-                <NutrientRow label="Potassium"  value={avg.potassium_mg}   unit="mg" />
-                <NutrientRow label="Sat Fat"    value={avg.sat_fat_g}      unit="g"  />
-                <NutrientRow label="Cholesterol" value={avg.cholesterol_mg} unit="mg" />
-                <NutrientRow label="Omega-3 ALA" value={avg.omega3_ala_g}  unit="g"  />
-                <NutrientRow label="Omega-3 EPA" value={avg.omega3_epa_g}  unit="g"  />
-                <NutrientRow label="Omega-3 DHA" value={avg.omega3_dha_g}  unit="g"  />
+                <NutrientRow label="Fiber"       value={avg?.fiber_g}       unit="g"  />
+                <NutrientRow label="Sugar"       value={avg?.sugar_g}       unit="g"  />
+                <NutrientRow label="Sodium"      value={avg?.sodium_mg}     unit="mg" />
+                <NutrientRow label="Potassium"   value={avg?.potassium_mg}  unit="mg" />
+                <NutrientRow label="Saturated Fat" value={avg?.sat_fat_g}   unit="g"  />
+                <NutrientRow label="Cholesterol" value={avg?.cholesterol_mg} unit="mg" />
+                <NutrientRow label="Omega-3 ALA" value={avg?.omega3_ala_g}  unit="g"  />
+                <NutrientRow label="Omega-3 EPA" value={avg?.omega3_epa_g}  unit="g"  />
+                <NutrientRow label="Omega-3 DHA" value={avg?.omega3_dha_g}  unit="g"  />
               </div>
             </Section>
 
             {/* ── Vitamin & mineral highlights ── */}
             <Section title="Vitamins & Minerals (daily avg)">
               <div className="card-no-pad divide-y divide-surface-3">
-                <NutrientRow label="Vitamin A"   value={avg.vitamin_a_mcg}  unit="mcg" />
-                <NutrientRow label="Vitamin C"   value={avg.vitamin_c_mg}   unit="mg"  />
-                <NutrientRow label="Vitamin D"   value={avg.vitamin_d_mcg}  unit="mcg" />
-                <NutrientRow label="Vitamin E"   value={avg.vitamin_e_mg}   unit="mg"  />
-                <NutrientRow label="Calcium"     value={avg.calcium_mg}     unit="mg"  />
-                <NutrientRow label="Iron"        value={avg.iron_mg}        unit="mg"  />
-                <NutrientRow label="Magnesium"   value={avg.magnesium_mg}   unit="mg"  />
-                <NutrientRow label="Zinc"        value={avg.zinc_mg}        unit="mg"  />
-                <NutrientRow label="B12"         value={avg.cobalamin_mcg}  unit="mcg" />
-                <NutrientRow label="Folate"      value={avg.folate_mcg}     unit="mcg" />
+                <NutrientRow label="Vitamin A"  value={avg?.vitamin_a_mcg}  unit="mcg" />
+                <NutrientRow label="Vitamin C"  value={avg?.vitamin_c_mg}   unit="mg"  />
+                <NutrientRow label="Vitamin D"  value={avg?.vitamin_d_mcg}  unit="mcg" />
+                <NutrientRow label="Vitamin E"  value={avg?.vitamin_e_mg}   unit="mg"  />
+                <NutrientRow label="Calcium"    value={avg?.calcium_mg}     unit="mg"  />
+                <NutrientRow label="Iron"       value={avg?.iron_mg}        unit="mg"  />
+                <NutrientRow label="Magnesium"  value={avg?.magnesium_mg}   unit="mg"  />
+                <NutrientRow label="Zinc"       value={avg?.zinc_mg}        unit="mg"  />
+                <NutrientRow label="B12"        value={avg?.cobalamin_mcg}  unit="mcg" />
+                <NutrientRow label="Folate"     value={avg?.folate_mcg}     unit="mcg" />
               </div>
             </Section>
           </>
@@ -222,13 +248,14 @@ function MacroCard({ label, value, unit, color, decimals }) {
 
 // ── Secondary nutrient row ────────────────────────────────────────────────
 function NutrientRow({ label, value, unit }) {
+  const display = value != null && value > 0
+    ? `${value < 10 ? value.toFixed(2) : value < 100 ? value.toFixed(1) : value.toFixed(0)} ${unit}`
+    : "—";
   return (
     <div className="flex items-center justify-between px-4 py-2.5">
       <span className="text-sm text-foreground">{label}</span>
-      <span className="text-sm font-mono text-muted">
-        {value != null && value > 0
-          ? `${value < 10 ? value.toFixed(2) : value < 100 ? value.toFixed(1) : value.toFixed(0)} ${unit}`
-          : "—"}
+      <span className={`text-sm font-mono ${display === "—" ? "text-muted/40" : "text-muted"}`}>
+        {display}
       </span>
     </div>
   );

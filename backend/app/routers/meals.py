@@ -96,6 +96,10 @@ def _add_micro(totals: dict, field: str, value: Optional[float]) -> None:
 
 # All micronutrient field names on Ingredient (for iteration)
 _MICRO_FIELDS = [
+    # Macros
+    "calories", "protein_g", "carbs_g", "fat_g",
+    "fiber_g", "sugar_g", "sat_fat_g", "trans_fat_g",
+    "cholesterol_mg", "sodium_mg", "potassium_mg",
     # Vitamins
     "vitamin_a_mcg", "vitamin_c_mg", "vitamin_d_mcg", "vitamin_e_mg", "vitamin_k_mcg",
     "thiamine_mg", "riboflavin_mg", "niacin_mg", "pantothenic_acid_mg", "pyridoxine_mg",

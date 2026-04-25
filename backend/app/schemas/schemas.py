@@ -369,7 +369,20 @@ class DailySummaryRead(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class MicronutrientTotals(BaseModel):
-    """All micronutrient totals for a given period. None = no data tracked."""
+    """All nutrient totals for a given period. None = no data tracked."""
+
+    # Macros
+    calories:        Optional[float] = None
+    protein_g:       Optional[float] = None
+    carbs_g:         Optional[float] = None
+    fat_g:           Optional[float] = None
+    fiber_g:         Optional[float] = None
+    sugar_g:         Optional[float] = None
+    sat_fat_g:       Optional[float] = None
+    trans_fat_g:     Optional[float] = None
+    cholesterol_mg:  Optional[float] = None
+    sodium_mg:       Optional[float] = None
+    potassium_mg:    Optional[float] = None
 
     # Vitamins
     vitamin_a_mcg:          Optional[float] = None
