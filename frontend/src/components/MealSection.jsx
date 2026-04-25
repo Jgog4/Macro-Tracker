@@ -16,6 +16,7 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
   const [deleting, setDeleting]     = useState(null);
   const [editing, setEditing]       = useState(null);
   const [editQty, setEditQty]       = useState("");
+  const [editMeal, setEditMeal]     = useState("");
   const [saving, setSaving]         = useState(null);
   const [savingRecipe, setSavingRecipe] = useState(false);
   const [recipePrompt, setRecipePrompt] = useState(false);
@@ -39,14 +40,25 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
     finally { setDeleting(null); }
   };
 
-  const startEdit = (item) => { setEditing(item.id); setEditQty(String(item.quantity_g)); };
-  const cancelEdit = () => { setEditing(null); setEditQty(""); };
+  const startEdit = (item) => {
+    setEditing(item.id);
+    setEditQty(String(item.quantity_g));
+    setEditMeal(String(meal.meal_number));
+  };
+  const cancelEdit = () => { setEditing(null); setEditQty(""); setEditMeal(""); };
 
   const handleSaveEdit = async (itemId) => {
-    const qty = parseFloat(editQty);
+    const qty      = parseFloat(editQty);
+    const mealNum  = parseInt(editMeal, 10);
     if (!qty || qty <= 0) return;
     setSaving(itemId);
-    try { await mealsApi.updateItem(itemId, { quantity_g: qty }); setEditing(null); onRefresh(); }
+    try {
+      const payload = { quantity_g: qty };
+      if (mealNum > 0 && mealNum !== meal.meal_number) payload.meal_number = mealNum;
+      await mealsApi.updateItem(itemId, payload);
+      setEditing(null);
+      onRefresh();
+    }
     catch (e) { console.error(e); }
     finally { setSaving(null); }
   };
@@ -112,76 +124,101 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
 
               {/* ── Edit mode ── */}
               {editing === item.id ? (
-                <div className="flex items-center gap-2 px-4 py-2.5">
-                  <p className="text-sm text-foreground truncate flex-1 min-w-0">{item.display_name}</p>
-                  <input
-                    type="number"
-                    value={editQty}
-                    onChange={e => setEditQty(e.target.value)}
-                    className="input w-20 py-1 px-2"
-                    autoFocus min="0.5" step="0.5"
-                    onKeyDown={e => {
-                      if (e.key === "Enter") handleSaveEdit(item.id);
-                      if (e.key === "Escape") cancelEdit();
-                    }}
-                  />
-                  <span className="text-xs text-muted">g</span>
-                  <button onClick={() => handleSaveEdit(item.id)} disabled={saving === item.id}
-                    className="p-1 rounded-lg bg-green-50 text-accent-green">
-                    {saving === item.id ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-                  </button>
-                  <button onClick={cancelEdit} className="p-1 rounded-lg hover:bg-surface-3 text-muted">
-                    <X size={13} />
-                  </button>
+                <div className="flex flex-col gap-2 px-4 py-2.5">
+                  <p className="text-sm font-medium text-foreground">{item.display_name}</p>
+                  <div className="flex items-center gap-2">
+                    {/* Quantity */}
+                    <input
+                      type="number"
+                      value={editQty}
+                      onChange={e => setEditQty(e.target.value)}
+                      className="input w-20 py-1 px-2"
+                      autoFocus min="0.5" step="0.5"
+                      onKeyDown={e => {
+                        if (e.key === "Enter") handleSaveEdit(item.id);
+                        if (e.key === "Escape") cancelEdit();
+                      }}
+                    />
+                    <span className="text-xs text-muted">g</span>
+                    {/* Meal number */}
+                    <span className="text-xs text-muted ml-2">Meal</span>
+                    <input
+                      type="number"
+                      value={editMeal}
+                      onChange={e => setEditMeal(e.target.value)}
+                      className="input w-14 py-1 px-2"
+                      min="1" step="1"
+                      onKeyDown={e => {
+                        if (e.key === "Enter") handleSaveEdit(item.id);
+                        if (e.key === "Escape") cancelEdit();
+                      }}
+                    />
+                    <div className="flex items-center gap-1 ml-auto">
+                      <button onClick={() => handleSaveEdit(item.id)} disabled={saving === item.id}
+                        className="p-1.5 rounded-lg bg-green-50 text-accent-green">
+                        {saving === item.id ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                      </button>
+                      <button onClick={cancelEdit} className="p-1.5 rounded-lg hover:bg-surface-3 text-muted">
+                        <X size={13} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
               ) : (
                 /* ── Normal view ── */
                 <>
-                  <div className="group flex w-full items-center justify-between px-4 py-2.5 hover:bg-surface-2 transition-colors">
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                      {/* Expand chevron — only for recipe items that have components */}
-                      {item.recipe_id && item.components?.length > 0 && (
+                  <div className="group flex w-full px-4 py-2.5 hover:bg-surface-2 transition-colors">
+                    {/* Expand chevron for recipe items */}
+                    <div className="shrink-0 pt-0.5 mr-1">
+                      {item.recipe_id && item.components?.length > 0 ? (
                         <button
                           onClick={() => toggleItemExpand(item.id)}
-                          className="shrink-0 p-0.5 text-muted hover:text-accent-blue transition-colors"
+                          className="p-0.5 text-muted hover:text-accent-blue transition-colors"
                           aria-label="Toggle ingredients">
                           <ChevronRight
                             size={13}
                             className={`transition-transform ${expandedItems[item.id] ? "rotate-90" : ""}`}
                           />
                         </button>
+                      ) : (
+                        <span className="w-[17px] inline-block" />
                       )}
-                      {/* Indent spacer when no chevron */}
-                      {!(item.recipe_id && item.components?.length > 0) && (
-                        <span className="w-[17px] shrink-0" />
-                      )}
-                      <div className="flex flex-col flex-1 min-w-0">
-                        <p className="text-sm text-foreground truncate">{item.display_name}</p>
+                    </div>
+
+                    {/* Two-line content */}
+                    <div className="flex-1 min-w-0">
+                      {/* Line 1: full name, wraps freely */}
+                      <p className="text-sm text-foreground leading-snug">{item.display_name}</p>
+                      {/* Line 2: weight · kcal · macros + actions */}
+                      <div className="flex items-center justify-between mt-0.5">
                         <p className="text-[11px] text-muted">
                           {item.quantity_g}g
+                          <span className="mx-1">·</span>
+                          <span style={{ color: "#FF9500" }}>{item.calories.toFixed(0)} kcal</span>
+                          <span className="mx-1">·</span>
+                          <span style={{ color: "#34C759" }}>{item.protein_g.toFixed(1)}P</span>
+                          <span className="mx-1">·</span>
+                          <span style={{ color: "#007AFF" }}>{item.carbs_g.toFixed(1)}C</span>
+                          <span className="mx-1">·</span>
+                          <span style={{ color: "#FF3B30" }}>{item.fat_g.toFixed(1)}F</span>
                           {item.recipe_id && item.components?.length > 0 && (
                             <span className="ml-1 text-[10px] text-muted/60">
                               · {item.components.length} ingredient{item.components.length !== 1 ? "s" : ""}
                             </span>
                           )}
                         </p>
+                        <div className="flex items-center gap-0.5 shrink-0 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => startEdit(item)}
+                            className="p-1 rounded-lg hover:bg-surface-3 text-muted">
+                            <Pencil size={11} />
+                          </button>
+                          <button onClick={() => handleDelete(item.id)} disabled={deleting === item.id}
+                            className="p-1 rounded-lg hover:bg-red-50 text-muted hover:text-accent-red">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 ml-3 shrink-0">
-                      <span className="text-xs font-mono text-muted">{item.calories.toFixed(0)} kcal</span>
-                      <span className="text-[11px] font-medium" style={{ color: "#34C759" }}>{item.protein_g.toFixed(1)}P</span>
-                      <span className="text-[11px] font-medium" style={{ color: "#007AFF" }}>{item.carbs_g.toFixed(1)}C</span>
-                      <span className="text-[11px] font-medium" style={{ color: "#FF3B30" }}>{item.fat_g.toFixed(1)}F</span>
-                      <button onClick={() => startEdit(item)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-surface-3 text-muted">
-                        <Pencil size={11} />
-                      </button>
-                      <button onClick={() => handleDelete(item.id)} disabled={deleting === item.id}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-red-50 text-muted hover:text-accent-red">
-                        <Trash2 size={12} />
-                      </button>
                     </div>
                   </div>
 

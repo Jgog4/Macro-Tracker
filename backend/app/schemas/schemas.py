@@ -260,8 +260,9 @@ class MealLogCreate(BaseModel):
 
 
 class MealLogItemUpdate(BaseModel):
-    quantity_g: Optional[float] = None
-    logged_at:  Optional[datetime] = None
+    quantity_g:  Optional[float] = None
+    logged_at:   Optional[datetime] = None
+    meal_number: Optional[int] = None   # if set, moves item to this meal number
 
 
 class MealCopyRequest(BaseModel):

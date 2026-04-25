@@ -455,9 +455,49 @@ async def update_log_item(
     if body.logged_at is not None:
         item.logged_at = body.logged_at
 
+    # ── Move to a different meal number ───────────────────────────────────────
+    old_meal_id = item.meal_log_id
+    if body.meal_number is not None:
+        old_meal = await db.get(MealLog, old_meal_id)
+        if old_meal and body.meal_number != old_meal.meal_number:
+            # Find or create the target MealLog for this date + new meal_number
+            target_result = await db.execute(
+                select(MealLog).where(
+                    MealLog.user_id    == old_meal.user_id,
+                    MealLog.log_date   == old_meal.log_date,
+                    MealLog.meal_number == body.meal_number,
+                )
+            )
+            target_meal = target_result.scalar_one_or_none()
+            if not target_meal:
+                target_meal = MealLog(
+                    user_id=old_meal.user_id,
+                    log_date=old_meal.log_date,
+                    meal_number=body.meal_number,
+                    logged_at=old_meal.logged_at,
+                )
+                db.add(target_meal)
+                await db.flush()
+
+            item.meal_log_id = target_meal.id
+            await db.flush()
+
+            # Recompute old meal totals
+            old_remaining = await db.execute(
+                select(MealLogItem).where(MealLogItem.meal_log_id == old_meal_id)
+            )
+            old_items = old_remaining.scalars().all()
+            old_meal.total_calories       = round(sum(i.calories       for i in old_items), 2)
+            old_meal.total_protein_g      = round(sum(i.protein_g      for i in old_items), 2)
+            old_meal.total_fat_g          = round(sum(i.fat_g          for i in old_items), 2)
+            old_meal.total_carbs_g        = round(sum(i.carbs_g        for i in old_items), 2)
+            old_meal.total_sodium_mg      = round(sum(i.sodium_mg      for i in old_items), 2)
+            old_meal.total_cholesterol_mg = round(sum(i.cholesterol_mg for i in old_items), 2)
+            await db.flush()
+
     await db.flush()
 
-    # Recompute meal totals
+    # Recompute current meal totals
     remaining = await db.execute(select(MealLogItem).where(MealLogItem.meal_log_id == item.meal_log_id))
     all_items = remaining.scalars().all()
     meal = await db.get(MealLog, item.meal_log_id)
