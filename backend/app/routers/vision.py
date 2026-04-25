@@ -6,6 +6,7 @@ import base64
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -116,27 +117,34 @@ async def extract_and_save(
     status_code=status.HTTP_201_CREATED,
 )
 async def estimate_from_ingredients(
-    file:  UploadFile           = File(..., description="Photo of ingredient list / package back / meal screenshot"),
-    file2: Optional[UploadFile] = File(None, description="Second image (optional)"),
+    files: List[UploadFile]     = File(..., description="One or more photos of ingredient lists / package backs / meal screenshots"),
     name:  Optional[str]        = Form(None, description="Override the inferred name"),
     db:    AsyncSession         = Depends(get_db),
 ):
     """
-    Upload a photo of an ingredient list, package back, or meal-tracking
+    Upload 1+ photos of an ingredient list, package back, or meal-tracking
     screenshot. Claude ESTIMATES the nutrition (not reads a label).
     Saves as a personal Ingredient and returns it.
     """
-    images = []
-    raw1 = await file.read()
-    if len(raw1) > 20 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="Image too large (max 20 MB)")
-    images.append((base64.b64encode(raw1).decode(), file.content_type or "image/jpeg"))
+    if not files:
+        raise HTTPException(status_code=400, detail="At least one image is required.")
+    if len(files) > 5:
+        raise HTTPException(status_code=400, detail="Maximum 5 images allowed.")
 
-    if file2 and file2.filename:
-        raw2 = await file2.read()
-        images.append((base64.b64encode(raw2).decode(), file2.content_type or "image/jpeg"))
+    images = []
+    for f in files:
+        raw = await f.read()
+        if len(raw) > 20 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail=f"Image '{f.filename}' too large (max 20 MB)")
+        images.append((base64.b64encode(raw).decode(), f.content_type or "image/jpeg"))
 
     estimated = await estimate_from_ingredient_images(images)
+    if estimated.confidence == 0.0:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not parse nutrition data from the image(s). "
+                   "Please ensure the photos clearly show an ingredient list or nutrition label."
+        )
 
     from app.models.models import Ingredient as IngredientModel
     valid_cols    = {c.key for c in IngredientModel.__table__.columns}
@@ -194,6 +202,13 @@ async def analyze_from_url(
             + (f"\n\nFood name: {body.name}" if body.name else "")
         )
         estimated = await _call_claude_text(RECIPE_URL_PROMPT, user_msg)
+        if estimated.confidence == 0.0:
+            raise HTTPException(
+                status_code=502,
+                detail="Could not parse nutrition data from the ingredient list. "
+                       "Please make sure the list clearly states quantities and ingredients, "
+                       "and try again."
+            )
         if body.name and not estimated.name:
             estimated.name = body.name
 
@@ -211,6 +226,12 @@ async def analyze_from_url(
             raise HTTPException(
                 status_code=502,
                 detail=f"Could not reach URL: {e}. Try pasting the ingredient list as text instead."
+            )
+        if estimated.confidence == 0.0:
+            raise HTTPException(
+                status_code=502,
+                detail="Could not parse nutrition data from the recipe page. "
+                       "Try pasting the ingredient list as text instead."
             )
     else:
         raise HTTPException(status_code=400, detail="Provide either url or ingredients_text.")

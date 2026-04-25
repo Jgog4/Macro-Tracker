@@ -253,19 +253,49 @@ you have a clear ingredient list.
 
 # ── Shared helper: send text to Claude and parse JSON response ────────────────
 
+def _extract_json_from_text(raw: str) -> dict:
+    """
+    Robustly extract a JSON object from a Claude response that may include
+    surrounding prose or markdown fences. Raises ValueError if no JSON found.
+    """
+    # Strip markdown code fences (```json ... ``` or ``` ... ```)
+    if "```" in raw:
+        raw = "\n".join(
+            line for line in raw.splitlines()
+            if not line.strip().startswith("```")
+        ).strip()
+
+    # Try parsing the whole string first (fast path)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+
+    # Find the outermost { ... } block
+    start = raw.find("{")
+    end   = raw.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        try:
+            return json.loads(raw[start : end + 1])
+        except json.JSONDecodeError:
+            pass
+
+    raise ValueError(f"No valid JSON object found in response: {raw[:300]}")
+
+
 async def _call_claude_text(system: str, user_message: str) -> VisionExtractResponse:
     """Send a text-only request to Claude and parse a VisionExtractResponse."""
     if not settings.ANTHROPIC_API_KEY:
         return VisionExtractResponse(confidence=0.0, raw_text="[Anthropic API key not configured]")
 
     payload = {
-        "model":    settings.ANTHROPIC_VISION_MODEL,
-        "max_tokens": 1800,
-        "system":   system,
-        "messages": [{"role": "user", "content": user_message}],
+        "model":      settings.ANTHROPIC_VISION_MODEL,
+        "max_tokens": 3000,
+        "system":     system,
+        "messages":   [{"role": "user", "content": user_message}],
     }
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=45.0) as client:
         resp = await client.post(
             "https://api.anthropic.com/v1/messages",
             headers={
@@ -279,19 +309,18 @@ async def _call_claude_text(system: str, user_message: str) -> VisionExtractResp
         data = resp.json()
 
     raw = data["content"][0]["text"].strip()
-    if raw.startswith("```"):
-        raw = "\n".join(l for l in raw.splitlines() if not l.startswith("```")).strip()
 
     try:
-        parsed   = json.loads(raw)
+        parsed   = _extract_json_from_text(raw)
         known    = set(VisionExtractResponse.model_fields.keys())
         filtered = {k: v for k, v in parsed.items() if k in known}
         result   = VisionExtractResponse(**filtered)
         if result.serving_size_g is None and result.serving_size:
             result.serving_size_g = _parse_serving_size_g(result.serving_size)
         return result
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return VisionExtractResponse(confidence=0.1, raw_text=raw)
+    except (ValueError, TypeError) as exc:
+        # Return a sentinel: confidence=0.0, raw_text preserved for debugging
+        return VisionExtractResponse(confidence=0.0, raw_text=str(exc)[:500])
 
 
 # ── Ingredient-list image estimation ─────────────────────────────────────────
@@ -338,19 +367,17 @@ async def estimate_from_ingredient_images(
         data = resp.json()
 
     raw = data["content"][0]["text"].strip()
-    if raw.startswith("```"):
-        raw = "\n".join(l for l in raw.splitlines() if not l.startswith("```")).strip()
 
     try:
-        parsed   = json.loads(raw)
+        parsed   = _extract_json_from_text(raw)
         known    = set(VisionExtractResponse.model_fields.keys())
         filtered = {k: v for k, v in parsed.items() if k in known}
         result   = VisionExtractResponse(**filtered)
         if result.serving_size_g is None and result.serving_size:
             result.serving_size_g = _parse_serving_size_g(result.serving_size)
         return result
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return VisionExtractResponse(confidence=0.1, raw_text=raw)
+    except (ValueError, TypeError) as exc:
+        return VisionExtractResponse(confidence=0.0, raw_text=str(exc)[:500])
 
 
 # ── URL recipe analysis ───────────────────────────────────────────────────────
