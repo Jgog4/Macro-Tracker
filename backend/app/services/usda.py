@@ -278,10 +278,16 @@ async def import_usda_food(fdc_id: int) -> Ingredient:
     serving_size   = food.get("servingSize")
     serving_unit   = food.get("servingSizeUnit", "g")
     serving_desc   = f"{serving_size} {serving_unit}" if serving_size else None
-    # Convert to grams
+    # Convert to grams — USDA uses several aliases
     serving_g: Optional[float] = None
-    if serving_size and serving_unit and serving_unit.lower() in ("g", "grams"):
-        serving_g = float(serving_size)
+    if serving_size and serving_unit:
+        u = serving_unit.lower().strip()
+        if u in ("g", "grm", "gram", "grams", "gr"):
+            serving_g = float(serving_size)
+        elif u in ("oz", "ounce", "ounces"):
+            serving_g = round(float(serving_size) * 28.3495, 1)
+        elif u in ("ml", "milliliter", "milliliters", "millilitre"):
+            serving_g = float(serving_size)   # water-like density approximation
 
     # Build kwargs — only pass fields that exist on Ingredient
     from app.models.models import Ingredient as IngredientModel
