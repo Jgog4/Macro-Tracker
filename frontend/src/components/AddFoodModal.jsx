@@ -1,9 +1,18 @@
 /**
  * Add Food modal — search + entry screen (iOS light theme).
+ *
+ * Quantity entry uses the Cronometer pattern:
+ *   [Amount input]  [Serving Size dropdown ▾]
+ *
+ * Serving Size options:
+ *   - Named serving (e.g. "1 square — 22g") when the food has serving_size_g
+ *   - "g" — always present; Amount becomes raw grams
+ *
+ * Logged quantity_g = amount × selectedOption.gramsEach
  */
 import { useState, useEffect, useRef } from "react";
 import { foodsApi, mealsApi, recipesApi } from "../api/client";
-import { X, Search, Loader2, ChevronRight, ChevronLeft } from "lucide-react";
+import { X, Search, Loader2, ChevronRight, ChevronLeft, ChevronDown } from "lucide-react";
 
 const SOURCE_BADGE = {
   personal:   { label: "My Foods",   color: "bg-green-100 text-green-700" },
@@ -19,27 +28,55 @@ function nowTimeStr() {
   return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 }
 
+/** Build the list of serving-size options for a food item. */
+function buildServingOptions(food) {
+  const options = [];
+
+  if (food.serving_size_g) {
+    // Named serving (e.g. "1 square", "1 serving", recipe name)
+    const grams = food.serving_size_g;
+    let label;
+    if (food.serving_size_desc) {
+      // Use stored description, strip leading digits+space if redundant
+      label = food.serving_size_desc;
+    } else if (food.source === "recipe") {
+      label = "full recipe";
+    } else {
+      label = "serving";
+    }
+    options.push({ id: "serving", label, gramsEach: grams });
+  }
+
+  // "g" is always available
+  options.push({ id: "g", label: "g", gramsEach: 1 });
+
+  return options;
+}
+
 export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLogged }) {
   const [query, setQuery]             = useState("");
   const [results, setResults]         = useState([]);
   const [loading, setLoading]         = useState(false);
   const [selected, setSelected]       = useState(null);
-  const [qty, setQty]                 = useState("");          // always grams — the logged value
-  const [servings, setServings]       = useState("1");         // servings-mode input
-  const [inputMode, setInputMode]     = useState("servings");  // "servings" | "grams"
+  const [amount, setAmount]           = useState("1");      // how many of the chosen unit
+  const [servingOpts, setServingOpts] = useState([]);       // options array
+  const [servingOpt, setServingOpt]   = useState(null);     // currently selected option
+  const [showPicker, setShowPicker]   = useState(false);    // serving-size picker open?
   const [mealNumber, setMealNumber]   = useState(defaultMealNumber ?? 1);
   const [time, setTime]               = useState(nowTimeStr);
   const [logging, setLogging]         = useState(false);
   const [error, setError]             = useState("");
 
-  const inputRef   = useRef();
-  const qtyRef     = useRef();
-  const searchGen  = useRef(0);
+  const inputRef  = useRef();
+  const amountRef = useRef();
+  const searchGen = useRef(0);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
-  useEffect(() => { if (selected) setTimeout(() => qtyRef.current?.focus(), 50); }, [selected]);
+  useEffect(() => {
+    if (selected) setTimeout(() => amountRef.current?.focus(), 50);
+  }, [selected]);
 
-  // Unified search (local + USDA + Recipes)
+  // ── Unified search ────────────────────────────────────────────────────────
   useEffect(() => {
     const gen = ++searchGen.current;
     if (!query || query.length < 2) { setResults([]); setLoading(false); return; }
@@ -71,7 +108,9 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
               calories: r.calories, protein_g: r.protein_g,
               fat_g: r.fat_g, carbs_g: r.carbs_g,
               serving_size_g: r.serving_size_g || r.total_weight_g,
-              serving_size_desc: r.serving_size_g ? `${r.serving_size_g}g cooked` : null,
+              serving_size_desc: r.serving_size_g
+                ? `full recipe (${r.serving_size_g}g)`
+                : null,
             }))
           : [];
         const localFdcIds = new Set(localItems.map(i => i.usda_fdc_id).filter(Boolean));
@@ -81,62 +120,46 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
           ...usdaItems.filter(i => !localFdcIds.has(i.fdc_id)),
         ]);
       } catch { if (gen === searchGen.current) setResults([]); }
-      finally { if (gen === searchGen.current) setLoading(false); }
+      finally  { if (gen === searchGen.current) setLoading(false); }
     }, 350);
     return () => clearTimeout(timer);
   }, [query]);
 
-  // ── Derived values ────────────────────────────────────────────────────────
-  const hasServing = !!(selected?.serving_size_g);
+  // ── Derived: grams that will be logged ───────────────────────────────────
+  const amountNum = parseFloat(amount) || 0;
+  const qtyNum    = amountNum * (servingOpt?.gramsEach ?? 1);
 
-  // In servings mode: qty_g = servings * serving_size_g
-  // In grams mode:   qty_g = qty (direct)
-  const servingsNum = parseFloat(servings) || 0;
-  const qtyNum      = inputMode === "servings" && hasServing
-    ? servingsNum * selected.serving_size_g
-    : (parseFloat(qty) || 0);
-
-  const baseG  = selected?.serving_size_g || (qtyNum || 100);
-  const ratio  = qtyNum / baseG;
-  const live   = selected ? {
+  const baseG = selected?.serving_size_g || (qtyNum || 100);
+  const ratio = qtyNum / baseG;
+  const live  = selected ? {
     calories: (selected.calories  || 0) * ratio,
     protein:  (selected.protein_g || 0) * ratio,
     carbs:    (selected.carbs_g   || 0) * ratio,
     fat:      (selected.fat_g     || 0) * ratio,
   } : null;
 
+  // ── Select a food from results ────────────────────────────────────────────
   const handleSelect = (food) => {
+    const opts = buildServingOptions(food);
     setSelected(food);
+    setServingOpts(opts);
+    setServingOpt(opts[0]);
+    // Default amount: 1 for named servings, 100 for raw grams
+    setAmount(opts[0].id === "g" ? "100" : "1");
+    setShowPicker(false);
     setError("");
-    if (food.serving_size_g) {
-      setInputMode("servings");
-      setServings("1");
-      setQty(String(food.serving_size_g));
-    } else {
-      setInputMode("grams");
-      setQty("100");
-    }
   };
 
-  const handleModeSwitch = (mode) => {
-    setInputMode(mode);
-    if (mode === "grams" && hasServing) {
-      // Pre-fill grams from current servings value
-      setQty(String(Math.round(servingsNum * selected.serving_size_g * 10) / 10 || selected.serving_size_g));
-    } else if (mode === "servings" && hasServing) {
-      // Pre-fill servings from current grams value
-      const g = parseFloat(qty) || selected.serving_size_g;
-      setServings(String(Math.round((g / selected.serving_size_g) * 10) / 10 || 1));
-    }
-  };
-
+  // ── Log to diary ──────────────────────────────────────────────────────────
   const handleLog = async () => {
     if (!selected || qtyNum <= 0) return;
     setLogging(true);
     setError("");
     try {
       const [h, m] = time.split(":").map(Number);
-      const loggedAt = new Date(`${dateStr}T${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:00`);
+      const loggedAt = new Date(
+        `${dateStr}T${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:00`
+      );
       let item;
       if (selected.recipe_id) {
         item = { recipe_id: selected.recipe_id, quantity_g: qtyNum };
@@ -162,29 +185,33 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
   return (
     <ModalShell onClose={onClose} title={selected ? "Log Food" : "Add Food"}>
 
-      {/* Search box */}
+      {/* ── Search box ── */}
       <div className="relative w-full min-w-0">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
         <input
           ref={inputRef}
           value={query}
-          onChange={e => { setQuery(e.target.value); setSelected(null); }}
+          onChange={e => { setQuery(e.target.value); setSelected(null); setShowPicker(false); }}
           placeholder="Search foods, restaurants, or ingredients…"
           className="input pl-8 w-full min-w-0"
         />
         {query && (
-          <button onClick={() => { setQuery(""); setSelected(null); setResults([]); }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground">
+          <button
+            onClick={() => { setQuery(""); setSelected(null); setResults([]); setShowPicker(false); }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
+          >
             <X size={13} />
           </button>
         )}
       </div>
 
-      {/* Results list */}
+      {/* ── Results list ── */}
       {!selected && (
         <div className="max-h-64 overflow-y-auto">
           {loading ? (
-            <div className="flex justify-center py-10"><Loader2 size={20} className="animate-spin text-muted" /></div>
+            <div className="flex justify-center py-10">
+              <Loader2 size={20} className="animate-spin text-muted" />
+            </div>
           ) : query.length < 2 ? (
             <p className="text-center text-muted text-sm py-10">Type at least 2 characters to search</p>
           ) : results.length === 0 ? (
@@ -194,7 +221,8 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
             return (
               <button key={food.id || food.fdc_id || i}
                 onClick={() => handleSelect(food)}
-                className="flex w-full items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-surface-2 text-left transition-colors">
+                className="flex w-full items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-surface-2 text-left transition-colors"
+              >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <p className="text-sm text-foreground truncate">{food.name}</p>
@@ -205,9 +233,9 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
                   <p className="text-[11px] text-muted mt-0.5 truncate">
                     {food.brand ? `${food.brand} · ` : ""}
                     {food.calories != null && (
-                      `${food.serving_size_g
-                        ? Math.round(food.calories / food.serving_size_g * 100)
-                        : Math.round(food.calories)} cal/100g`
+                      food.serving_size_g
+                        ? `${Math.round(food.calories)} kcal / serving`
+                        : `${Math.round(food.calories)} kcal / 100g`
                     )}
                   </p>
                 </div>
@@ -218,12 +246,16 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
         </div>
       )}
 
-      {/* Entry screen */}
+      {/* ── Entry screen ── */}
       {selected && (
         <div className="flex flex-col gap-4">
+
+          {/* Back + food name */}
           <div className="flex items-start gap-2">
-            <button onClick={() => setSelected(null)}
-              className="mt-0.5 p-1.5 rounded-lg hover:bg-surface-2 text-muted transition-colors shrink-0">
+            <button
+              onClick={() => { setSelected(null); setShowPicker(false); }}
+              className="mt-0.5 p-1.5 rounded-lg hover:bg-surface-2 text-muted transition-colors shrink-0"
+            >
               <ChevronLeft size={15} />
             </button>
             <div className="min-w-0">
@@ -239,77 +271,107 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
               {[1,2,3,4,5,6].map(n => (
                 <button key={n} onClick={() => setMealNumber(n)}
                   className={`py-2 rounded-xl text-sm font-bold transition-colors
-                    ${n === mealNumber ? "bg-accent-blue text-white shadow-sm" : "bg-surface-2 text-muted hover:bg-surface-3"}`}>
+                    ${n === mealNumber
+                      ? "bg-accent-blue text-white shadow-sm"
+                      : "bg-surface-2 text-muted hover:bg-surface-3"}`}
+                >
                   {n}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Serving mode toggle — only shown for foods with a defined serving size */}
-          {hasServing && (
-            <div className="flex bg-surface-2 rounded-xl p-1 gap-1">
-              {["servings", "grams"].map(mode => (
-                <button
-                  key={mode}
-                  onClick={() => handleModeSwitch(mode)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-semibold capitalize transition-colors
-                    ${inputMode === mode ? "bg-white text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
-                >
-                  {mode === "servings" ? "Servings" : "Grams"}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* ── Amount + Serving Size ── */}
+          <div>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-2 block">
+              Amount
+            </label>
 
-          {/* Quantity input + Time */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              {inputMode === "servings" && hasServing ? (
-                <>
-                  <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1 block">
-                    Servings
-                  </label>
-                  <input
-                    ref={qtyRef}
-                    type="number"
-                    value={servings}
-                    onChange={e => setServings(e.target.value)}
-                    className="input font-mono"
-                    placeholder="1"
-                    min="0.1"
-                    step="0.5"
-                  />
-                  <p className="text-[11px] text-muted mt-1">
-                    1 serving = {selected.serving_size_g % 1 === 0
-                      ? selected.serving_size_g
-                      : selected.serving_size_g.toFixed(1)}g
-                    {selected.serving_size_desc ? ` (${selected.serving_size_desc})` : ""}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1 block">
-                    Quantity (g)
-                  </label>
-                  <input
-                    ref={qtyRef}
-                    type="number"
-                    value={qty}
-                    onChange={e => setQty(e.target.value)}
-                    className="input font-mono"
-                    placeholder="100"
-                    min="1"
-                    step="0.5"
-                  />
-                </>
-              )}
+            {/* Amount + unit row */}
+            <div className="flex gap-2 items-stretch">
+              {/* Amount number */}
+              <input
+                ref={amountRef}
+                type="number"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                className="input font-mono w-28 shrink-0"
+                placeholder={servingOpt?.id === "g" ? "100" : "1"}
+                min="0.1"
+                step={servingOpt?.id === "g" ? "5" : "0.5"}
+              />
+
+              {/* Serving unit selector */}
+              <button
+                onClick={() => setShowPicker(p => !p)}
+                className="flex-1 flex items-center justify-between gap-1 px-3 py-2.5 rounded-xl border border-surface-3 bg-surface-1 text-sm font-medium text-foreground hover:bg-surface-2 transition-colors min-w-0"
+              >
+                <span className="truncate text-left">
+                  {servingOpt?.id === "g"
+                    ? "g"
+                    : servingOpt
+                      ? `${servingOpt.label}${servingOpt.gramsEach ? ` — ${servingOpt.gramsEach % 1 === 0 ? servingOpt.gramsEach : servingOpt.gramsEach.toFixed(1)}g` : ""}`
+                      : "—"}
+                </span>
+                <ChevronDown
+                  size={14}
+                  className={`text-muted shrink-0 transition-transform ${showPicker ? "rotate-180" : ""}`}
+                />
+              </button>
             </div>
-            <div>
-              <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1 block">Time</label>
-              <input type="time" value={time} onChange={e => setTime(e.target.value)}
-                className="input font-mono" />
-            </div>
+
+            {/* Dropdown options */}
+            {showPicker && servingOpts.length > 0 && (
+              <div className="mt-1 rounded-xl border border-surface-3 bg-white shadow-lg overflow-hidden">
+                {servingOpts.map((opt, i) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => {
+                      // Keep the amount proportional when switching units
+                      if (servingOpt && servingOpt.id !== opt.id) {
+                        const currentGrams = amountNum * servingOpt.gramsEach;
+                        const newAmount = opt.id === "g"
+                          ? Math.round(currentGrams * 10) / 10
+                          : Math.round((currentGrams / opt.gramsEach) * 100) / 100;
+                        setAmount(String(newAmount));
+                      }
+                      setServingOpt(opt);
+                      setShowPicker(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-4 py-3 text-sm text-left transition-colors
+                      ${i > 0 ? "border-t border-surface-2" : ""}
+                      ${servingOpt?.id === opt.id
+                        ? "bg-blue-50 text-accent-blue font-semibold"
+                        : "hover:bg-surface-1 text-foreground"}`}
+                  >
+                    <span>{opt.id === "g" ? "g" : opt.label}</span>
+                    {opt.id !== "g" && (
+                      <span className="text-xs text-muted ml-2 shrink-0">
+                        {opt.gramsEach % 1 === 0 ? opt.gramsEach : opt.gramsEach.toFixed(1)}g each
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Context line: shows computed grams when using a named serving */}
+            {servingOpt?.id !== "g" && amountNum > 0 && (
+              <p className="text-[11px] text-muted mt-1.5">
+                = {Math.round(qtyNum * 10) / 10}g logged
+              </p>
+            )}
+          </div>
+
+          {/* Time */}
+          <div>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1 block">Time</label>
+            <input
+              type="time"
+              value={time}
+              onChange={e => setTime(e.target.value)}
+              className="input font-mono"
+            />
           </div>
 
           {/* Live macros */}
@@ -321,16 +383,21 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
               <LiveMacro label="Fat"      value={live?.fat}      unit="g"    color="#FF3B30" />
             </div>
             <p className="text-[10px] text-muted mt-2 text-center">
-              {inputMode === "servings" && hasServing
-                ? `${servingsNum > 0 ? servingsNum : "—"} serving${servingsNum !== 1 ? "s" : ""} · ${qtyNum > 0 ? `${Math.round(qtyNum * 10) / 10}g` : "—"}`
-                : `${qtyNum > 0 ? `${qtyNum}g` : "—"}`}
+              {amountNum > 0
+                ? servingOpt?.id === "g"
+                  ? `${qtyNum}g`
+                  : `${amountNum} × ${servingOpt?.gramsEach % 1 === 0 ? servingOpt?.gramsEach : servingOpt?.gramsEach.toFixed(1)}g = ${Math.round(qtyNum * 10) / 10}g`
+                : "—"}
             </p>
           </div>
 
           {error && <p className="text-accent-red text-xs">{error}</p>}
 
-          <button onClick={handleLog} disabled={logging || qtyNum <= 0}
-            className="btn-primary flex items-center justify-center gap-2 w-full py-3.5 disabled:opacity-40">
+          <button
+            onClick={handleLog}
+            disabled={logging || qtyNum <= 0}
+            className="btn-primary flex items-center justify-center gap-2 w-full py-3.5 disabled:opacity-40"
+          >
             {logging && <Loader2 size={14} className="animate-spin" />}
             Log to Meal {mealNumber}
           </button>
@@ -356,17 +423,8 @@ function LiveMacro({ label, value, unit, color }) {
 export function ModalShell({ onClose, title, children }) {
   return (
     <>
-      {/* Backdrop — fixed to the viewport so it always covers the whole screen */}
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
-
-      {/* Sheet — `fixed` binds it strictly to the device viewport, so it
-          can't be pushed off-screen by a parent container that's
-          accidentally wider than 100vw. max-w-md + mx-auto centers it on
-          tablets, w-full + box-border guarantees 100% of the viewport
-          width INCLUDING padding — never more. */}
       <div className="fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto box-border z-50 overflow-hidden rounded-t-3xl shadow-2xl">
-        {/* Only overflow-y here — setting overflow-x:hidden on the same element
-            as overflow-y:auto triggers an iOS WebKit bug that converts hidden→auto. */}
         <div
           className="bg-white w-full min-w-0 box-border flex flex-col gap-4 overflow-y-auto px-4 pt-5"
           style={{
@@ -374,7 +432,6 @@ export function ModalShell({ onClose, title, children }) {
             paddingBottom: "calc(90px + env(safe-area-inset-bottom, 0px))",
           }}
         >
-          {/* Handle */}
           <div className="w-9 h-1 rounded-full bg-surface-3 mx-auto shrink-0" />
           <div className="flex items-center justify-between gap-2 shrink-0 min-w-0">
             <h2 className="text-lg font-bold text-foreground min-w-0 truncate">{title}</h2>
