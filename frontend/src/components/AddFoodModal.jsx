@@ -20,19 +20,21 @@ function nowTimeStr() {
 }
 
 export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLogged }) {
-  const [query, setQuery]           = useState("");
-  const [results, setResults]       = useState([]);
-  const [loading, setLoading]       = useState(false);
-  const [selected, setSelected]     = useState(null);
-  const [qty, setQty]               = useState("");
-  const [mealNumber, setMealNumber] = useState(defaultMealNumber ?? 1);
-  const [time, setTime]             = useState(nowTimeStr);
-  const [logging, setLogging]       = useState(false);
-  const [error, setError]           = useState("");
+  const [query, setQuery]             = useState("");
+  const [results, setResults]         = useState([]);
+  const [loading, setLoading]         = useState(false);
+  const [selected, setSelected]       = useState(null);
+  const [qty, setQty]                 = useState("");          // always grams — the logged value
+  const [servings, setServings]       = useState("1");         // servings-mode input
+  const [inputMode, setInputMode]     = useState("servings");  // "servings" | "grams"
+  const [mealNumber, setMealNumber]   = useState(defaultMealNumber ?? 1);
+  const [time, setTime]               = useState(nowTimeStr);
+  const [logging, setLogging]         = useState(false);
+  const [error, setError]             = useState("");
 
-  const inputRef  = useRef();
-  const qtyRef    = useRef();
-  const searchGen = useRef(0);
+  const inputRef   = useRef();
+  const qtyRef     = useRef();
+  const searchGen  = useRef(0);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
   useEffect(() => { if (selected) setTimeout(() => qtyRef.current?.focus(), 50); }, [selected]);
@@ -84,7 +86,16 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
     return () => clearTimeout(timer);
   }, [query]);
 
-  const qtyNum = parseFloat(qty) || 0;
+  // ── Derived values ────────────────────────────────────────────────────────
+  const hasServing = !!(selected?.serving_size_g);
+
+  // In servings mode: qty_g = servings * serving_size_g
+  // In grams mode:   qty_g = qty (direct)
+  const servingsNum = parseFloat(servings) || 0;
+  const qtyNum      = inputMode === "servings" && hasServing
+    ? servingsNum * selected.serving_size_g
+    : (parseFloat(qty) || 0);
+
   const baseG  = selected?.serving_size_g || (qtyNum || 100);
   const ratio  = qtyNum / baseG;
   const live   = selected ? {
@@ -96,12 +107,31 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
 
   const handleSelect = (food) => {
     setSelected(food);
-    setQty(food.serving_size_g ? String(food.serving_size_g) : "100");
     setError("");
+    if (food.serving_size_g) {
+      setInputMode("servings");
+      setServings("1");
+      setQty(String(food.serving_size_g));
+    } else {
+      setInputMode("grams");
+      setQty("100");
+    }
+  };
+
+  const handleModeSwitch = (mode) => {
+    setInputMode(mode);
+    if (mode === "grams" && hasServing) {
+      // Pre-fill grams from current servings value
+      setQty(String(Math.round(servingsNum * selected.serving_size_g * 10) / 10 || selected.serving_size_g));
+    } else if (mode === "servings" && hasServing) {
+      // Pre-fill servings from current grams value
+      const g = parseFloat(qty) || selected.serving_size_g;
+      setServings(String(Math.round((g / selected.serving_size_g) * 10) / 10 || 1));
+    }
   };
 
   const handleLog = async () => {
-    if (!selected || !qty) return;
+    if (!selected || qtyNum <= 0) return;
     setLogging(true);
     setError("");
     try {
@@ -109,14 +139,14 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
       const loggedAt = new Date(`${dateStr}T${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:00`);
       let item;
       if (selected.recipe_id) {
-        item = { recipe_id: selected.recipe_id, quantity_g: parseFloat(qty) };
+        item = { recipe_id: selected.recipe_id, quantity_g: qtyNum };
       } else {
         let ingredient_id = selected.id;
         if (!ingredient_id && selected.fdc_id) {
           const imported = await foodsApi.importUsda(selected.fdc_id);
           ingredient_id = imported.data.id;
         }
-        item = { ingredient_id, quantity_g: parseFloat(qty) };
+        item = { ingredient_id, quantity_g: qtyNum };
       }
       await mealsApi.logFood({
         log_date: dateStr, meal_number: mealNumber,
@@ -216,12 +246,64 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
             </div>
           </div>
 
-          {/* Qty + Time */}
+          {/* Serving mode toggle — only shown for foods with a defined serving size */}
+          {hasServing && (
+            <div className="flex bg-surface-2 rounded-xl p-1 gap-1">
+              {["servings", "grams"].map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => handleModeSwitch(mode)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold capitalize transition-colors
+                    ${inputMode === mode ? "bg-white text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
+                >
+                  {mode === "servings" ? "Servings" : "Grams"}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Quantity input + Time */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1 block">Quantity (g)</label>
-              <input ref={qtyRef} type="number" value={qty} onChange={e => setQty(e.target.value)}
-                className="input font-mono" placeholder="100" min="1" step="0.5" />
+              {inputMode === "servings" && hasServing ? (
+                <>
+                  <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1 block">
+                    Servings
+                  </label>
+                  <input
+                    ref={qtyRef}
+                    type="number"
+                    value={servings}
+                    onChange={e => setServings(e.target.value)}
+                    className="input font-mono"
+                    placeholder="1"
+                    min="0.1"
+                    step="0.5"
+                  />
+                  <p className="text-[11px] text-muted mt-1">
+                    1 serving = {selected.serving_size_g % 1 === 0
+                      ? selected.serving_size_g
+                      : selected.serving_size_g.toFixed(1)}g
+                    {selected.serving_size_desc ? ` (${selected.serving_size_desc})` : ""}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1 block">
+                    Quantity (g)
+                  </label>
+                  <input
+                    ref={qtyRef}
+                    type="number"
+                    value={qty}
+                    onChange={e => setQty(e.target.value)}
+                    className="input font-mono"
+                    placeholder="100"
+                    min="1"
+                    step="0.5"
+                  />
+                </>
+              )}
             </div>
             <div>
               <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1 block">Time</label>
@@ -239,16 +321,15 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
               <LiveMacro label="Fat"      value={live?.fat}      unit="g"    color="#FF3B30" />
             </div>
             <p className="text-[10px] text-muted mt-2 text-center">
-              For {qtyNum > 0 ? `${qtyNum} g` : "—"} serving
-              {selected.serving_size_g
-                ? ` · per 100 g: ${Math.round((selected.calories || 0) / (selected.serving_size_g / 100))} kcal`
-                : ""}
+              {inputMode === "servings" && hasServing
+                ? `${servingsNum > 0 ? servingsNum : "—"} serving${servingsNum !== 1 ? "s" : ""} · ${qtyNum > 0 ? `${Math.round(qtyNum * 10) / 10}g` : "—"}`
+                : `${qtyNum > 0 ? `${qtyNum}g` : "—"}`}
             </p>
           </div>
 
           {error && <p className="text-accent-red text-xs">{error}</p>}
 
-          <button onClick={handleLog} disabled={logging || !qty || qtyNum <= 0}
+          <button onClick={handleLog} disabled={logging || qtyNum <= 0}
             className="btn-primary flex items-center justify-center gap-2 w-full py-3.5 disabled:opacity-40">
             {logging && <Loader2 size={14} className="animate-spin" />}
             Log to Meal {mealNumber}
