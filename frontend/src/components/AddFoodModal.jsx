@@ -33,21 +33,22 @@ function buildServingOptions(food) {
   const options = [];
 
   if (food.serving_size_g) {
-    // Named serving (e.g. "1 square", "1 serving", recipe name)
     const grams = food.serving_size_g;
+    const raw   = (food.serving_size_desc || "").trim();
+    // Suppress ugly USDA unit codes like "22 GRM", "28.35 G", etc.
+    const isRawGrams = /^\d+\.?\d*\s*(g|grm|gram|grams|gr|ml)$/i.test(raw);
     let label;
-    if (food.serving_size_desc) {
-      // Use stored description, strip leading digits+space if redundant
-      label = food.serving_size_desc;
+    if (raw && !isRawGrams) {
+      label = raw;                          // e.g. "1 bar", "1 cup", "full recipe"
     } else if (food.source === "recipe") {
       label = "full recipe";
     } else {
-      label = "serving";
+      label = "serving";                    // generic fallback
     }
     options.push({ id: "serving", label, gramsEach: grams });
   }
 
-  // "g" is always available
+  // "g" is always available — lets user enter any gram weight
   options.push({ id: "g", label: "g", gramsEach: 1 });
 
   return options;
