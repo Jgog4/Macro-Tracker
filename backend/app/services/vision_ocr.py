@@ -21,73 +21,88 @@ from app.schemas.schemas import VisionExtractResponse
 settings = get_settings()
 
 SYSTEM_PROMPT = """
-You are a nutrition label reader. The user will send one or two images:
+You are a nutrition analyst. The user will send one or two images:
   - Image 1 (required): a nutrition facts label, restaurant menu, or packaged food item.
   - Image 2 (optional): the front of the package or ingredients list — use this to help identify the product name.
 
-Extract ALL visible nutrition fields and return ONLY valid JSON — no markdown, no prose.
+Your job is TWO-STEP:
 
-Return this exact structure (use null for any field not present on the label):
+STEP 1 — EXTRACT from the label (exact values only):
+Read every number printed on the nutrition label and record it precisely.
+If the label shows a % Daily Value instead of an absolute amount, convert using:
+  Calcium 1%DV=13mg, Iron 1%DV=0.18mg, Vitamin D 1%DV=0.2mcg, Magnesium 1%DV=4.2mg,
+  Zinc 1%DV=0.11mg, Phosphorus 1%DV=7mg, Vitamin A 1%DV=9mcg, Vitamin C 1%DV=0.9mg,
+  Vitamin E 1%DV=0.15mg, Vitamin K 1%DV=1.2mcg, Thiamin 1%DV=0.012mg,
+  Riboflavin 1%DV=0.013mg, Niacin 1%DV=0.16mg, Folate 1%DV=4mcg, B12 1%DV=0.024mcg,
+  Potassium 1%DV=47mg.
+
+STEP 2 — ESTIMATE missing nutrients:
+For any nutrient field NOT shown on the label, estimate a reasonable value based on:
+  • The food name and product type
+  • The ingredient list (if visible)
+  • The extracted macros (calories, protein, fat, carbs)
+  • USDA nutritional composition data for similar foods
+Use 0 (not null) only if the nutrient is truly absent in this food type (e.g. Vitamin C in plain meat).
+Use null only if you genuinely cannot estimate (ambiguous food with no name or context).
+
+Return ONLY valid JSON — no markdown, no prose:
 
 {
   "name":           "<product or dish name, or null>",
-  "serving_size":   "<serving size as printed, e.g. '1 cup (240mL)', or null>",
-  "serving_size_g": <serving size in grams as a number, or null — parse '28g' → 28, '1 oz (28g)' → 28, '1 oz' → 28.35>,
+  "serving_size":   "<serving size as printed, e.g. '1 bar (14g)', or null>",
+  "serving_size_g": <serving size in grams — parse '14g'→14, '1 oz (28g)'→28, '1 oz'→28.35, or null>,
 
-  "calories":       <number or null>,
+  "calories":       <number>,
 
-  "protein_g":      <number or null>,
+  "protein_g":      <number>,
 
-  "fat_g":                  <Total Fat in grams, or null>,
-  "sat_fat_g":              <Saturated Fat in grams, or null>,
-  "trans_fat_g":            <Trans Fat in grams, or null>,
-  "monounsaturated_fat_g":  <Monounsaturated Fat in grams, or null>,
-  "polyunsaturated_fat_g":  <Polyunsaturated Fat in grams, or null>,
-  "omega3_ala_g":           <ALA (Omega-3) in grams, or null>,
-  "omega3_dha_g":           <DHA (Omega-3) in grams, or null>,
-  "omega3_epa_g":           <EPA (Omega-3) in grams, or null>,
+  "fat_g":                  <Total Fat in grams>,
+  "sat_fat_g":              <Saturated Fat in grams>,
+  "trans_fat_g":            <Trans Fat in grams>,
+  "monounsaturated_fat_g":  <Monounsaturated Fat — estimate if not on label>,
+  "polyunsaturated_fat_g":  <Polyunsaturated Fat — estimate if not on label>,
+  "omega3_ala_g":           <ALA Omega-3 — estimate if not on label>,
+  "omega3_dha_g":           <DHA Omega-3 — estimate if not on label, 0 for plant foods>,
+  "omega3_epa_g":           <EPA Omega-3 — estimate if not on label, 0 for plant foods>,
 
-  "carbs_g":            <Total Carbohydrate in grams, or null>,
-  "fiber_g":            <Dietary Fiber in grams, or null>,
-  "soluble_fiber_g":    <Soluble Fiber in grams, or null>,
-  "insoluble_fiber_g":  <Insoluble Fiber in grams, or null>,
-  "sugar_g":            <Total Sugars in grams, or null>,
-  "added_sugar_g":      <Added Sugars in grams, or null>,
+  "carbs_g":            <Total Carbohydrate>,
+  "fiber_g":            <Dietary Fiber>,
+  "soluble_fiber_g":    <Soluble Fiber — estimate if not on label>,
+  "insoluble_fiber_g":  <Insoluble Fiber — estimate if not on label>,
+  "sugar_g":            <Total Sugars>,
+  "added_sugar_g":      <Added Sugars>,
 
-  "sodium_mg":        <Sodium in milligrams, or null>,
-  "cholesterol_mg":   <Cholesterol in milligrams, or null>,
-  "potassium_mg":     <Potassium in milligrams, or null>,
-  "calcium_mg":       <Calcium in milligrams — convert %DV if needed: 1%DV = 13mg, or null>,
-  "iron_mg":          <Iron in milligrams — convert %DV if needed: 1%DV = 0.18mg, or null>,
-  "vitamin_d_mcg":    <Vitamin D in micrograms — convert %DV if needed: 1%DV = 0.2mcg, or null>,
-  "magnesium_mg":     <Magnesium in milligrams — convert %DV if needed: 1%DV = 4.2mg, or null>,
-  "zinc_mg":          <Zinc in milligrams — convert %DV if needed: 1%DV = 0.11mg, or null>,
-  "phosphorus_mg":    <Phosphorus in milligrams — convert %DV if needed: 1%DV = 7mg, or null>,
-  "vitamin_a_mcg":    <Vitamin A in mcg RAE — convert %DV if needed: 1%DV = 9mcg, or null>,
-  "vitamin_c_mg":     <Vitamin C in milligrams — convert %DV if needed: 1%DV = 0.9mg, or null>,
-  "vitamin_e_mg":     <Vitamin E in milligrams — convert %DV if needed: 1%DV = 0.15mg, or null>,
-  "vitamin_k_mcg":    <Vitamin K in micrograms — convert %DV if needed: 1%DV = 1.2mcg, or null>,
-  "thiamine_mg":      <Thiamin / B1 in milligrams — convert %DV if needed: 1%DV = 0.012mg, or null>,
-  "riboflavin_mg":    <Riboflavin / B2 in milligrams — convert %DV if needed: 1%DV = 0.013mg, or null>,
-  "niacin_mg":        <Niacin / B3 in milligrams — convert %DV if needed: 1%DV = 0.16mg, or null>,
-  "folate_mcg":       <Folate / Folic Acid in mcg DFE — convert %DV if needed: 1%DV = 4mcg, or null>,
-  "cobalamin_mcg":    <Vitamin B12 in micrograms — convert %DV if needed: 1%DV = 0.024mcg, or null>,
-  "caffeine_mg":      <Caffeine in milligrams, or null>,
-  "alcohol_g":        <Alcohol in grams, or null>,
+  "sodium_mg":        <Sodium>,
+  "cholesterol_mg":   <Cholesterol>,
+  "potassium_mg":     <Potassium — estimate from label %DV or food type if not shown>,
+  "calcium_mg":       <Calcium>,
+  "iron_mg":          <Iron>,
+  "vitamin_d_mcg":    <Vitamin D>,
+  "magnesium_mg":     <Magnesium — estimate if not on label>,
+  "zinc_mg":          <Zinc — estimate if not on label>,
+  "phosphorus_mg":    <Phosphorus — estimate if not on label>,
+  "vitamin_a_mcg":    <Vitamin A>,
+  "vitamin_c_mg":     <Vitamin C>,
+  "vitamin_e_mg":     <Vitamin E — estimate if not on label>,
+  "vitamin_k_mcg":    <Vitamin K — estimate if not on label>,
+  "thiamine_mg":      <Thiamin / B1 — estimate if not on label>,
+  "riboflavin_mg":    <Riboflavin / B2 — estimate if not on label>,
+  "niacin_mg":        <Niacin / B3 — estimate if not on label>,
+  "folate_mcg":       <Folate — estimate if not on label>,
+  "cobalamin_mcg":    <Vitamin B12 — estimate if not on label>,
+  "caffeine_mg":      <Caffeine — 0 if not a caffeinated product>,
+  "alcohol_g":        <Alcohol — 0 if not an alcoholic product>,
 
-  "confidence":     <0.0–1.0 — how confident you are in the overall extraction>,
-  "raw_text":       "<all text readable from the label, or null>"
+  "confidence":     <0.85–1.0 if label is clear; 0.6–0.85 if label is partial or blurry>,
+  "raw_text":       "<all text readable from the label>"
 }
 
 Rules:
-- All numeric values must be plain floats (e.g. 12.0, not "12g").
-- Omit units — numbers only.
-- serving_size_g must be in grams; convert from oz (1 oz = 28.35 g) if needed.
-- If a value is not present on the label, use null. Do not invent values.
-- If the label shows a % Daily Value for a mineral/vitamin instead of an absolute amount,
-  convert using the factors listed above.
-- If the image is blurry or a value is unclear, lower confidence accordingly.
-- Only include fields that are PRINTED on the label — do not infer or estimate unlisted nutrients.
+- All numeric values must be plain floats (e.g. 12.0, not "12g"). Omit units.
+- serving_size_g must be in grams; convert oz→g (1 oz = 28.35 g) if needed.
+- For label-extracted values: use the exact printed number.
+- For estimated values: use your best knowledge; don't use null when you can estimate.
+- If the image is blurry or unreadable, lower confidence and still estimate what you can.
 """.strip()
 
 
@@ -140,7 +155,7 @@ async def extract_nutrition_from_images(
 
     payload = {
         "model":      settings.ANTHROPIC_VISION_MODEL,
-        "max_tokens": 1500,   # increased to accommodate larger response
+        "max_tokens": 3000,
         "system":     SYSTEM_PROMPT,
         "messages":   [{"role": "user", "content": content}],
     }
@@ -160,24 +175,15 @@ async def extract_nutrition_from_images(
 
     raw_content = data["content"][0]["text"].strip()
 
-    # Strip markdown fences if present
-    if raw_content.startswith("```"):
-        raw_content = "\n".join(
-            line for line in raw_content.splitlines()
-            if not line.startswith("```")
-        ).strip()
-
     try:
-        parsed = json.loads(raw_content)
-        # Filter to only known VisionExtractResponse fields to avoid validation errors
-        known = set(VisionExtractResponse.model_fields.keys())
+        parsed  = _extract_json_from_text(raw_content)
+        known   = set(VisionExtractResponse.model_fields.keys())
         filtered = {k: v for k, v in parsed.items() if k in known}
-        result = VisionExtractResponse(**filtered)
-        # Fallback: parse serving_size_g from string if model didn't supply it
+        result  = VisionExtractResponse(**filtered)
         if result.serving_size_g is None and result.serving_size:
             result.serving_size_g = _parse_serving_size_g(result.serving_size)
         return result
-    except (json.JSONDecodeError, TypeError, ValueError):
+    except (ValueError, TypeError):
         return VisionExtractResponse(confidence=0.1, raw_text=raw_content)
 
 
