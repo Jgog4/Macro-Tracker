@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { format, addDays, subDays } from "date-fns";
-import { CalendarDays, BookOpen, Plus, Camera, Sparkles, Menu, BarChart2 } from "lucide-react";
+import { CalendarDays, BookOpen, Plus, Camera, Search, ChefHat, Sparkles, Menu, BarChart2, X } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import LibraryPage from "./pages/LibraryPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -13,12 +13,15 @@ const TABS = [
 ];
 
 export default function App() {
-  const [tab, setTab]               = useState("today");
+  const [tab, setTab]                 = useState("today");
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [showAdd, setShowAdd]       = useState(false);
-  const [showVision, setShowVision] = useState(false);
+  const [showSheet, setShowSheet]     = useState(false);   // add-food action sheet
+  const [showAdd, setShowAdd]         = useState(false);   // search modal
+  const [showCamera, setShowCamera]   = useState(false);   // scan label modal
+  const [showRecipes, setShowRecipes] = useState(false);   // recipes-only modal
+  const [savedFood, setSavedFood]     = useState(null);    // food returned from camera scan
   const [dashboardKey, setDashboardKey] = useState(0);
-  const [showMenu, setShowMenu]     = useState(false);
+  const [showMenu, setShowMenu]       = useState(false);
   const [showReports, setShowReports] = useState(false);
   const menuRef = useRef(null);
 
@@ -99,7 +102,7 @@ export default function App() {
 
       {/* ── Page content ── */}
       <main className="px-4 pb-28">
-        {tab === "today"   && <Dashboard key={dashboardKey} currentDate={currentDate} onOpenAdd={() => setShowAdd(true)} onOpenVision={() => setShowVision(true)} />}
+        {tab === "today"   && <Dashboard key={dashboardKey} currentDate={currentDate} onOpenAdd={() => setShowSheet(true)} onOpenVision={() => setShowCamera(true)} />}
         {tab === "library" && <LibraryPage />}
       </main>
 
@@ -119,7 +122,7 @@ export default function App() {
         {/* Center + button */}
         <div className="flex-1 flex items-center justify-center">
           <button
-            onClick={() => setShowAdd(true)}
+            onClick={() => setShowSheet(true)}
             className="w-13 h-13 rounded-full bg-accent-blue flex items-center justify-center -mt-4 shadow-blue-glow transition-transform active:scale-95"
             style={{ width: 52, height: 52 }}>
             <Plus size={26} className="text-white" />
@@ -127,7 +130,7 @@ export default function App() {
         </div>
 
         {/* Scan */}
-        <NavItem label="Scan" active={false} onClick={() => setShowVision(true)}>
+        <NavItem label="Scan" active={false} onClick={() => setShowCamera(true)}>
           <Camera size={22} />
         </NavItem>
 
@@ -137,21 +140,109 @@ export default function App() {
         </NavItem>
       </nav>
 
+      {/* ── Add Food action sheet ── */}
+      {showSheet && (
+        <div
+          className="fixed inset-0 z-50 flex items-end"
+          style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
+          onClick={() => setShowSheet(false)}
+        >
+          <div
+            className="w-full max-w-md mx-auto bg-white rounded-t-3xl px-4 pt-4 pb-8"
+            style={{ paddingBottom: "calc(32px + env(safe-area-inset-bottom,0px))" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-9 h-1 bg-surface-3 rounded-full mx-auto mb-5" />
+            <div className="flex items-center justify-between mb-4 px-1">
+              <h2 className="text-lg font-bold text-foreground">Add Food</h2>
+              <button onClick={() => setShowSheet(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-muted">
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {/* Search */}
+              <button
+                onClick={() => { setShowSheet(false); setSavedFood(null); setShowAdd(true); }}
+                className="flex items-center gap-4 p-4 rounded-2xl bg-surface-1 active:bg-surface-2 text-left transition-colors"
+              >
+                <div className="w-11 h-11 rounded-2xl bg-blue-100 flex items-center justify-center shrink-0">
+                  <Search size={20} className="text-accent-blue" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">Search Foods</p>
+                  <p className="text-xs text-muted mt-0.5">Search USDA database and your foods</p>
+                </div>
+              </button>
+
+              {/* Take a Photo */}
+              <button
+                onClick={() => { setShowSheet(false); setShowCamera(true); }}
+                className="flex items-center gap-4 p-4 rounded-2xl bg-surface-1 active:bg-surface-2 text-left transition-colors"
+              >
+                <div className="w-11 h-11 rounded-2xl bg-purple-100 flex items-center justify-center shrink-0">
+                  <Camera size={20} className="text-purple-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">Take a Photo</p>
+                  <p className="text-xs text-muted mt-0.5">Scan a nutrition label — saves to My Foods</p>
+                </div>
+              </button>
+
+              {/* From Recipes */}
+              <button
+                onClick={() => { setShowSheet(false); setShowRecipes(true); }}
+                className="flex items-center gap-4 p-4 rounded-2xl bg-surface-1 active:bg-surface-2 text-left transition-colors"
+              >
+                <div className="w-11 h-11 rounded-2xl bg-green-100 flex items-center justify-center shrink-0">
+                  <ChefHat size={20} className="text-green-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">From Recipes</p>
+                  <p className="text-xs text-muted mt-0.5">Log one of your saved recipes</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Global modals ── */}
+
+      {/* Search modal */}
       {showAdd && (
         <AddFoodModal
           dateStr={dateStr}
           defaultMealNumber={null}
-          onClose={() => setShowAdd(false)}
-          onLogged={() => { setShowAdd(false); setTab("today"); setDashboardKey(k => k + 1); }}
+          preselected={savedFood}
+          onClose={() => { setShowAdd(false); setSavedFood(null); }}
+          onLogged={() => { setShowAdd(false); setSavedFood(null); setTab("today"); setDashboardKey(k => k + 1); }}
         />
       )}
-      {showVision && (
+
+      {/* Camera / label scan — saves to My Foods, then opens log screen */}
+      {showCamera && (
         <VisionModal
-          onClose={() => setShowVision(false)}
-          onSaved={() => setShowVision(false)}
+          onClose={() => setShowCamera(false)}
+          onSaved={(food) => {
+            setShowCamera(false);
+            if (food) { setSavedFood(food); setShowAdd(true); }
+            setDashboardKey(k => k + 1);   // refresh today view
+          }}
         />
       )}
+
+      {/* Recipes-only log modal */}
+      {showRecipes && (
+        <AddFoodModal
+          dateStr={dateStr}
+          defaultMealNumber={null}
+          recipesOnly
+          onClose={() => setShowRecipes(false)}
+          onLogged={() => { setShowRecipes(false); setTab("today"); setDashboardKey(k => k + 1); }}
+        />
+      )}
+
       {showReports && (
         <ReportsPage onClose={() => setShowReports(false)} />
       )}

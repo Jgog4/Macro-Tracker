@@ -92,19 +92,21 @@ export default function VisionModal({ onClose, onSaved, mode = "label" }) {
   const handleSave = async () => {
     setLoading(true);
     try {
+      let res;
       if (mode === "estimate") {
         const fd = new FormData();
         files.forEach(f => fd.append("files", f));
         if (name) fd.append("name", name);
-        await visionApi.estimateFromIngredients(fd);
+        res = await visionApi.estimateFromIngredients(fd);
       } else {
         const fd = new FormData();
         fd.append("file", file1);
         if (name) fd.append("name", name);
-        await visionApi.extractAndSave(fd);
+        res = await visionApi.extractAndSave(fd);
       }
       setStep("saved");
-      setTimeout(onSaved, 1200);
+      // Pass the saved food object back so the caller can open the log screen
+      setTimeout(() => onSaved(res?.data ?? null), 1200);
     } catch (e) {
       setError(e.response?.data?.detail || "Save failed");
     } finally {

@@ -54,7 +54,7 @@ function buildServingOptions(food) {
   return options;
 }
 
-export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLogged }) {
+export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLogged, preselected = null, recipesOnly = false }) {
   const [query, setQuery]             = useState("");
   const [results, setResults]         = useState([]);
   const [loading, setLoading]         = useState(false);
@@ -72,7 +72,30 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
   const amountRef = useRef();
   const searchGen = useRef(0);
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  // If a food was pre-selected (e.g. just scanned from camera), skip search
+  useEffect(() => {
+    if (preselected) handleSelect(preselected);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // In recipesOnly mode, auto-load all recipes on open
+  useEffect(() => {
+    if (!recipesOnly) return;
+    setLoading(true);
+    recipesApi.list().then(res => {
+      setResults(res.data.map(r => ({
+        id: null, recipe_id: r.id, source: "recipe",
+        name: r.name, brand: null,
+        calories: r.calories, protein_g: r.protein_g,
+        fat_g: r.fat_g, carbs_g: r.carbs_g,
+        serving_size_g: r.serving_size_g || r.total_weight_g,
+        serving_size_desc: r.serving_size_g ? `full recipe (${r.serving_size_g}g)` : null,
+      })));
+    }).catch(() => {}).finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipesOnly]);
+
+  useEffect(() => { if (!preselected) inputRef.current?.focus(); }, [preselected]);
   useEffect(() => {
     if (selected) setTimeout(() => amountRef.current?.focus(), 50);
   }, [selected]);
@@ -191,27 +214,29 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
   };
 
   return (
-    <ModalShell onClose={onClose} title={selected ? "Log Food" : "Add Food"}>
+    <ModalShell onClose={onClose} title={selected ? "Log Food" : recipesOnly ? "Log Recipe" : "Add Food"}>
 
-      {/* ── Search box ── */}
-      <div className="relative w-full min-w-0">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={e => { setQuery(e.target.value); setSelected(null); setShowPicker(false); }}
-          placeholder="Search foods, restaurants, or ingredients…"
-          className="input pl-8 w-full min-w-0"
-        />
-        {query && (
-          <button
-            onClick={() => { setQuery(""); setSelected(null); setResults([]); setShowPicker(false); }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
-          >
-            <X size={13} />
-          </button>
-        )}
-      </div>
+      {/* ── Search box — hidden in recipesOnly mode ── */}
+      {!recipesOnly && (
+        <div className="relative w-full min-w-0">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => { setQuery(e.target.value); setSelected(null); setShowPicker(false); }}
+            placeholder="Search foods, restaurants, or ingredients…"
+            className="input pl-8 w-full min-w-0"
+          />
+          {query && (
+            <button
+              onClick={() => { setQuery(""); setSelected(null); setResults([]); setShowPicker(false); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Results list ── */}
       {!selected && (
@@ -220,7 +245,9 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
             <div className="flex justify-center py-10">
               <Loader2 size={20} className="animate-spin text-muted" />
             </div>
-          ) : query.length < 2 ? (
+          ) : recipesOnly && results.length === 0 ? (
+            <p className="text-center text-muted text-sm py-10">No saved recipes yet — build one in the Library tab</p>
+          ) : !recipesOnly && query.length < 2 ? (
             <p className="text-center text-muted text-sm py-10">Type at least 2 characters to search</p>
           ) : results.length === 0 ? (
             <p className="text-center text-muted text-sm py-10">No results found</p>
