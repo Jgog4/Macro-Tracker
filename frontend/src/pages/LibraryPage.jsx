@@ -295,7 +295,12 @@ function MyFoodsTab() {
 
               {/* Name + macros — takes all available space, name wraps freely */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">{food.name}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-semibold text-foreground">{food.name}</p>
+                  {!food.serving_size_g && (
+                    <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-amber-100 text-amber-700 shrink-0">no weight</span>
+                  )}
+                </div>
                 <p className="text-[11px] text-muted mt-0.5">
                   <span style={{ color: "#FF9500" }}>{Math.round(food.calories)} kcal</span>
                   {food.serving_size_g ? ` · ${food.serving_size_g}g` : ""}
@@ -317,15 +322,13 @@ function MyFoodsTab() {
                 >
                   <Plus size={15} />
                 </button>
-                {food.source === "custom" && (
-                  <button
-                    onClick={() => setEditing(food)}
-                    className="w-8 h-8 flex items-center justify-center rounded-xl text-muted hover:bg-surface-3 transition-colors opacity-0 group-hover:opacity-100"
-                    title="Edit"
-                  >
-                    <Pencil size={13} />
-                  </button>
-                )}
+                <button
+                  onClick={() => setEditing(food)}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl text-muted hover:bg-surface-3 transition-colors"
+                  title="Edit"
+                >
+                  <Pencil size={13} />
+                </button>
                 <button
                   onClick={e => handleDelete(e, food)}
                   disabled={deleting === food.id}

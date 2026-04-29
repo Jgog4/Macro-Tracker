@@ -28,24 +28,28 @@ function nowTimeStr() {
   return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 }
 
-/** Build the list of serving-size options for a food item. */
-function buildServingOptions(food) {
+/** Build the list of serving-size options for a food item.
+ *  customG: optional override gram-weight entered by the user. */
+function buildServingOptions(food, customG = null) {
   const options = [];
 
-  if (food.serving_size_g) {
-    const grams = food.serving_size_g;
+  const servingG = (customG && customG > 0) ? customG : food.serving_size_g;
+
+  if (servingG) {
     const raw   = (food.serving_size_desc || "").trim();
     // Suppress ugly USDA unit codes like "22 GRM", "28.35 G", etc.
     const isRawGrams = /^\d+\.?\d*\s*(g|grm|gram|grams|gr|ml)$/i.test(raw);
     let label;
-    if (raw && !isRawGrams) {
-      label = raw;                          // e.g. "1 bar", "1 cup", "full recipe"
+    if (customG && customG > 0) {
+      label = "serving";                    // user-defined
+    } else if (raw && !isRawGrams) {
+      label = raw;                          // e.g. "1 bar", "1 cup"
     } else if (food.source === "recipe") {
       label = "full recipe";
     } else {
-      label = "serving";                    // generic fallback
+      label = "serving";
     }
-    options.push({ id: "serving", label, gramsEach: grams });
+    options.push({ id: "serving", label, gramsEach: servingG });
   }
 
   // "g" is always available — lets user enter any gram weight
@@ -67,6 +71,14 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
   const [time, setTime]               = useState(nowTimeStr);
   const [logging, setLogging]         = useState(false);
   const [error, setError]             = useState("");
+  // "Set item weight" feature — for foods with no serving_size_g
+  const [itemWeightG, setItemWeightG] = useState("");       // user-typed gram weight per item
+  const [saveToFood, setSaveToFood]   = useState(false);    // save weight back to DB?
+  // Extra nutrition fields — shown when all core macros are zero
+  const [customCal, setCustomCal]     = useState("");
+  const [customPro, setCustomPro]     = useState("");
+  const [customCarb, setCustomCarb]   = useState("");
+  const [customFat, setCustomFat]     = useState("");
 
   const inputRef  = useRef();
   const amountRef = useRef();
@@ -160,14 +172,42 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
   const amountNum = parseFloat(amount) || 0;
   const qtyNum    = amountNum * (servingOpt?.gramsEach ?? 1);
 
-  const baseG = selected?.serving_size_g || (qtyNum || 100);
+  // Effective serving base: prefer custom weight, then food's stored weight
+  const effectiveServingG = (parseFloat(itemWeightG) > 0 ? parseFloat(itemWeightG) : null)
+                         ?? selected?.serving_size_g;
+  const baseG = effectiveServingG || (qtyNum || 100);
   const ratio = qtyNum / baseG;
+
+  // Use custom-entered macros if the food has all zeros
+  const allMacrosZero = selected && !selected.calories && !selected.protein_g && !selected.carbs_g && !selected.fat_g;
+  const effCal  = allMacrosZero && customCal  ? parseFloat(customCal)  : (selected?.calories  || 0);
+  const effPro  = allMacrosZero && customPro  ? parseFloat(customPro)  : (selected?.protein_g || 0);
+  const effCarb = allMacrosZero && customCarb ? parseFloat(customCarb) : (selected?.carbs_g   || 0);
+  const effFat  = allMacrosZero && customFat  ? parseFloat(customFat)  : (selected?.fat_g     || 0);
+
   const live  = selected ? {
-    calories: (selected.calories  || 0) * ratio,
-    protein:  (selected.protein_g || 0) * ratio,
-    carbs:    (selected.carbs_g   || 0) * ratio,
-    fat:      (selected.fat_g     || 0) * ratio,
+    calories: effCal  * ratio,
+    protein:  effPro  * ratio,
+    carbs:    effCarb * ratio,
+    fat:      effFat  * ratio,
   } : null;
+
+  // ── When custom item weight changes, rebuild serving options live ────────
+  // Only runs when itemWeightG actually changes (selected is stable once chosen)
+  useEffect(() => {
+    if (!selected || itemWeightG === "") return;   // "" = initial state, skip
+    const customG = parseFloat(itemWeightG) > 0 ? parseFloat(itemWeightG) : null;
+    const opts = buildServingOptions(selected, customG);
+    setServingOpts(opts);
+    if (customG) {
+      setServingOpt(opts[0]);                       // named serving
+      setAmount(a => (a === "100" ? "1" : a));
+    } else {
+      setServingOpt(opts[opts.length - 1]);         // "g"
+      setAmount("100");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemWeightG]);
 
   // ── Select a food from results ────────────────────────────────────────────
   const handleSelect = (food) => {
@@ -179,6 +219,10 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
     setAmount(opts[0].id === "g" ? "100" : "1");
     setShowPicker(false);
     setError("");
+    // Reset "set item weight" fields
+    setItemWeightG("");
+    setSaveToFood(!!food.id);   // pre-tick save if food is already in our DB
+    setCustomCal(""); setCustomPro(""); setCustomCarb(""); setCustomFat("");
   };
 
   // ── Log to diary ──────────────────────────────────────────────────────────
@@ -200,6 +244,20 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
           const imported = await foodsApi.importUsda(selected.fdc_id);
           ingredient_id = imported.data.id;
         }
+
+        // Save item weight (and nutrition) back to the food if requested
+        const customServingG = parseFloat(itemWeightG);
+        if (saveToFood && customServingG > 0 && ingredient_id) {
+          const patch = { serving_size_g: customServingG };
+          if (allMacrosZero) {
+            if (customCal)  patch.calories  = parseFloat(customCal);
+            if (customPro)  patch.protein_g = parseFloat(customPro);
+            if (customCarb) patch.carbs_g   = parseFloat(customCarb);
+            if (customFat)  patch.fat_g     = parseFloat(customFat);
+          }
+          await foodsApi.update(ingredient_id, patch);
+        }
+
         item = { ingredient_id, quantity_g: qtyNum };
       }
       await mealsApi.logFood({
@@ -397,6 +455,73 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
               </p>
             )}
           </div>
+
+          {/* ── Set item weight — shown when no serving_size_g stored ── */}
+          {selected && !selected.serving_size_g && !selected.recipe_id && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col gap-3">
+              <p className="text-xs font-semibold text-amber-800">Set item weight</p>
+              <p className="text-[11px] text-amber-700 -mt-1">
+                No weight stored for this food. Enter the gram weight of one item so quantity scales correctly.
+              </p>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={itemWeightG}
+                  onChange={e => setItemWeightG(e.target.value)}
+                  placeholder="e.g. 22"
+                  min="0.1"
+                  step="0.5"
+                  className="input font-mono w-24 shrink-0 text-sm"
+                />
+                <span className="text-sm text-amber-800 font-medium">g per item</span>
+              </div>
+
+              {/* Nutrition per item — only when all macros are zero */}
+              {allMacrosZero && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[11px] text-amber-700 font-semibold">Nutrition per item (optional)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { label: "Calories",  val: customCal,  set: setCustomCal,  unit: "kcal", color: "#FF9500" },
+                      { label: "Protein",   val: customPro,  set: setCustomPro,  unit: "g",    color: "#34C759" },
+                      { label: "Carbs",     val: customCarb, set: setCustomCarb, unit: "g",    color: "#007AFF" },
+                      { label: "Fat",       val: customFat,  set: setCustomFat,  unit: "g",    color: "#FF3B30" },
+                    ].map(({ label, val, set, unit, color }) => (
+                      <div key={label}>
+                        <label className="text-[10px] font-semibold mb-0.5 block" style={{ color }}>{label}</label>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            value={val}
+                            onChange={e => set(e.target.value)}
+                            placeholder="0"
+                            min="0"
+                            step="0.1"
+                            className="input font-mono text-sm flex-1"
+                          />
+                          <span className="text-[11px] text-muted">{unit}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Save to food checkbox — only for foods already in DB */}
+              {selected.id && (
+                <label className="flex items-center gap-2 cursor-pointer select-none mt-0.5">
+                  <input
+                    type="checkbox"
+                    checked={saveToFood}
+                    onChange={e => setSaveToFood(e.target.checked)}
+                    className="w-4 h-4 accent-amber-600 rounded"
+                  />
+                  <span className="text-[12px] text-amber-800">Save to this food for next time</span>
+                </label>
+              )}
+            </div>
+          )}
 
           {/* Time */}
           <div>
