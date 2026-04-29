@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { format, addDays, subDays } from "date-fns";
-import { CalendarDays, BookOpen, Plus, Camera, Search, ChefHat, Sparkles, Menu, BarChart2, X } from "lucide-react";
+import { CalendarDays, BookOpen, Plus, Camera, Search, Utensils, Sparkles, Menu, BarChart2, X } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import LibraryPage from "./pages/LibraryPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -195,7 +195,7 @@ export default function App() {
                 className="flex items-center gap-4 p-4 rounded-2xl bg-surface-1 active:bg-surface-2 text-left transition-colors"
               >
                 <div className="w-11 h-11 rounded-2xl bg-green-100 flex items-center justify-center shrink-0">
-                  <ChefHat size={20} className="text-green-600" />
+                  <Utensils size={20} className="text-green-600" />
                 </div>
                 <div>
                   <p className="font-semibold text-foreground">From Recipes</p>
