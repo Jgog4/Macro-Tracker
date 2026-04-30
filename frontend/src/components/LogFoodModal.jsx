@@ -2,7 +2,7 @@
  * Log an ingredient or restaurant item to a meal from the Library.
  * Shows date navigator, meal selector, quantity, time, and live macros.
  */
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { format, addDays, subDays } from "date-fns";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { mealsApi } from "../api/client";
@@ -24,9 +24,10 @@ export default function LogFoodModal({ food, onClose, onLogged }) {
   const dateStr = format(targetDate, "yyyy-MM-dd");
   const isToday = dateStr === format(new Date(), "yyyy-MM-dd");
 
-  // Per-meal time map — rebuilt whenever the date changes
-  const mealTimeMap = useRef({});
+  const [mealTimes,  setMealTimes]  = useState({});
+  const [timeEdited, setTimeEdited] = useState(false);
 
+  // Fetch meal times for the selected date
   const fetchMealTimes = useCallback((dStr) => {
     mealsApi.getDay(dStr).then(res => {
       const map = {};
@@ -36,26 +37,22 @@ export default function LogFoodModal({ food, onClose, onLogged }) {
           map[meal.meal_number] = `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
         }
       });
-      mealTimeMap.current = map;
-      // Apply to currently selected meal
-      setTime(map[mealNumber] || nowTimeStr());
+      setMealTimes(map);
     }).catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch on open
-  useEffect(() => { fetchMealTimes(dateStr); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  // Fetch on open, and re-fetch when date changes
+  useEffect(() => { fetchMealTimes(dateStr); }, [dateStr, fetchMealTimes]);
 
-  // Re-fetch when date changes
+  // Auto-fill time whenever meal or fetched times change (unless user edited manually)
   useEffect(() => {
-    mealTimeMap.current = {};
-    fetchMealTimes(dateStr);
-  }, [dateStr, fetchMealTimes]);
+    if (timeEdited) return;
+    setTime(mealTimes[mealNumber] || nowTimeStr());
+  }, [mealNumber, mealTimes]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-fill time when switching meal numbers
   const handleMealChange = useCallback((n) => {
+    setTimeEdited(false);
     setMealNumber(n);
-    setTime(mealTimeMap.current[n] || nowTimeStr());
   }, []);
 
   const qtyNum  = parseFloat(qty) || 0;
@@ -166,7 +163,7 @@ export default function LogFoodModal({ food, onClose, onLogged }) {
             <input
               type="time"
               value={time}
-              onChange={e => setTime(e.target.value)}
+              onChange={e => { setTime(e.target.value); setTimeEdited(true); }}
               className="input font-mono"
             />
           </div>

@@ -83,10 +83,11 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
   const inputRef   = useRef();
   const amountRef  = useRef();
   const searchGen  = useRef(0);
-  // mealTimeMap: { mealNumber(int) → "HH:MM" } built from today's existing entries
-  const mealTimeMap = useRef({});
+  // mealTimes as state so React re-renders when the fetch completes
+  const [mealTimes,    setMealTimes]    = useState({});
+  const [timeEdited,   setTimeEdited]   = useState(false); // true once user manually changes time
 
-  // Fetch today's meals once on open to build the per-meal time map
+  // Fetch today's meals once on open
   useEffect(() => {
     mealsApi.getDay(dateStr).then(res => {
       const map = {};
@@ -96,17 +97,22 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
           map[meal.meal_number] = `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
         }
       });
-      mealTimeMap.current = map;
-      // Apply to whichever meal is already selected on open
-      if (map[mealNumber]) setTime(map[mealNumber]);
+      setMealTimes(map);
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // When user switches meal, auto-fill the time from the map (or fall back to now)
+  // Whenever the selected meal OR the fetched times change, auto-fill the time
+  // (skipped if the user has manually edited the time field)
+  useEffect(() => {
+    if (timeEdited) return;
+    setTime(mealTimes[mealNumber] || nowTimeStr());
+  }, [mealNumber, mealTimes]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Switching meals resets the "user edited" flag so the new meal gets auto-filled
   const handleMealChange = useCallback((n) => {
+    setTimeEdited(false);
     setMealNumber(n);
-    setTime(mealTimeMap.current[n] || nowTimeStr());
   }, []);
 
   // If a food was pre-selected (e.g. just scanned from camera), skip search
@@ -554,7 +560,7 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
             <input
               type="time"
               value={time}
-              onChange={e => setTime(e.target.value)}
+              onChange={e => { setTime(e.target.value); setTimeEdited(true); }}
               className="input font-mono"
             />
           </div>
