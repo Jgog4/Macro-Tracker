@@ -31,7 +31,7 @@ export default function LogFoodModal({ food, onClose, onLogged }) {
   const fetchMealTimes = useCallback((dStr) => {
     mealsApi.getDay(dStr).then(res => {
       const map = {};
-      (res.data || []).forEach(meal => {
+      (res.data?.meals || []).forEach(meal => {
         if (meal.logged_at) {
           const d = new Date(meal.logged_at);
           map[meal.meal_number] = `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
