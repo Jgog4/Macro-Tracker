@@ -10,7 +10,7 @@
  *
  * Logged quantity_g = amount × selectedOption.gramsEach
  */
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { foodsApi, mealsApi, recipesApi } from "../api/client";
 import { X, Search, Loader2, ChevronRight, ChevronLeft, ChevronDown } from "lucide-react";
 
@@ -80,9 +80,34 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
   const [customCarb, setCustomCarb]   = useState("");
   const [customFat, setCustomFat]     = useState("");
 
-  const inputRef  = useRef();
-  const amountRef = useRef();
-  const searchGen = useRef(0);
+  const inputRef   = useRef();
+  const amountRef  = useRef();
+  const searchGen  = useRef(0);
+  // mealTimeMap: { mealNumber(int) → "HH:MM" } built from today's existing entries
+  const mealTimeMap = useRef({});
+
+  // Fetch today's meals once on open to build the per-meal time map
+  useEffect(() => {
+    mealsApi.getDay(dateStr).then(res => {
+      const map = {};
+      (res.data || []).forEach(meal => {
+        if (meal.logged_at) {
+          const d = new Date(meal.logged_at);
+          map[meal.meal_number] = `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+        }
+      });
+      mealTimeMap.current = map;
+      // Apply to whichever meal is already selected on open
+      if (map[mealNumber]) setTime(map[mealNumber]);
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // When user switches meal, auto-fill the time from the map (or fall back to now)
+  const handleMealChange = useCallback((n) => {
+    setMealNumber(n);
+    setTime(mealTimeMap.current[n] || nowTimeStr());
+  }, []);
 
   // If a food was pre-selected (e.g. just scanned from camera), skip search
   useEffect(() => {
@@ -362,7 +387,7 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
             <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5 block">Meal</label>
             <div className="grid grid-cols-6 gap-1">
               {[1,2,3,4,5,6].map(n => (
-                <button key={n} onClick={() => setMealNumber(n)}
+                <button key={n} onClick={() => handleMealChange(n)}
                   className={`py-2 rounded-xl text-sm font-bold transition-colors
                     ${n === mealNumber
                       ? "bg-accent-blue text-white shadow-sm"

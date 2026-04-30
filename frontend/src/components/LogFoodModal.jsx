@@ -2,7 +2,7 @@
  * Log an ingredient or restaurant item to a meal from the Library.
  * Shows date navigator, meal selector, quantity, time, and live macros.
  */
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { format, addDays, subDays } from "date-fns";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { mealsApi } from "../api/client";
@@ -23,6 +23,40 @@ export default function LogFoodModal({ food, onClose, onLogged }) {
 
   const dateStr = format(targetDate, "yyyy-MM-dd");
   const isToday = dateStr === format(new Date(), "yyyy-MM-dd");
+
+  // Per-meal time map — rebuilt whenever the date changes
+  const mealTimeMap = useRef({});
+
+  const fetchMealTimes = useCallback((dStr) => {
+    mealsApi.getDay(dStr).then(res => {
+      const map = {};
+      (res.data || []).forEach(meal => {
+        if (meal.logged_at) {
+          const d = new Date(meal.logged_at);
+          map[meal.meal_number] = `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+        }
+      });
+      mealTimeMap.current = map;
+      // Apply to currently selected meal
+      setTime(map[mealNumber] || nowTimeStr());
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetch on open
+  useEffect(() => { fetchMealTimes(dateStr); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-fetch when date changes
+  useEffect(() => {
+    mealTimeMap.current = {};
+    fetchMealTimes(dateStr);
+  }, [dateStr, fetchMealTimes]);
+
+  // Auto-fill time when switching meal numbers
+  const handleMealChange = useCallback((n) => {
+    setMealNumber(n);
+    setTime(mealTimeMap.current[n] || nowTimeStr());
+  }, []);
 
   const qtyNum  = parseFloat(qty) || 0;
   const baseG   = food.serving_size_g || (qtyNum || 100);
@@ -100,7 +134,7 @@ export default function LogFoodModal({ food, onClose, onLogged }) {
             {[1, 2, 3, 4, 5, 6].map(n => (
               <button
                 key={n}
-                onClick={() => setMealNumber(n)}
+                onClick={() => handleMealChange(n)}
                 className={`py-2.5 rounded-xl text-sm font-bold transition-colors
                   ${n === mealNumber
                     ? "bg-accent-blue text-white shadow-sm"
