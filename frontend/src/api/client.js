@@ -53,6 +53,7 @@ export const visionApi = {
   estimateFromIngredients: (formData)       => api.post("/vision/estimate-from-ingredients", formData, { headers: { "Content-Type": "multipart/form-data" } }),
   fromUrl:                 (url, name)             => api.post("/vision/from-url", { url, name: name || null }),
   fromText:                (ingredients_text, name) => api.post("/vision/from-url", { ingredients_text, name: name || null }),
+  lookupBarcode:           (barcode)               => api.get(`/vision/barcode/${barcode}`),
 };
 
 // ── Micronutrients ───────────────────────────────────────────────────────────

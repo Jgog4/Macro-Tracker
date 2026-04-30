@@ -33,6 +33,15 @@ export default {
         nav:       "0 -1px 0 #E5E5EA",
         "blue-glow": "0 4px 12px rgba(0,122,255,0.35)",
       },
+      keyframes: {
+        "scan-line": {
+          "0%, 100%": { top: "10%" },
+          "50%":      { top: "85%" },
+        },
+      },
+      animation: {
+        "scan-line": "scan-line 2s ease-in-out infinite",
+      },
     },
   },
   plugins: [],

@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { format, addDays, subDays } from "date-fns";
-import { CalendarDays, BookOpen, Plus, Camera, Search, Utensils, Sparkles, Menu, BarChart2, X } from "lucide-react";
+import { CalendarDays, BookOpen, Plus, Camera, Search, Utensils, Sparkles, Menu, BarChart2, X, ScanLine } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import LibraryPage from "./pages/LibraryPage";
 import ReportsPage from "./pages/ReportsPage";
 import AddFoodModal from "./components/AddFoodModal";
 import VisionModal from "./components/VisionModal";
+import BarcodeModal from "./components/BarcodeModal";
 
 const TABS = [
   { id: "today",   label: "Today",   Icon: CalendarDays },
@@ -18,6 +19,7 @@ export default function App() {
   const [showSheet, setShowSheet]     = useState(false);   // add-food action sheet
   const [showAdd, setShowAdd]         = useState(false);   // search modal
   const [showCamera, setShowCamera]   = useState(false);   // scan label modal
+  const [showBarcode, setShowBarcode] = useState(false);   // barcode scanner modal
   const [showRecipes, setShowRecipes] = useState(false);   // recipes-only modal
   const [savedFood, setSavedFood]     = useState(null);    // food returned from camera scan
   const [dashboardKey, setDashboardKey] = useState(0);
@@ -175,6 +177,20 @@ export default function App() {
                 </div>
               </button>
 
+              {/* Scan Barcode */}
+              <button
+                onClick={() => { setShowSheet(false); setShowBarcode(true); }}
+                className="flex items-center gap-4 p-4 rounded-2xl bg-surface-1 active:bg-surface-2 text-left transition-colors"
+              >
+                <div className="w-11 h-11 rounded-2xl bg-cyan-100 flex items-center justify-center shrink-0">
+                  <ScanLine size={20} className="text-cyan-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">Scan Barcode</p>
+                  <p className="text-xs text-muted mt-0.5">Scan a product barcode — looks up nutrition automatically</p>
+                </div>
+              </button>
+
               {/* Take a Photo */}
               <button
                 onClick={() => { setShowSheet(false); setShowCamera(true); }}
@@ -184,8 +200,8 @@ export default function App() {
                   <Camera size={20} className="text-purple-600" />
                 </div>
                 <div>
-                  <p className="font-semibold text-foreground">Take a Photo</p>
-                  <p className="text-xs text-muted mt-0.5">Scan a nutrition label — saves to My Foods</p>
+                  <p className="font-semibold text-foreground">Scan Label</p>
+                  <p className="text-xs text-muted mt-0.5">Photo of a nutrition label — AI reads the values</p>
                 </div>
               </button>
 
@@ -217,6 +233,18 @@ export default function App() {
           preselected={savedFood}
           onClose={() => { setShowAdd(false); setSavedFood(null); }}
           onLogged={() => { setShowAdd(false); setSavedFood(null); setTab("today"); setDashboardKey(k => k + 1); }}
+        />
+      )}
+
+      {/* Barcode scanner — Open Food Facts lookup → saves to My Foods → opens log screen */}
+      {showBarcode && (
+        <BarcodeModal
+          onClose={() => setShowBarcode(false)}
+          onSaved={(food) => {
+            setShowBarcode(false);
+            if (food) { setSavedFood(food); setShowAdd(true); }
+            setDashboardKey(k => k + 1);
+          }}
         />
       )}
 

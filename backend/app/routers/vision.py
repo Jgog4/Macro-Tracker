@@ -3,6 +3,7 @@
 Claude extracts macros and returns them as JSON for review before saving.
 """
 import base64
+import httpx
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -256,3 +257,98 @@ async def analyze_from_url(
     db.add(ingredient)
     await db.flush()
     return ingredient
+
+
+# ── GET /vision/barcode/{barcode} — Open Food Facts lookup ────────────────────
+
+from pydantic import BaseModel as _PydanticBase
+
+class BarcodeResult(_PydanticBase):
+    name:              str
+    brand:             Optional[str]   = None
+    serving_size_desc: Optional[str]   = None
+    serving_size_g:    Optional[float] = None
+    calories:          float           = 0.0
+    protein_g:         float           = 0.0
+    fat_g:             float           = 0.0
+    carbs_g:           float           = 0.0
+    sat_fat_g:         Optional[float] = None
+    trans_fat_g:       Optional[float] = None
+    fiber_g:           Optional[float] = None
+    sugar_g:           Optional[float] = None
+    sodium_mg:         Optional[float] = None
+    cholesterol_mg:    Optional[float] = None
+    potassium_mg:      Optional[float] = None
+
+
+@router.get("/barcode/{barcode}", response_model=BarcodeResult)
+async def lookup_barcode(barcode: str):
+    """
+    Query Open Food Facts for a UPC/EAN barcode.
+    Returns parsed nutrition data for review — does NOT save to DB.
+    Call POST /foods/ to save after the user confirms.
+    """
+    off_url = f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json"
+    try:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+            r = await client.get(off_url, headers={"User-Agent": "MacroTrackerApp/1.0"})
+        data = r.json()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Open Food Facts request failed: {e}")
+
+    if data.get("status") != 1:
+        raise HTTPException(status_code=404, detail="Product not found in Open Food Facts database.")
+
+    p = data.get("product", {})
+    n = p.get("nutriments", {})
+
+    name  = (p.get("product_name_en") or p.get("product_name") or "Unknown Product").strip()
+    brand = (p.get("brands") or "").split(",")[0].strip() or None
+
+    serving_desc: Optional[str]   = p.get("serving_size") or None
+    serving_g:    Optional[float] = None
+    if p.get("serving_quantity"):
+        try:
+            serving_g = float(p["serving_quantity"])
+        except (ValueError, TypeError):
+            pass
+
+    base = serving_g or 100.0
+
+    def _n100(key: str) -> Optional[float]:
+        v = n.get(f"{key}_100g")
+        return float(v) if v is not None else None
+
+    def _scaled(key: str) -> Optional[float]:
+        v = _n100(key)
+        if v is None:
+            return None
+        return round(v * base / 100.0, 3)
+
+    cal = _scaled("energy-kcal")
+    if cal is None:
+        kj = _scaled("energy")
+        if kj is not None:
+            cal = round(kj / 4.184, 1)
+
+    # Sodium in OFF = g/100g → convert to mg
+    sodium_scaled = _scaled("sodium")
+    sodium_mg = round(sodium_scaled * 1000, 1) if sodium_scaled is not None else None
+
+    return BarcodeResult(
+        name=f"{brand} {name}".strip() if brand else name,
+        brand=brand,
+        serving_size_desc=serving_desc,
+        serving_size_g=serving_g,
+        calories=cal or 0.0,
+        protein_g=_scaled("proteins") or 0.0,
+        fat_g=_scaled("fat") or 0.0,
+        carbs_g=_scaled("carbohydrates") or 0.0,
+        sat_fat_g=_scaled("saturated-fat"),
+        trans_fat_g=_scaled("trans-fat"),
+        fiber_g=_scaled("fiber"),
+        sugar_g=_scaled("sugars"),
+        sodium_mg=sodium_mg,
+        cholesterol_mg=_scaled("cholesterol"),
+        potassium_mg=_scaled("potassium"),
+    )
