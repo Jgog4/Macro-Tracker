@@ -278,7 +278,7 @@ function MyFoodsTab() {
           {filtered.map((food, i) => (
             <div
               key={food.id}
-              className={`group relative flex w-full items-center gap-2 px-4 py-3 hover:bg-surface-2 transition-colors cursor-pointer
+              className={`group flex w-full items-center gap-2 px-4 py-3 hover:bg-surface-2 transition-colors cursor-pointer
                 ${i !== filtered.length - 1 ? "border-b border-surface-3" : ""}`}
               onClick={() => setDetail(food)}
             >
@@ -293,8 +293,8 @@ function MyFoodsTab() {
                 </div>
               )}
 
-              {/* Name + macros — full remaining width; pr keeps text clear of the buttons */}
-              <div className="flex-1 min-w-0 pr-20">
+              {/* Name + macros + actions — all in one column, full remaining width */}
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <p className="text-sm font-semibold text-foreground">{food.name}</p>
                   {!food.serving_size_g && (
@@ -311,27 +311,26 @@ function MyFoodsTab() {
                   {" · "}
                   <span style={{ color: "#FF3B30" }}>{(food.fat_g || 0).toFixed(1)}F</span>
                 </p>
-              </div>
-
-              {/* Actions — absolutely positioned so they don't consume row width */}
-              <div
-                className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-0.5"
-                onClick={e => e.stopPropagation()}
-              >
-                <button
-                  onClick={() => setLogging(food)}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-accent-blue text-white hover:opacity-80 transition-opacity"
-                  title="Log to meal"
+                {/* Actions below macros, right-aligned */}
+                <div
+                  className="flex justify-end gap-0.5 mt-1.5"
+                  onClick={e => e.stopPropagation()}
                 >
-                  <Plus size={15} />
-                </button>
-                <button
-                  onClick={() => setEditing(food)}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl text-muted hover:bg-surface-3 transition-colors"
-                  title="Edit"
-                >
-                  <Pencil size={13} />
-                </button>
+                  <button
+                    onClick={() => setLogging(food)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-accent-blue text-white hover:opacity-80 transition-opacity"
+                    title="Log to meal"
+                  >
+                    <Plus size={14} />
+                  </button>
+                  <button
+                    onClick={() => setEditing(food)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-muted hover:bg-surface-3 transition-colors"
+                    title="Edit"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
