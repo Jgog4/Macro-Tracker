@@ -239,10 +239,10 @@ export default function App() {
       {/* Barcode scanner — Open Food Facts lookup → saves to My Foods → opens log screen */}
       {showBarcode && (
         <BarcodeModal
+          dateStr={dateStr}
           onClose={() => setShowBarcode(false)}
-          onSaved={(food) => {
+          onLogged={() => {
             setShowBarcode(false);
-            if (food) { setSavedFood(food); setShowAdd(true); }
             setDashboardKey(k => k + 1);
           }}
         />
