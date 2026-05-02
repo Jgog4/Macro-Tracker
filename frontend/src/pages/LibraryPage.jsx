@@ -278,11 +278,11 @@ function MyFoodsTab() {
           {filtered.map((food, i) => (
             <div
               key={food.id}
-              className={`group flex w-full items-center gap-2 px-4 py-3 hover:bg-surface-2 transition-colors cursor-pointer
+              className={`group relative flex w-full items-center gap-2 px-4 py-3 hover:bg-surface-2 transition-colors cursor-pointer
                 ${i !== filtered.length - 1 ? "border-b border-surface-3" : ""}`}
               onClick={() => setDetail(food)}
             >
-              {/* Icon — purple Camera for scanned, green User for personal import */}
+              {/* Source icon */}
               {food.source === "custom" ? (
                 <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
                   <Camera size={14} className="text-purple-500" />
@@ -293,9 +293,9 @@ function MyFoodsTab() {
                 </div>
               )}
 
-              {/* Name + macros — takes all available space, name wraps freely */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
+              {/* Name + macros — full remaining width; pr keeps text clear of the buttons */}
+              <div className="flex-1 min-w-0 pr-20">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <p className="text-sm font-semibold text-foreground">{food.name}</p>
                   {!food.serving_size_g && (
                     <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-amber-100 text-amber-700 shrink-0">no weight</span>
@@ -313,8 +313,11 @@ function MyFoodsTab() {
                 </p>
               </div>
 
-              {/* Actions */}
-              <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+              {/* Actions — absolutely positioned so they don't consume row width */}
+              <div
+                className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-0.5"
+                onClick={e => e.stopPropagation()}
+              >
                 <button
                   onClick={() => setLogging(food)}
                   className="w-8 h-8 flex items-center justify-center rounded-xl bg-accent-blue text-white hover:opacity-80 transition-opacity"
@@ -328,16 +331,6 @@ function MyFoodsTab() {
                   title="Edit"
                 >
                   <Pencil size={13} />
-                </button>
-                <button
-                  onClick={e => handleDelete(e, food)}
-                  disabled={deleting === food.id}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl text-muted hover:bg-red-50 hover:text-accent-red transition-colors opacity-0 group-hover:opacity-100"
-                  title="Delete"
-                >
-                  {deleting === food.id
-                    ? <Loader2 size={12} className="animate-spin" />
-                    : <Trash2 size={13} />}
                 </button>
               </div>
             </div>
