@@ -94,12 +94,14 @@ def _add_micro(totals: dict, field: str, value: Optional[float]) -> None:
         totals[field] = round((totals.get(field) or 0.0) + value, 6)
 
 
+# Fields snapshotted directly on MealLogItem — use those values, not ingredient scaling
+_SNAPSHOT_FIELDS = {"calories", "protein_g", "fat_g", "carbs_g", "sodium_mg", "cholesterol_mg"}
+
 # All micronutrient field names on Ingredient (for iteration)
+# Snapshot fields are excluded here; they're summed from MealLogItem directly.
 _MICRO_FIELDS = [
-    # Macros
-    "calories", "protein_g", "carbs_g", "fat_g",
-    "fiber_g", "sugar_g", "sat_fat_g", "trans_fat_g",
-    "cholesterol_mg", "sodium_mg", "potassium_mg",
+    # Macros (non-snapshotted ones still come from ingredient scaling)
+    "fiber_g", "sugar_g", "sat_fat_g", "trans_fat_g", "potassium_mg",
     # Vitamins
     "vitamin_a_mcg", "vitamin_c_mg", "vitamin_d_mcg", "vitamin_e_mg", "vitamin_k_mcg",
     "thiamine_mg", "riboflavin_mg", "niacin_mg", "pantothenic_acid_mg", "pyridoxine_mg",
@@ -364,6 +366,12 @@ async def get_micronutrients(
         )
     )
     for item, ingredient in direct_result.all():
+        # Use snapshotted values for core macros — accurate regardless of serving size
+        for field in _SNAPSHOT_FIELDS:
+            val = getattr(item, field, None)
+            if val is not None:
+                _add_micro(totals, field, val)
+        # Use ingredient scaling for everything else (micros, fiber, etc.)
         _accumulate_ingredient_micros(totals, ingredient, item.quantity_g)
 
     # ── 2. Recipe items via components ───────────────────────────────────────
