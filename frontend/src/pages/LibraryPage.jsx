@@ -60,7 +60,6 @@ function RecipesTab() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [editing,     setEditing]     = useState(null);
   const [deleting,    setDeleting]    = useState(null);
-  const [detail,      setDetail]      = useState(null); // recipe shown in detail
 
   const fetchRecipes = useCallback(async () => {
     setLoading(true);
@@ -88,24 +87,6 @@ function RecipesTab() {
   const openNew  = ()        => { setEditing(null);   setShowBuilder(true); };
   const onSaved  = ()        => { setShowBuilder(false); fetchRecipes(); };
 
-  // Build a pseudo-ingredient object so FoodDetailModal can render recipe macros
-  const recipeAsFood = (r) => ({
-    name:             r.name,
-    source:           "personal",   // show "Personal" badge for recipes
-    serving_size_g:   r.serving_size_g  ?? r.total_weight_g ?? null,
-    serving_size_desc:r.serving_size_g
-      ? `${r.serving_size_g} g`
-      : r.total_weight_g
-        ? `${r.total_weight_g} g total`
-        : "full recipe",
-    calories:  r.calories  ?? 0,
-    protein_g: r.protein_g ?? 0,
-    carbs_g:   r.carbs_g   ?? 0,
-    fat_g:     r.fat_g     ?? 0,
-    fiber_g:   r.fiber_g,
-    sugar_g:   r.sugar_g,
-  });
-
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -132,7 +113,7 @@ function RecipesTab() {
             return (
               <button
                 key={recipe.id}
-                onClick={() => setDetail(recipeAsFood(recipe))}
+                onClick={() => openEdit(recipe)}
                 className={`flex w-full items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors text-left group
                   ${i !== filtered.length - 1 ? "border-b border-surface-3" : ""}`}
               >
@@ -140,7 +121,6 @@ function RecipesTab() {
                   <Utensils size={15} className="text-emerald-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  {/* No truncate — let name wrap */}
                   <p className="text-sm font-semibold text-foreground">{recipe.name}</p>
                   <p className="text-[11px] text-muted mt-0.5">
                     {Math.round(per100)} kcal/100g
@@ -162,13 +142,6 @@ function RecipesTab() {
                       ? <Loader2 size={12} className="animate-spin" />
                       : <Trash2 size={12} />}
                   </button>
-                  <button
-                    onClick={e => { e.stopPropagation(); openEdit(recipe); }}
-                    className="p-1.5 rounded-lg hover:bg-surface-3 text-muted transition-colors opacity-0 group-hover:opacity-100"
-                    title="Edit recipe"
-                  >
-                    <Pencil size={12} />
-                  </button>
                   <ChevronRight size={14} className="text-muted" />
                 </div>
               </button>
@@ -179,9 +152,6 @@ function RecipesTab() {
 
       {showBuilder && (
         <RecipeBuilderModal recipe={editing} onClose={() => setShowBuilder(false)} onSaved={onSaved} />
-      )}
-      {detail && (
-        <FoodDetailModal food={detail} onClose={() => setDetail(null)} />
       )}
     </div>
   );
