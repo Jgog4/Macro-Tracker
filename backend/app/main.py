@@ -11,6 +11,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -133,6 +134,28 @@ async def lifespan(app: FastAPI):
             for stmt in new_cols:
                 await conn.execute(text(stmt))
 
+            # ── Performance indexes ────────────────────────────────────────
+            indexes = [
+                # Meal lookups by user + date (every page load)
+                "CREATE INDEX IF NOT EXISTS idx_meal_logs_user_date ON mt_meal_logs(user_id, log_date)",
+                # Meal items join (every meal fetch)
+                "CREATE INDEX IF NOT EXISTS idx_meal_items_log ON mt_meal_log_items(meal_log_id)",
+                # Micronutrient query (ingredient join on items)
+                "CREATE INDEX IF NOT EXISTS idx_meal_items_ingredient ON mt_meal_log_items(ingredient_id)",
+                # Food library tab (filter by source)
+                "CREATE INDEX IF NOT EXISTS idx_ingredients_source ON mt_ingredients(source)",
+                # Recipe ingredient joins
+                "CREATE INDEX IF NOT EXISTS idx_recipe_ings_recipe ON mt_recipe_ingredients(recipe_id)",
+                # pg_trgm trigram index for fast ILIKE name search
+                "CREATE EXTENSION IF NOT EXISTS pg_trgm",
+                "CREATE INDEX IF NOT EXISTS idx_ingredients_name_trgm ON mt_ingredients USING gin(name gin_trgm_ops)",
+            ]
+            for stmt in indexes:
+                try:
+                    await conn.execute(text(stmt))
+                except Exception as idx_err:
+                    print(f"⚠️  Index skipped: {idx_err}", flush=True)
+
         print("✅ Database tables ready", flush=True)
     except Exception as e:
         print(f"❌ Database connection failed: {e}", flush=True)
@@ -151,6 +174,7 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],   # safe — API is personal use only

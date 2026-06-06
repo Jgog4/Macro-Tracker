@@ -17,5 +17,5 @@ COPY . .
 # Expose port (Railway uses $PORT)
 EXPOSE 8000
 
-# Run: auto-select port from Railway env, fall back to 8000
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Run with gunicorn + 2 uvicorn workers for better throughput
+CMD ["sh", "-c", "gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 2 --bind 0.0.0.0:${PORT:-8000} --timeout 120 --keep-alive 5"]
