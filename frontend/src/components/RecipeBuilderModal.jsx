@@ -85,7 +85,7 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
   const [saving, setSaving]   = useState(false);
   const [saveError, setSaveError] = useState("");
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  // No auto-focus on mount — keyboard should only appear when user taps an input
 
   // ── Search effect ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -388,7 +388,6 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
                 placeholder={String(Math.round(totals.totalG))}
                 className="input flex-1 font-mono text-lg"
                 min="1" step="1"
-                autoFocus
               />
               <span className="text-muted font-medium">g</span>
             </div>
