@@ -500,8 +500,8 @@ async def wipe_data(conn, user_id: str):
     print("🗑️  Wiping existing meal logs…")
     await conn.execute("DELETE FROM mt_meal_logs WHERE user_id=$1", user_id)
 
-    print("🗑️  Wiping existing ingredients…")
-    await conn.execute("DELETE FROM mt_ingredients")
+    print("🗑️  Wiping existing personal/custom ingredients (keeping restaurant items)…")
+    await conn.execute("DELETE FROM mt_ingredients WHERE source NOT IN ('restaurant')")
     print("   ✓ Clean slate ready")
 
 
