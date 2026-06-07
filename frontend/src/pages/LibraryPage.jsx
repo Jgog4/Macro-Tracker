@@ -125,11 +125,11 @@ function RecipesTab() {
                   <p className="text-[11px] text-muted mt-0.5">
                     {Math.round(per100)} kcal/100g
                     {" · "}
-                    <span style={{ color: "#34C759" }}>{recipe.protein_g.toFixed(1)}P</span>
+                    <span style={{ color: "#34C759" }}>{Math.round(recipe.protein_g)}P</span>
                     {" · "}
-                    <span style={{ color: "#007AFF" }}>{recipe.carbs_g.toFixed(1)}C</span>
+                    <span style={{ color: "#007AFF" }}>{Math.round(recipe.carbs_g)}C</span>
                     {" · "}
-                    <span style={{ color: "#FF3B30" }}>{recipe.fat_g.toFixed(1)}F</span>
+                    <span style={{ color: "#FF3B30" }}>{Math.round(recipe.fat_g)}F</span>
                   </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -275,11 +275,11 @@ function MyFoodsTab() {
                   <span style={{ color: "#FF9500" }}>{Math.round(food.calories)} kcal</span>
                   {food.serving_size_g ? ` · ${food.serving_size_g}g` : ""}
                   {" · "}
-                  <span style={{ color: "#34C759" }}>{(food.protein_g || 0).toFixed(1)}P</span>
+                  <span style={{ color: "#34C759" }}>{Math.round(food.protein_g || 0)}P</span>
                   {" · "}
-                  <span style={{ color: "#007AFF" }}>{(food.carbs_g || 0).toFixed(1)}C</span>
+                  <span style={{ color: "#007AFF" }}>{Math.round(food.carbs_g || 0)}C</span>
                   {" · "}
-                  <span style={{ color: "#FF3B30" }}>{(food.fat_g || 0).toFixed(1)}F</span>
+                  <span style={{ color: "#FF3B30" }}>{Math.round(food.fat_g || 0)}F</span>
                 </p>
                 {/* Actions below macros, right-aligned */}
                 <div
@@ -515,11 +515,11 @@ function RestaurantsTab() {
                         <span style={{ color: "#FF9500" }}>{Math.round(food.calories)} kcal</span>
                         {food.serving_size_g ? ` · ${food.serving_size_g}g` : ""}
                         {" · "}
-                        <span style={{ color: "#34C759" }}>{(food.protein_g || 0).toFixed(1)}P</span>
+                        <span style={{ color: "#34C759" }}>{Math.round(food.protein_g || 0)}P</span>
                         {" · "}
-                        <span style={{ color: "#007AFF" }}>{(food.carbs_g || 0).toFixed(1)}C</span>
+                        <span style={{ color: "#007AFF" }}>{Math.round(food.carbs_g || 0)}C</span>
                         {" · "}
-                        <span style={{ color: "#FF3B30" }}>{(food.fat_g || 0).toFixed(1)}F</span>
+                        <span style={{ color: "#FF3B30" }}>{Math.round(food.fat_g || 0)}F</span>
                       </p>
                     </div>
                     <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
