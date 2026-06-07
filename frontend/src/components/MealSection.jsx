@@ -94,11 +94,11 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
                 {meal.total_calories.toFixed(0)} kcal
               </span>
               <span className="mx-1">·</span>
-              <span style={{ color: "#34C759" }}>{meal.total_protein_g.toFixed(1)}P</span>
+              <span style={{ color: "#34C759" }}>{Math.round(meal.total_protein_g)}P</span>
               <span className="mx-1">·</span>
-              <span style={{ color: "#007AFF" }}>{meal.total_carbs_g.toFixed(1)}C</span>
+              <span style={{ color: "#007AFF" }}>{Math.round(meal.total_carbs_g)}C</span>
               <span className="mx-1">·</span>
-              <span style={{ color: "#FF3B30" }}>{meal.total_fat_g.toFixed(1)}F</span>
+              <span style={{ color: "#FF3B30" }}>{Math.round(meal.total_fat_g)}F</span>
               {time && <span className="text-muted"> · {time}</span>}
             </p>
           </div>
@@ -197,11 +197,11 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
                           <span className="mx-1">·</span>
                           <span style={{ color: "#FF9500" }}>{item.calories.toFixed(0)} kcal</span>
                           <span className="mx-1">·</span>
-                          <span style={{ color: "#34C759" }}>{item.protein_g.toFixed(1)}P</span>
+                          <span style={{ color: "#34C759" }}>{Math.round(item.protein_g)}P</span>
                           <span className="mx-1">·</span>
-                          <span style={{ color: "#007AFF" }}>{item.carbs_g.toFixed(1)}C</span>
+                          <span style={{ color: "#007AFF" }}>{Math.round(item.carbs_g)}C</span>
                           <span className="mx-1">·</span>
-                          <span style={{ color: "#FF3B30" }}>{item.fat_g.toFixed(1)}F</span>
+                          <span style={{ color: "#FF3B30" }}>{Math.round(item.fat_g)}F</span>
                           {item.recipe_id && item.components?.length > 0 && (
                             <span className="ml-1 text-[10px] text-muted/60">
                               · {item.components.length} ingredient{item.components.length !== 1 ? "s" : ""}

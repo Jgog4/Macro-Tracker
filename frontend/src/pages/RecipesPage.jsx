@@ -115,11 +115,11 @@ export default function RecipesPage() {
                     {Math.round(per100)} <span className="text-muted font-normal text-[10px]">kcal/100g</span>
                   </span>
                   <span className="text-[11px] font-mono text-muted">
-                    <span style={{ color: "#34C759" }}>{recipe.protein_g.toFixed(1)}P</span>
+                    <span style={{ color: "#34C759" }}>{Math.round(recipe.protein_g)}P</span>
                     {" · "}
-                    <span style={{ color: "#007AFF" }}>{recipe.carbs_g.toFixed(1)}C</span>
+                    <span style={{ color: "#007AFF" }}>{Math.round(recipe.carbs_g)}C</span>
                     {" · "}
-                    <span style={{ color: "#FF3B30" }}>{recipe.fat_g.toFixed(1)}F</span>
+                    <span style={{ color: "#FF3B30" }}>{Math.round(recipe.fat_g)}F</span>
                   </span>
                 </div>
 
