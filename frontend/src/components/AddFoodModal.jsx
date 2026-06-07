@@ -61,6 +61,7 @@ function buildServingOptions(food, customG = null) {
 export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLogged, preselected = null, recipesOnly = false }) {
   const [query, setQuery]             = useState("");
   const [results, setResults]         = useState([]);
+  const [allRecipes, setAllRecipes]   = useState([]); // recipesOnly: full unfiltered list
   const [loading, setLoading]         = useState(false);
   const [selected, setSelected]       = useState(null);
   const [amount, setAmount]           = useState("1");      // how many of the chosen unit
@@ -126,17 +127,27 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
     if (!recipesOnly) return;
     setLoading(true);
     recipesApi.list().then(res => {
-      setResults(res.data.map(r => ({
+      const mapped = res.data.map(r => ({
         id: null, recipe_id: r.id, source: "recipe",
         name: r.name, brand: null,
         calories: r.calories, protein_g: r.protein_g,
         fat_g: r.fat_g, carbs_g: r.carbs_g,
         serving_size_g: r.serving_size_g || r.total_weight_g,
         serving_size_desc: r.serving_size_g ? `full recipe (${r.serving_size_g}g)` : null,
-      })));
+      }));
+      setAllRecipes(mapped);
+      setResults(mapped);
     }).catch(() => {}).finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipesOnly]);
+
+  // In recipesOnly mode, filter the pre-loaded list as the user types
+  useEffect(() => {
+    if (!recipesOnly) return;
+    if (!query.trim()) { setResults(allRecipes); return; }
+    const q = query.toLowerCase();
+    setResults(allRecipes.filter(r => r.name.toLowerCase().includes(q)));
+  }, [query, allRecipes, recipesOnly]);
 
   useEffect(() => { if (!preselected) inputRef.current?.focus(); }, [preselected]);
   useEffect(() => {
@@ -305,20 +316,20 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
   return (
     <ModalShell onClose={onClose} title={selected ? "Log Food" : recipesOnly ? "Log Recipe" : "Add Food"}>
 
-      {/* ── Search box — hidden in recipesOnly mode ── */}
-      {!recipesOnly && (
+      {/* ── Search box ── */}
+      {!selected && (
         <div className="relative w-full min-w-0">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
           <input
             ref={inputRef}
             value={query}
             onChange={e => { setQuery(e.target.value); setSelected(null); setShowPicker(false); }}
-            placeholder="Search foods, restaurants, or ingredients…"
+            placeholder={recipesOnly ? "Search recipes…" : "Search foods, restaurants, or ingredients…"}
             className="input pl-8 w-full min-w-0"
           />
           {query && (
             <button
-              onClick={() => { setQuery(""); setSelected(null); setResults([]); setShowPicker(false); }}
+              onClick={() => { setQuery(""); setSelected(null); setResults(recipesOnly ? allRecipes : []); setShowPicker(false); }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
             >
               <X size={13} />
@@ -334,8 +345,10 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
             <div className="flex justify-center py-10">
               <Loader2 size={20} className="animate-spin text-muted" />
             </div>
-          ) : recipesOnly && results.length === 0 ? (
+          ) : recipesOnly && results.length === 0 && allRecipes.length === 0 ? (
             <p className="text-center text-muted text-sm py-10">No saved recipes yet — build one in the Library tab</p>
+          ) : recipesOnly && results.length === 0 ? (
+            <p className="text-center text-muted text-sm py-10">No recipes matching "{query}"</p>
           ) : !recipesOnly && query.length < 2 ? (
             <p className="text-center text-muted text-sm py-10">Type at least 2 characters to search</p>
           ) : results.length === 0 ? (
