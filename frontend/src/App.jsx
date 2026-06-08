@@ -7,6 +7,7 @@ import ReportsPage from "./pages/ReportsPage";
 import AddFoodModal from "./components/AddFoodModal";
 import VisionModal from "./components/VisionModal";
 import BarcodeModal from "./components/BarcodeModal";
+import CalendarPicker from "./components/CalendarPicker";
 
 const TABS = [
   { id: "today",   label: "Today",   Icon: CalendarDays },
@@ -24,6 +25,7 @@ export default function App() {
   const [savedFood, setSavedFood]     = useState(null);    // food returned from camera scan
   const [dashboardKey, setDashboardKey] = useState(0);
   const [showMenu, setShowMenu]       = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [showReports, setShowReports] = useState(false);
   const menuRef = useRef(null);
 
@@ -64,9 +66,11 @@ export default function App() {
                 className="w-8 h-8 rounded-full flex items-center justify-center text-muted hover:bg-surface-3 transition-colors text-lg leading-none">
                 ‹
               </button>
-              <span className="text-sm font-semibold text-foreground min-w-[90px] text-center">
+              <button
+                onClick={() => setShowCalendar(true)}
+                className="text-sm font-semibold text-foreground min-w-[90px] text-center hover:text-accent-blue transition-colors">
                 {isToday ? "Today" : format(currentDate, "MMM d")}
-              </span>
+              </button>
               <button onClick={goForward} disabled={isToday}
                 className="w-8 h-8 rounded-full flex items-center justify-center text-muted hover:bg-surface-3 transition-colors disabled:opacity-30 text-lg leading-none">
                 ›
@@ -273,6 +277,14 @@ export default function App() {
 
       {showReports && (
         <ReportsPage onClose={() => setShowReports(false)} />
+      )}
+
+      {showCalendar && (
+        <CalendarPicker
+          currentDate={currentDate}
+          onSelect={d => { setCurrentDate(d); setDashboardKey(k => k + 1); }}
+          onClose={() => setShowCalendar(false)}
+        />
       )}
     </div>
   );
