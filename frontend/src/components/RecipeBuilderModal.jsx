@@ -26,7 +26,7 @@ const SOURCE_BADGE = {
 function calcTotals(basket) {
   return basket.reduce((acc, { food, qty }) => {
     const qtyNum = parseFloat(qty) || 0;
-    const baseG  = food.serving_size_g || (qtyNum || 100);
+    const baseG  = food.serving_size_g || 100;   // null serving_size_g → macros are per 100g
     const ratio  = baseG > 0 ? qtyNum / baseG : 0;
     acc.calories += (food.calories  || 0) * ratio;
     acc.protein  += (food.protein_g || 0) * ratio;
@@ -283,7 +283,7 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
               <div className="flex flex-col">
                 {basket.map(({ key, food, qty }) => {
                   const qtyNum = parseFloat(qty) || 0;
-                  const baseG  = food.serving_size_g || (qtyNum || 100);
+                  const baseG  = food.serving_size_g || 100;
                   const ratio  = baseG > 0 ? qtyNum / baseG : 0;
                   const kcal   = ((food.calories || 0) * ratio).toFixed(0);
                   return (
