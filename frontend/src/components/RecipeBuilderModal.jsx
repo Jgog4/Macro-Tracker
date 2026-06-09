@@ -344,13 +344,15 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
             </p>
           )}
 
-          <button
-            onClick={() => setStep("weight")}
-            disabled={!canProceed}
-            className="btn-primary w-full flex items-center justify-center gap-2 py-3.5 disabled:opacity-40">
-            Next — Set Cooked Weight
-            <ChevronRight size={14} />
-          </button>
+          <div className="sticky bottom-0 bg-white pt-2 pb-1 -mx-4 px-4 border-t border-surface-3 mt-2">
+            <button
+              onClick={() => setStep("weight")}
+              disabled={!canProceed}
+              className="btn-primary w-full flex items-center justify-center gap-2 py-3.5 disabled:opacity-40">
+              Next — Set Cooked Weight
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -422,7 +424,7 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="sticky bottom-0 bg-white pt-2 pb-1 -mx-4 px-4 border-t border-surface-3 mt-2 flex gap-2">
             <button onClick={() => setStep("summary")}
               className="btn-ghost flex items-center gap-1.5 text-sm">
               Skip
@@ -497,13 +499,15 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
 
           {saveError && <p className="text-accent-red text-xs">{saveError}</p>}
 
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="btn-primary w-full flex items-center justify-center gap-2 py-3.5 disabled:opacity-40">
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-            {isEdit ? "Save Changes" : "Save Recipe"}
-          </button>
+          <div className="sticky bottom-0 bg-white pt-2 pb-1 -mx-4 px-4 border-t border-surface-3 mt-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="btn-primary w-full flex items-center justify-center gap-2 py-3.5 disabled:opacity-40">
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              {isEdit ? "Save Changes" : "Save Recipe"}
+            </button>
+          </div>
         </div>
       )}
     </ModalShell>
