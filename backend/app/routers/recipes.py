@@ -26,7 +26,7 @@ def _compute_recipe_totals(ingredients_with_qty: list[tuple[Ingredient, float]])
     totals = dict(calories=0.0, protein_g=0.0, fat_g=0.0, carbs_g=0.0,
                   sodium_mg=0.0, cholesterol_mg=0.0, total_weight_g=0.0)
     for ing, qty_g in ingredients_with_qty:
-        base_g = ing.serving_size_g or qty_g
+        base_g = ing.serving_size_g or 100.0  # null serving_size_g → macros stored per 100g
         ratio  = qty_g / base_g if base_g else 1.0
         totals["calories"]       += (ing.calories       or 0) * ratio
         totals["protein_g"]      += (ing.protein_g      or 0) * ratio
