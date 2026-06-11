@@ -300,6 +300,16 @@ function MyFoodsTab() {
                   >
                     <Pencil size={12} />
                   </button>
+                  <button
+                    onClick={e => handleDelete(e, food)}
+                    disabled={deleting === food.id}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-muted hover:bg-red-50 hover:text-accent-red transition-colors disabled:opacity-40"
+                    title="Delete"
+                  >
+                    {deleting === food.id
+                      ? <Loader2 size={12} className="animate-spin" />
+                      : <Trash2 size={12} />}
+                  </button>
                 </div>
               </div>
             </div>
