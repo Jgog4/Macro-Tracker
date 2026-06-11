@@ -203,11 +203,20 @@ async def health():
 if STATIC_DIR.exists():
     app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
 
-    # Catch-all: return index.html for any non-API route so React Router works
+    # Catch-all: return index.html for any non-API route so React Router works.
+    # index.html must never be cached — it references hashed JS/CSS filenames,
+    # so a stale index.html would load old assets even after a deploy.
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str):
         index = STATIC_DIR / "index.html"
-        return FileResponse(index)
+        return FileResponse(
+            index,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 
 
 # ── Global error handler ──────────────────────────────────────────────────────
