@@ -292,7 +292,11 @@ async def lookup_barcode(barcode: str):
     try:
         async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
             r = await client.get(off_url, headers={"User-Agent": "MacroTrackerApp/1.0"})
+        if not r.content:
+            raise HTTPException(status_code=404, detail="Product not found in Open Food Facts database.")
         data = r.json()
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Open Food Facts request failed: {e}")
 
