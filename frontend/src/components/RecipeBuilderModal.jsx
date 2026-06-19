@@ -96,26 +96,35 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
       if (gen !== searchGen.current) return;
       setSearching(true);
       try {
+        const mapUsda = (f) => ({
+          id: null, fdc_id: f.fdc_id, source: "usda_live",
+          name: f.description, brand: f.brand_owner,
+          calories: f.calories, protein_g: f.protein_g,
+          fat_g: f.fat_g, carbs_g: f.carbs_g,
+          serving_size_g: f.serving_unit?.toLowerCase() === "g" ? f.serving_size : null,
+        });
+
         const [localRes, usdaRes] = await Promise.allSettled([
           foodsApi.search(query, { limit: 15 }),
           foodsApi.usdaSearch(query, 4),
         ]);
         if (gen !== searchGen.current) return;
 
-        const localItems = localRes.status === "fulfilled" ? localRes.value.data : [];
-        const usdaItems  = usdaRes.status  === "fulfilled"
-          ? usdaRes.value.data.map(f => ({
-              id:             null,
-              fdc_id:         f.fdc_id,
-              source:         "usda_live",
-              name:           f.description,
-              brand:          f.brand_owner,
-              calories:       f.calories,
-              protein_g:      f.protein_g,
-              fat_g:          f.fat_g,
-              carbs_g:        f.carbs_g,
-              serving_size_g: f.serving_unit?.toLowerCase() === "g" ? f.serving_size : null,
-            }))
+        let localItems = localRes.status === "fulfilled" ? localRes.value.data : [];
+
+        // If multi-word query returns no local results, retry with the last word only
+        // so "Table salt" still finds "Salt" in the local DB.
+        if (localItems.length === 0 && query.trim().includes(" ")) {
+          const lastWord = query.trim().split(/\s+/).pop();
+          if (lastWord.length >= 2) {
+            const fallback = await foodsApi.search(lastWord, { limit: 15 }).catch(() => null);
+            if (gen !== searchGen.current) return;
+            if (fallback?.data?.length) localItems = fallback.data;
+          }
+        }
+
+        const usdaItems = usdaRes.status === "fulfilled"
+          ? usdaRes.value.data.map(mapUsda)
           : [];
 
         const localFdcIds = new Set(localItems.map(i => i.usda_fdc_id).filter(Boolean));
