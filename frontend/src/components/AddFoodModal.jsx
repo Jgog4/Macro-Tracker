@@ -361,20 +361,20 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
                 className="flex w-full items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-surface-2 text-left transition-colors"
               >
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <p className="text-sm text-foreground truncate">{food.name}</p>
+                  <p className="text-sm text-foreground line-clamp-2 leading-snug">{food.name}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    <p className="text-[11px] text-muted">
+                      {food.brand ? `${food.brand} · ` : ""}
+                      {food.calories != null && (
+                        food.serving_size_g
+                          ? `${Math.round(food.calories)} kcal / serving`
+                          : `${Math.round(food.calories)} kcal / 100g`
+                      )}
+                    </p>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold shrink-0 ${badge.color}`}>
                       {badge.label}
                     </span>
                   </div>
-                  <p className="text-[11px] text-muted mt-0.5 truncate">
-                    {food.brand ? `${food.brand} · ` : ""}
-                    {food.calories != null && (
-                      food.serving_size_g
-                        ? `${Math.round(food.calories)} kcal / serving`
-                        : `${Math.round(food.calories)} kcal / 100g`
-                    )}
-                  </p>
                 </div>
                 <ChevronRight size={14} className="text-muted shrink-0" />
               </button>
