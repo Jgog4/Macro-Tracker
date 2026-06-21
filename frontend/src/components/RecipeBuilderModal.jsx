@@ -73,6 +73,9 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
   const [cookedWeight, setCookedWeight] = useState(
     recipe?.serving_size_g ? String(recipe.serving_size_g) : ""
   );
+  const [numServings, setNumServings] = useState(
+    recipe?.num_servings ? String(recipe.num_servings) : "1"
+  );
 
   // Search
   const [query, setQuery]         = useState("");
@@ -149,15 +152,16 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
   const remove    = (key)      => setBasket(b => b.filter(i => i.key !== key));
 
   // ── Derived ─────────────────────────────────────────────────────────────────
-  const totals      = calcTotals(basket);
-  const weightNum   = parseFloat(cookedWeight) || totals.totalG;
+  const totals        = calcTotals(basket);
+  const weightNum     = parseFloat(cookedWeight) || totals.totalG;
+  const numServingsN  = Math.max(1, parseInt(numServings) || 1);
+  const perServingG   = weightNum / numServingsN;
 
-  // Macros scaled to serving_size_g (cooked weight)
   const perServing = weightNum > 0 ? {
-    calories: totals.calories,
-    protein:  totals.protein,
-    carbs:    totals.carbs,
-    fat:      totals.fat,
+    calories: totals.calories / numServingsN,
+    protein:  totals.protein  / numServingsN,
+    carbs:    totals.carbs    / numServingsN,
+    fat:      totals.fat      / numServingsN,
   } : null;
 
   const per100 = weightNum > 0 ? {
@@ -188,6 +192,7 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
       const payload = {
         name:           name.trim(),
         serving_size_g: cookedWeight ? parseFloat(cookedWeight) : undefined,
+        num_servings:   Math.max(1, parseInt(numServings) || 1),
         ingredients,
       };
 
@@ -408,19 +413,45 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
             </p>
           </div>
 
-          {/* Preview per 100g */}
+          <div>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5 block">
+              Number of Servings
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={numServings}
+                onChange={e => setNumServings(e.target.value)}
+                placeholder="1"
+                className="input w-28 font-mono text-lg"
+                min="1" step="1"
+              />
+              <span className="text-sm text-muted">
+                {numServingsN > 1
+                  ? `· ${Math.round(perServingG)}g per serving`
+                  : "· whole recipe = 1 serving"}
+              </span>
+            </div>
+          </div>
+
+          {/* Preview per serving */}
           {per100 && (
             <div className="bg-surface-2 rounded-xl p-4">
               <p className="text-[10px] text-muted font-semibold uppercase tracking-wide mb-3">
-                Macros per 100g cooked
+                {numServingsN > 1
+                  ? `Macros per serving (1 of ${numServingsN} · ${Math.round(perServingG)}g)`
+                  : "Macros per 100g cooked"}
               </p>
               <div className="grid grid-cols-4 gap-2">
-                {[
-                  { label: "Calories", val: per100.calories, unit: "kcal", color: "#FF9500" },
-                  { label: "Protein",  val: per100.protein,  unit: "g",    color: "#34C759" },
-                  { label: "Carbs",    val: per100.carbs,    unit: "g",    color: "#007AFF" },
-                  { label: "Fat",      val: per100.fat,      unit: "g",    color: "#FF3B30" },
-                ].map(({ label, val, unit, color }) => (
+                {(() => {
+                  const src = numServingsN > 1 ? perServing : per100;
+                  return [
+                    { label: "Calories", val: src.calories, unit: "kcal", color: "#FF9500" },
+                    { label: "Protein",  val: src.protein,  unit: "g",    color: "#34C759" },
+                    { label: "Carbs",    val: src.carbs,    unit: "g",    color: "#007AFF" },
+                    { label: "Fat",      val: src.fat,      unit: "g",    color: "#FF3B30" },
+                  ];
+                })().map(({ label, val, unit, color }) => (
                   <div key={label} className="flex flex-col items-center">
                     <span className="text-sm font-bold font-mono" style={{ color }}>
                       {val >= 10 ? Math.round(val) : val.toFixed(1)}

@@ -53,7 +53,7 @@ async def create_recipe(body: RecipeCreate, db: AsyncSession = Depends(get_db)):
       ]
     }
     """
-    recipe = Recipe(name=body.name, description=body.description, serving_size_g=body.serving_size_g)
+    recipe = Recipe(name=body.name, description=body.description, serving_size_g=body.serving_size_g, num_servings=max(1, body.num_servings or 1))
     db.add(recipe)
     await db.flush()
 
@@ -128,6 +128,8 @@ async def update_recipe(recipe_id: str, body: RecipeUpdate, db: AsyncSession = D
         recipe.description = body.description
     if body.serving_size_g is not None:
         recipe.serving_size_g = body.serving_size_g
+    if body.num_servings is not None:
+        recipe.num_servings = max(1, body.num_servings)
 
     if body.ingredients is not None:
         # Delete existing ingredient rows

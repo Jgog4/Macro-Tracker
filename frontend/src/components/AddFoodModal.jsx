@@ -127,14 +127,23 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
     if (!recipesOnly) return;
     setLoading(true);
     recipesApi.list().then(res => {
-      const mapped = res.data.map(r => ({
-        id: null, recipe_id: r.id, source: "recipe",
-        name: r.name, brand: null,
-        calories: r.calories, protein_g: r.protein_g,
-        fat_g: r.fat_g, carbs_g: r.carbs_g,
-        serving_size_g: r.serving_size_g || r.total_weight_g,
-        serving_size_desc: r.serving_size_g ? `full recipe (${r.serving_size_g}g)` : null,
-      }));
+      const mapped = res.data.map(r => {
+        const ns = r.num_servings || 1;
+        const totalG = r.serving_size_g || r.total_weight_g || 0;
+        const perServingG = ns > 1 ? Math.round(totalG / ns) : totalG;
+        const desc = ns > 1
+          ? `1 of ${ns} servings (${perServingG}g)`
+          : totalG ? `full recipe (${totalG}g)` : null;
+        return {
+          id: null, recipe_id: r.id, source: "recipe",
+          name: r.name, brand: null,
+          calories: r.calories / ns, protein_g: r.protein_g / ns,
+          fat_g: r.fat_g / ns, carbs_g: r.carbs_g / ns,
+          serving_size_g: perServingG || null,
+          serving_size_desc: desc,
+          num_servings: ns,
+        };
+      });
       setAllRecipes(mapped);
       setResults(mapped);
     }).catch(() => {}).finally(() => setLoading(false));
@@ -187,16 +196,23 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
             }))
           : [];
         const recipeItems = recipesRes.status === "fulfilled"
-          ? recipesRes.value.data.map(r => ({
-              id: null, recipe_id: r.id, source: "recipe",
-              name: r.name, brand: null,
-              calories: r.calories, protein_g: r.protein_g,
-              fat_g: r.fat_g, carbs_g: r.carbs_g,
-              serving_size_g: r.serving_size_g || r.total_weight_g,
-              serving_size_desc: r.serving_size_g
-                ? `full recipe (${r.serving_size_g}g)`
-                : null,
-            }))
+          ? recipesRes.value.data.map(r => {
+              const ns = r.num_servings || 1;
+              const totalG = r.serving_size_g || r.total_weight_g || 0;
+              const perServingG = ns > 1 ? Math.round(totalG / ns) : totalG;
+              const desc = ns > 1
+                ? `1 of ${ns} servings (${perServingG}g)`
+                : totalG ? `full recipe (${totalG}g)` : null;
+              return {
+                id: null, recipe_id: r.id, source: "recipe",
+                name: r.name, brand: null,
+                calories: r.calories / ns, protein_g: r.protein_g / ns,
+                fat_g: r.fat_g / ns, carbs_g: r.carbs_g / ns,
+                serving_size_g: perServingG || null,
+                serving_size_desc: desc,
+                num_servings: ns,
+              };
+            })
           : [];
         const localFdcIds = new Set(localItems.map(i => i.usda_fdc_id).filter(Boolean));
         setResults([

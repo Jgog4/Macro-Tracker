@@ -208,6 +208,7 @@ class Recipe(Base):
     description:    Mapped[str | None] = mapped_column(Text)
     total_weight_g: Mapped[float | None] = mapped_column(Float)
     serving_size_g: Mapped[float | None] = mapped_column(Float)
+    num_servings:   Mapped[int]          = mapped_column(Integer, default=1, server_default="1")
 
     calories:       Mapped[float] = mapped_column(Float, default=0.0)
     protein_g:      Mapped[float] = mapped_column(Float, default=0.0)

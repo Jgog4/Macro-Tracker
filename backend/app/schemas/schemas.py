@@ -201,6 +201,7 @@ class RecipeCreate(BaseModel):
     name:           str
     description:    Optional[str]   = None
     serving_size_g: Optional[float] = None
+    num_servings:   int             = 1
     ingredients:    list[RecipeIngredientCreate] = Field(..., min_length=1)
 
 
@@ -208,6 +209,7 @@ class RecipeUpdate(BaseModel):
     name:           Optional[str]   = None
     description:    Optional[str]   = None
     serving_size_g: Optional[float] = None
+    num_servings:   Optional[int]   = None
     ingredients:    Optional[list[RecipeIngredientCreate]] = None
 
 
@@ -217,6 +219,7 @@ class RecipeRead(BaseModel):
     description:    Optional[str]   = None
     serving_size_g: Optional[float] = None
     total_weight_g: Optional[float] = None
+    num_servings:   int             = 1
 
     # Computed totals
     calories:       float

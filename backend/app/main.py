@@ -130,6 +130,9 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS ash_g                   FLOAT",
                 "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS alcohol_g               FLOAT",
                 "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS beta_hydroxybutyrate_g  FLOAT",
+
+                # ── Recipe columns ──
+                "ALTER TABLE mt_recipes ADD COLUMN IF NOT EXISTS num_servings INTEGER NOT NULL DEFAULT 1",
             ]
             for stmt in new_cols:
                 await conn.execute(text(stmt))
