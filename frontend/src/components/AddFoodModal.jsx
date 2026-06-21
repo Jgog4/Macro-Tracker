@@ -217,7 +217,7 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
   // Effective serving base: prefer custom weight, then food's stored weight
   const effectiveServingG = (parseFloat(itemWeightG) > 0 ? parseFloat(itemWeightG) : null)
                          ?? selected?.serving_size_g;
-  const baseG = effectiveServingG || (qtyNum || 100);
+  const baseG = effectiveServingG || 100; // null serving_size_g → macros stored per 100g
   const ratio = qtyNum / baseG;
 
   // Use custom-entered macros if the food has all zeros

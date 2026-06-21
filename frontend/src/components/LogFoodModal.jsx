@@ -56,7 +56,7 @@ export default function LogFoodModal({ food, onClose, onLogged }) {
   }, []);
 
   const qtyNum  = parseFloat(qty) || 0;
-  const baseG   = food.serving_size_g || (qtyNum || 100);
+  const baseG   = food.serving_size_g || 100; // null serving_size_g → macros stored per 100g
   const ratio   = qtyNum / baseG;
   const live    = {
     calories: (food.calories  || 0) * ratio,
