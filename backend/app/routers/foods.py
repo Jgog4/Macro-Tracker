@@ -4,11 +4,11 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import and_, case, select, or_, func
+from sqlalchemy import and_, case, select, or_, func, literal_column, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models.models import Ingredient
+from app.models.models import Ingredient, MealLogItem
 from app.schemas.schemas import IngredientCreate, IngredientRead, IngredientUpdate, USDASearchResult
 from app.services.usda import search_usda, import_usda_food
 
@@ -47,11 +47,41 @@ async def search_local_foods(
     db:     AsyncSession = Depends(get_db),
 ):
     """
-    Full-text style search of the local ingredients table.
-    Searches name + brand case-insensitively.
+    Search local ingredients by name/brand.
+    - Exact substring match first; falls back to trigram fuzzy match for typos.
+    - Results sorted by: usage frequency (most logged first), then source rank, then name.
     """
-    # Split query into words so "oat smoothie" matches "Peanut oat smoothie".
-    # Every word must appear somewhere in name or brand (AND across words, OR across fields).
+    # Usage frequency subquery — count how many times each ingredient has been logged
+    usage_sq = (
+        select(MealLogItem.ingredient_id, func.count().label("log_count"))
+        .group_by(MealLogItem.ingredient_id)
+        .subquery()
+    )
+
+    source_rank = case(
+        (Ingredient.source == "personal",   0),
+        (Ingredient.source == "custom",     1),
+        (Ingredient.source == "restaurant", 2),
+        else_=3,
+    )
+    log_count = func.coalesce(usage_sq.c.log_count, 0)
+
+    def _base_stmt():
+        return (
+            select(Ingredient)
+            .outerjoin(usage_sq, usage_sq.c.ingredient_id == Ingredient.id)
+            .order_by(log_count.desc(), source_rank, Ingredient.name)
+            .limit(limit)
+        )
+
+    def _apply_filters(stmt):
+        if source:
+            stmt = stmt.where(Ingredient.source == source)
+        if brand:
+            stmt = stmt.where(func.lower(Ingredient.brand) == brand.lower())
+        return stmt
+
+    # ── Try exact substring match (AND across all words) ─────────────────────
     words = [w for w in q.lower().split() if w]
     word_clauses = [
         or_(
@@ -60,22 +90,21 @@ async def search_local_foods(
         )
         for word in words
     ]
-    stmt = select(Ingredient).where(and_(*word_clauses))
-    if source:
-        stmt = stmt.where(Ingredient.source == source)
-    if brand:
-        stmt = stmt.where(func.lower(Ingredient.brand) == brand.lower())
+    stmt = _apply_filters(_base_stmt().where(and_(*word_clauses)))
+    rows = (await db.execute(stmt)).scalars().all()
 
-    # Personal foods come first, then custom recipes, then restaurant items, then USDA imports.
-    source_rank = case(
-        (Ingredient.source == "personal",   0),
-        (Ingredient.source == "custom",     1),
-        (Ingredient.source == "restaurant", 2),
-        else_=3,
+    if rows:
+        return rows
+
+    # ── Fuzzy fallback: trigram similarity on the full query string ───────────
+    # word_similarity checks if query words appear fuzzily within name tokens
+    q_lower = q.lower().strip()
+    fuzzy_filter = or_(
+        func.word_similarity(q_lower, func.lower(Ingredient.name))  > 0.25,
+        func.word_similarity(q_lower, func.lower(Ingredient.brand)) > 0.25,
     )
-    stmt = stmt.order_by(source_rank, Ingredient.name).limit(limit)
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    stmt = _apply_filters(_base_stmt().where(fuzzy_filter))
+    return (await db.execute(stmt)).scalars().all()
 
 
 # ── Restaurant database (your CSV brands) ────────────────────────────────────
