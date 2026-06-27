@@ -27,21 +27,36 @@ function Field({ label, value, onChange, unit, type = "number", placeholder = "0
 }
 
 export default function IngredientEditModal({ ingredient, onClose, onSaved }) {
-  const [name,        setName]        = useState(ingredient.name        || "");
-  const [calories,    setCalories]    = useState(String(ingredient.calories    ?? ""));
-  const [protein,     setProtein]     = useState(String(ingredient.protein_g   ?? ""));
-  const [carbs,       setCarbs]       = useState(String(ingredient.carbs_g     ?? ""));
-  const [fat,         setFat]         = useState(String(ingredient.fat_g       ?? ""));
-  const [servingG,    setServingG]    = useState(String(ingredient.serving_size_g   ?? ""));
-  const [servingDesc, setServingDesc] = useState(ingredient.serving_size_desc || "");
-  const [fiber,       setFiber]       = useState(String(ingredient.fiber_g     ?? ""));
-  const [sugar,       setSugar]       = useState(String(ingredient.sugar_g     ?? ""));
-  const [sodium,      setSodium]      = useState(String(ingredient.sodium_mg   ?? ""));
+  // Convert stored per-serving values to per-100g for display.
+  // On save we convert back: store = display * (servingG / 100).
+  const base = ingredient.serving_size_g || 100;
+  const to100 = v => v != null ? String(Math.round((v / base) * 100 * 10) / 10) : "";
 
-  const [saving,  setSaving]  = useState(false);
-  const [error,   setError]   = useState("");
+  const [name,        setName]        = useState(ingredient.name || "");
+  const [calories,    setCalories]    = useState(to100(ingredient.calories));
+  const [protein,     setProtein]     = useState(to100(ingredient.protein_g));
+  const [carbs,       setCarbs]       = useState(to100(ingredient.carbs_g));
+  const [fat,         setFat]         = useState(to100(ingredient.fat_g));
+  const [fiber,       setFiber]       = useState(to100(ingredient.fiber_g));
+  const [sugar,       setSugar]       = useState(to100(ingredient.sugar_g));
+  const [sodium,      setSodium]      = useState(
+    ingredient.sodium_mg != null ? String(Math.round((ingredient.sodium_mg / base) * 100 * 10) / 10) : ""
+  );
+  const [servingG,    setServingG]    = useState(String(ingredient.serving_size_g ?? ""));
+  const [servingDesc, setServingDesc] = useState(ingredient.serving_size_desc || "");
+
+  const [saving, setSaving] = useState(false);
+  const [error,  setError]  = useState("");
 
   const num = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+
+  // Convert per-100g display values back to per-serving for storage
+  const toServing = v => {
+    const n = num(v);
+    if (n == null) return null;
+    const sg = num(servingG);
+    return sg ? Math.round((n * sg / 100) * 1000) / 1000 : n; // if no serving set, store as-is (per 100g)
+  };
 
   const handleSave = async () => {
     if (!name.trim()) { setError("Name is required"); return; }
@@ -50,15 +65,15 @@ export default function IngredientEditModal({ ingredient, onClose, onSaved }) {
     try {
       await foodsApi.update(ingredient.id, {
         name:              name.trim(),
-        calories:          num(calories),
-        protein_g:         num(protein),
-        carbs_g:           num(carbs),
-        fat_g:             num(fat),
+        calories:          toServing(calories),
+        protein_g:         toServing(protein),
+        carbs_g:           toServing(carbs),
+        fat_g:             toServing(fat),
+        fiber_g:           toServing(fiber),
+        sugar_g:           toServing(sugar),
+        sodium_mg:         toServing(sodium),
         serving_size_g:    num(servingG),
         serving_size_desc: servingDesc.trim() || null,
-        fiber_g:           num(fiber),
-        sugar_g:           num(sugar),
-        sodium_mg:         num(sodium),
       });
       onSaved();
     } catch (e) {
@@ -114,17 +129,20 @@ export default function IngredientEditModal({ ingredient, onClose, onSaved }) {
               />
             </div>
           </div>
-          {servingG && parseFloat(servingG) > 0 && (
+          {servingG && parseFloat(servingG) > 0 && calories && (
             <p className="text-[11px] text-muted -mt-1">
-              Macros above are for {servingDesc.trim() || `${servingG}g`} ({servingG}g)
+              {servingDesc.trim() || `1 serving`} ({servingG}g) ={" "}
+              <span className="font-semibold text-foreground">
+                {Math.round(parseFloat(calories) * parseFloat(servingG) / 100)} kcal
+              </span>
             </p>
           )}
         </div>
 
-        {/* Core macros */}
+        {/* Core macros — always entered per 100g */}
         <div>
           <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
-            Macros <span className="normal-case font-normal">per serving</span>
+            Macros <span className="normal-case font-normal text-muted">per 100g</span>
           </p>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Calories" unit="kcal" value={calories} onChange={setCalories} />
@@ -134,9 +152,11 @@ export default function IngredientEditModal({ ingredient, onClose, onSaved }) {
           </div>
         </div>
 
-        {/* Extra nutrients */}
+        {/* Extra nutrients per 100g */}
         <div>
-          <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">Other nutrients</p>
+          <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+            Other nutrients <span className="normal-case font-normal">per 100g</span>
+          </p>
           <div className="grid grid-cols-3 gap-3">
             <Field label="Fiber"  unit="g"  value={fiber}  onChange={setFiber}  />
             <Field label="Sugar"  unit="g"  value={sugar}  onChange={setSugar}  />
