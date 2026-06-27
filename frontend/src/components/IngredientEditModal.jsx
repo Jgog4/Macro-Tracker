@@ -100,38 +100,41 @@ export default function IngredientEditModal({ ingredient, onClose, onSaved }) {
           />
         </div>
 
-        {/* Serving size */}
+        {/* Unit size */}
         <div className="flex flex-col gap-3">
-          <p className="text-xs font-semibold text-muted uppercase tracking-wide">Serving size</p>
+          <div>
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide">Unit size <span className="normal-case font-normal">(optional)</span></p>
+            <p className="text-[11px] text-muted mt-0.5">Set this to log by count — e.g. 1 cherry = 11g</p>
+          </div>
           <div className="flex gap-3">
-            <div className="flex flex-col gap-1 w-28">
-              <label className="text-[11px] text-muted">Grams</label>
+            <div className="flex flex-col gap-1 flex-1">
+              <label className="text-[11px] text-muted">Unit name</label>
+              <input
+                type="text"
+                value={servingDesc}
+                onChange={e => setServingDesc(e.target.value)}
+                placeholder="e.g. cherry, scoop, tablet, slice"
+                className="input"
+              />
+            </div>
+            <div className="flex flex-col gap-1 w-32">
+              <label className="text-[11px] text-muted">Grams per unit</label>
               <div className="flex items-center gap-1.5">
                 <input
                   type="number"
                   value={servingG}
                   onChange={e => setServingG(e.target.value)}
-                  placeholder="100"
+                  placeholder="11"
                   min="0" step="0.1"
                   className="input font-mono w-full"
                 />
                 <span className="text-muted text-sm shrink-0">g</span>
               </div>
             </div>
-            <div className="flex flex-col gap-1 flex-1">
-              <label className="text-[11px] text-muted">Label <span className="font-normal">(optional)</span></label>
-              <input
-                type="text"
-                value={servingDesc}
-                onChange={e => setServingDesc(e.target.value)}
-                placeholder="e.g. 1 scoop, 1 cup, 1 tablet"
-                className="input"
-              />
-            </div>
           </div>
-          {servingG && parseFloat(servingG) > 0 && calories && (
+          {servingG && parseFloat(servingG) > 0 && servingDesc.trim() && calories && (
             <p className="text-[11px] text-muted -mt-1">
-              {servingDesc.trim() || `1 serving`} ({servingG}g) ={" "}
+              1 {servingDesc.trim()} = {servingG}g ={" "}
               <span className="font-semibold text-foreground">
                 {Math.round(parseFloat(calories) * parseFloat(servingG) / 100)} kcal
               </span>
