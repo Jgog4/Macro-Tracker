@@ -32,7 +32,8 @@ export default function IngredientEditModal({ ingredient, onClose, onSaved }) {
   const [protein,     setProtein]     = useState(String(ingredient.protein_g   ?? ""));
   const [carbs,       setCarbs]       = useState(String(ingredient.carbs_g     ?? ""));
   const [fat,         setFat]         = useState(String(ingredient.fat_g       ?? ""));
-  const [servingG,    setServingG]    = useState(String(ingredient.serving_size_g ?? ""));
+  const [servingG,    setServingG]    = useState(String(ingredient.serving_size_g   ?? ""));
+  const [servingDesc, setServingDesc] = useState(ingredient.serving_size_desc || "");
   const [fiber,       setFiber]       = useState(String(ingredient.fiber_g     ?? ""));
   const [sugar,       setSugar]       = useState(String(ingredient.sugar_g     ?? ""));
   const [sodium,      setSodium]      = useState(String(ingredient.sodium_mg   ?? ""));
@@ -48,15 +49,16 @@ export default function IngredientEditModal({ ingredient, onClose, onSaved }) {
     setError("");
     try {
       await foodsApi.update(ingredient.id, {
-        name:           name.trim(),
-        calories:       num(calories),
-        protein_g:      num(protein),
-        carbs_g:        num(carbs),
-        fat_g:          num(fat),
-        serving_size_g: num(servingG),
-        fiber_g:        num(fiber),
-        sugar_g:        num(sugar),
-        sodium_mg:      num(sodium),
+        name:              name.trim(),
+        calories:          num(calories),
+        protein_g:         num(protein),
+        carbs_g:           num(carbs),
+        fat_g:             num(fat),
+        serving_size_g:    num(servingG),
+        serving_size_desc: servingDesc.trim() || null,
+        fiber_g:           num(fiber),
+        sugar_g:           num(sugar),
+        sodium_mg:         num(sodium),
       });
       onSaved();
     } catch (e) {
@@ -84,7 +86,40 @@ export default function IngredientEditModal({ ingredient, onClose, onSaved }) {
         </div>
 
         {/* Serving size */}
-        <Field label="Serving size" unit="g" value={servingG} onChange={setServingG} placeholder="100" />
+        <div className="flex flex-col gap-3">
+          <p className="text-xs font-semibold text-muted uppercase tracking-wide">Serving size</p>
+          <div className="flex gap-3">
+            <div className="flex flex-col gap-1 w-28">
+              <label className="text-[11px] text-muted">Grams</label>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  value={servingG}
+                  onChange={e => setServingG(e.target.value)}
+                  placeholder="100"
+                  min="0" step="0.1"
+                  className="input font-mono w-full"
+                />
+                <span className="text-muted text-sm shrink-0">g</span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1 flex-1">
+              <label className="text-[11px] text-muted">Label <span className="font-normal">(optional)</span></label>
+              <input
+                type="text"
+                value={servingDesc}
+                onChange={e => setServingDesc(e.target.value)}
+                placeholder="e.g. 1 scoop, 1 cup, 1 tablet"
+                className="input"
+              />
+            </div>
+          </div>
+          {servingG && parseFloat(servingG) > 0 && (
+            <p className="text-[11px] text-muted -mt-1">
+              Macros above are for {servingDesc.trim() || `${servingG}g`} ({servingG}g)
+            </p>
+          )}
+        </div>
 
         {/* Core macros */}
         <div>
