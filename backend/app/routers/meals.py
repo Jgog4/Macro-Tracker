@@ -353,7 +353,25 @@ async def get_micronutrients(
 
     totals: dict[str, float] = {}
 
-    # ── 1. Direct ingredient items ────────────────────────────────────────────
+    # ── 0. Snapshot macros from ALL items (ingredient AND recipe) ─────────────
+    # Recipe items have ingredient_id=NULL (they use recipe_id) — they must still
+    # count toward calories/protein/etc. via their snapshotted values.
+    all_items_result = await db.execute(
+        select(MealLogItem)
+        .join(MealLog, MealLogItem.meal_log_id == MealLog.id)
+        .where(
+            MealLog.user_id == user.id,
+            MealLog.log_date >= start,
+            MealLog.log_date <= end,
+        )
+    )
+    for item in all_items_result.scalars().all():
+        for field in _SNAPSHOT_FIELDS:
+            val = getattr(item, field, None)
+            if val is not None:
+                _add_micro(totals, field, val)
+
+    # ── 1. Direct ingredient items — micros only (macros handled above) ───────
     direct_result = await db.execute(
         select(MealLogItem, Ingredient)
         .join(MealLog, MealLogItem.meal_log_id == MealLog.id)
@@ -366,12 +384,7 @@ async def get_micronutrients(
         )
     )
     for item, ingredient in direct_result.all():
-        # Use snapshotted values for core macros — accurate regardless of serving size
-        for field in _SNAPSHOT_FIELDS:
-            val = getattr(item, field, None)
-            if val is not None:
-                _add_micro(totals, field, val)
-        # Use ingredient scaling for everything else (micros, fiber, etc.)
+        # Use ingredient scaling for micros (vitamins, minerals, fiber, etc.)
         _accumulate_ingredient_micros(totals, ingredient, item.quantity_g)
 
     # ── 2. Recipe items via components ───────────────────────────────────────
@@ -414,6 +427,58 @@ async def get_micronutrients(
         totals=MicronutrientTotals(**totals_rounded),
         daily_avg=MicronutrientTotals(**daily_avg),
     )
+
+
+# ── GET /meals/daily-series — per-day macro totals for charting ───────────────
+
+@router.get("/daily-series")
+async def get_daily_series(
+    start: date_type = Query(..., description="Start date (yyyy-MM-dd)"),
+    end:   date_type = Query(..., description="End date inclusive (yyyy-MM-dd)"),
+    db:    AsyncSession = Depends(get_db),
+):
+    """
+    Return per-day totals of the core macros (from frozen snapshots, so recipe
+    items are included). One row per calendar day that has at least one entry.
+    Shape: [{ "date": "2026-07-01", "calories": 3200, "protein_g": 180, ... }]
+    """
+    user = await _get_or_create_user(db)
+    if (end - start).days > 366:
+        raise HTTPException(status_code=400, detail="Date range cannot exceed 366 days")
+    if end < start:
+        raise HTTPException(status_code=400, detail="end must be >= start")
+
+    result = await db.execute(
+        select(
+            MealLog.log_date,
+            func.coalesce(func.sum(MealLogItem.calories), 0.0).label("calories"),
+            func.coalesce(func.sum(MealLogItem.protein_g), 0.0).label("protein_g"),
+            func.coalesce(func.sum(MealLogItem.carbs_g), 0.0).label("carbs_g"),
+            func.coalesce(func.sum(MealLogItem.fat_g), 0.0).label("fat_g"),
+            func.coalesce(func.sum(MealLogItem.sodium_mg), 0.0).label("sodium_mg"),
+            func.coalesce(func.sum(MealLogItem.cholesterol_mg), 0.0).label("cholesterol_mg"),
+        )
+        .join(MealLogItem, MealLogItem.meal_log_id == MealLog.id)
+        .where(
+            MealLog.user_id == user.id,
+            MealLog.log_date >= start,
+            MealLog.log_date <= end,
+        )
+        .group_by(MealLog.log_date)
+        .order_by(MealLog.log_date)
+    )
+    return [
+        {
+            "date": row.log_date.isoformat(),
+            "calories": round(row.calories, 1),
+            "protein_g": round(row.protein_g, 1),
+            "carbs_g": round(row.carbs_g, 1),
+            "fat_g": round(row.fat_g, 1),
+            "sodium_mg": round(row.sodium_mg, 1),
+            "cholesterol_mg": round(row.cholesterol_mg, 1),
+        }
+        for row in result.all()
+    ]
 
 
 # ── PATCH a meal log item ─────────────────────────────────────────────────────

@@ -4,9 +4,13 @@
  */
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { format, subDays } from "date-fns";
+import { format, subDays, parseISO } from "date-fns";
 import { ArrowLeft, Loader2, BarChart2 } from "lucide-react";
-import { micronutrientsApi } from "../api/client";
+import {
+  ResponsiveContainer, ComposedChart, Bar, Line, LineChart,
+  XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, Legend,
+} from "recharts";
+import { micronutrientsApi, mealsApi } from "../api/client";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const todayStr  = () => format(new Date(), "yyyy-MM-dd");
@@ -28,6 +32,8 @@ export default function ReportsPage({ onClose }) {
   const [customEnd,    setCustomEnd]    = useState(todayStr());
   const [includeToday, setIncludeToday] = useState(true);
   const [data,         setData]         = useState(null);
+  const [series,       setSeries]       = useState([]);
+  const [target,       setTarget]       = useState(null);
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState(null);
 
@@ -50,13 +56,28 @@ export default function ReportsPage({ onClose }) {
     return Math.round((new Date(end) - new Date(start)) / 86400000) + 1;
   }, [start, end]);
 
+  // Load target once (for reference lines on charts)
+  useEffect(() => {
+    mealsApi.getLatestTarget().then(res => setTarget(res.data)).catch(() => setTarget(null));
+  }, []);
+
   useEffect(() => {
     if (!start || !end || start > end) return;
     setData(null);
+    setSeries([]);
     setError(null);
     setLoading(true);
-    micronutrientsApi.getRange(start, end)
-      .then(res => setData(res.data))
+    Promise.all([
+      micronutrientsApi.getRange(start, end),
+      micronutrientsApi.dailySeries(start, end),
+    ])
+      .then(([agg, ser]) => {
+        setData(agg.data);
+        setSeries((ser.data || []).map(d => ({
+          ...d,
+          label: format(parseISO(d.date), "MMM d"),
+        })));
+      })
       .catch(() => setError("Could not load report data"))
       .finally(() => setLoading(false));
   }, [start, end]);
@@ -183,6 +204,47 @@ export default function ReportsPage({ onClose }) {
               </div>
             </Section>
 
+            {/* ── Calories over time ── */}
+            {series.length > 0 && (
+              <Section title="Calories per Day">
+                <div className="bg-surface-1 rounded-xl p-3 shadow-card">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <ComposedChart data={series} margin={{ top: 8, right: 6, left: -18, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E5EA" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#8E8E93" }} interval="preserveStartEnd" minTickGap={18} />
+                      <YAxis tick={{ fontSize: 10, fill: "#8E8E93" }} width={40} />
+                      <Tooltip content={<ChartTooltip unit="kcal" />} />
+                      <Bar dataKey="calories" fill="#FF9500" radius={[4, 4, 0, 0]} maxBarSize={34} />
+                      {target?.calories > 0 && (
+                        <ReferenceLine y={target.calories} stroke="#8E8E93" strokeDasharray="4 4"
+                          label={{ value: "target", position: "right", fontSize: 9, fill: "#8E8E93" }} />
+                      )}
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </Section>
+            )}
+
+            {/* ── Macros over time ── */}
+            {series.length > 0 && (
+              <Section title="Macros per Day (g)">
+                <div className="bg-surface-1 rounded-xl p-3 shadow-card">
+                  <ResponsiveContainer width="100%" height={210}>
+                    <LineChart data={series} margin={{ top: 8, right: 6, left: -18, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E5EA" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#8E8E93" }} interval="preserveStartEnd" minTickGap={18} />
+                      <YAxis tick={{ fontSize: 10, fill: "#8E8E93" }} width={40} />
+                      <Tooltip content={<ChartTooltip unit="g" />} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} iconType="plainline" />
+                      <Line type="monotone" dataKey="protein_g" name="Protein" stroke="#34C759" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="carbs_g"   name="Carbs"   stroke="#007AFF" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="fat_g"     name="Fat"     stroke="#FF3B30" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </Section>
+            )}
+
             {/* ── Secondary nutrients ── */}
             <Section title="Other Nutrients (daily avg)">
               <div className="card-no-pad divide-y divide-surface-3">
@@ -220,6 +282,21 @@ export default function ReportsPage({ onClose }) {
       </div>
     </div>,
     document.body
+  );
+}
+
+// ── Chart tooltip ──────────────────────────────────────────────────────────
+function ChartTooltip({ active, payload, label, unit }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white rounded-lg shadow-lg border border-surface-3 px-3 py-2 text-xs">
+      <p className="font-semibold text-foreground mb-1">{label}</p>
+      {payload.map((p) => (
+        <p key={p.dataKey} style={{ color: p.color || p.fill }}>
+          {p.name}: <span className="font-mono font-semibold">{Math.round(p.value)}{unit}</span>
+        </p>
+      ))}
+    </div>
   );
 }
 
