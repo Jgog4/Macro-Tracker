@@ -382,9 +382,7 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
                     <p className="text-[11px] text-muted">
                       {food.brand ? `${food.brand} · ` : ""}
                       {food.calories != null && (
-                        food.serving_size_g
-                          ? `${Math.round(food.calories)} kcal / serving`
-                          : `${Math.round(food.calories)} kcal / 100g`
+                        `${Math.round(food.serving_size_g ? food.calories / food.serving_size_g * 100 : food.calories)} kcal / 100g`
                       )}
                     </p>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold shrink-0 ${badge.color}`}>
@@ -403,18 +401,20 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
       {selected && (
         <div className="flex flex-col gap-4">
 
-          {/* Back + food name */}
-          <div className="flex items-start gap-2">
+          {/* Back to results */}
+          {!preselected && (
             <button
               onClick={() => { setSelected(null); setShowPicker(false); }}
-              className="mt-0.5 p-1.5 rounded-lg hover:bg-surface-2 text-muted transition-colors shrink-0"
+              className="flex items-center gap-1 text-accent-blue text-sm font-medium -mb-1 self-start"
             >
-              <ChevronLeft size={15} />
+              <ChevronLeft size={16} /> Back to results
             </button>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground leading-snug">{selected.name}</p>
-              {selected.brand && <p className="text-xs text-muted mt-0.5">{selected.brand}</p>}
-            </div>
+          )}
+
+          {/* Food name */}
+          <div className="min-w-0">
+            <p className="text-base font-semibold text-foreground leading-snug">{selected.name}</p>
+            {selected.brand && <p className="text-xs text-muted mt-0.5">{selected.brand}</p>}
           </div>
 
           {/* Meal selector */}
