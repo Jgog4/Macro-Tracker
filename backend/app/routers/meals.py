@@ -346,8 +346,8 @@ async def get_micronutrients(
     user = await _get_or_create_user(db)
 
     # Validate range (cap at 366 days to avoid huge queries)
-    if (end - start).days > 365:
-        raise HTTPException(status_code=400, detail="Date range cannot exceed 366 days")
+    if (end - start).days > 732:
+        raise HTTPException(status_code=400, detail="Date range cannot exceed 2 years")
     if end < start:
         raise HTTPException(status_code=400, detail="end must be >= start")
 
@@ -443,8 +443,8 @@ async def get_daily_series(
     Shape: [{ "date": "2026-07-01", "calories": 3200, "protein_g": 180, ... }]
     """
     user = await _get_or_create_user(db)
-    if (end - start).days > 366:
-        raise HTTPException(status_code=400, detail="Date range cannot exceed 366 days")
+    if (end - start).days > 732:
+        raise HTTPException(status_code=400, detail="Date range cannot exceed 2 years")
     if end < start:
         raise HTTPException(status_code=400, detail="end must be >= start")
 
