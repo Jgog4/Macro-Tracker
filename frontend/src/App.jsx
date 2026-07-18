@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { format, addDays, subDays } from "date-fns";
-import { CalendarDays, BookOpen, Plus, Camera, Search, Utensils, Sparkles, Menu, BarChart2, X, ScanLine } from "lucide-react";
+import { CalendarDays, BookOpen, Plus, Camera, Search, Utensils, Sparkles, Menu, BarChart2, Sliders, X, ScanLine } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import LibraryPage from "./pages/LibraryPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -8,6 +8,7 @@ import AddFoodModal from "./components/AddFoodModal";
 import VisionModal from "./components/VisionModal";
 import BarcodeModal from "./components/BarcodeModal";
 import CalendarPicker from "./components/CalendarPicker";
+import SettingsModal from "./components/SettingsModal";
 
 const TABS = [
   { id: "today",   label: "Today",   Icon: CalendarDays },
@@ -27,6 +28,7 @@ export default function App() {
   const [showMenu, setShowMenu]       = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showReports, setShowReports] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const menuRef = useRef(null);
 
   // Close dropdown when tapping outside
@@ -100,6 +102,13 @@ export default function App() {
                   <BarChart2 size={15} className="text-accent-blue shrink-0" />
                   Reports
                 </button>
+                <button
+                  onClick={() => { setShowMenu(false); setShowSettings(true); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-surface-2 transition-colors border-t border-surface-3"
+                >
+                  <Sliders size={15} className="text-accent-blue shrink-0" />
+                  Macro Targets
+                </button>
               </div>
             )}
           </div>
@@ -108,7 +117,7 @@ export default function App() {
 
       {/* ── Page content ── */}
       <main className="px-4 pb-28">
-        {tab === "today"   && <Dashboard key={dashboardKey} currentDate={currentDate} onOpenAdd={() => setShowSheet(true)} onOpenVision={() => setShowCamera(true)} />}
+        {tab === "today"   && <Dashboard key={dashboardKey} currentDate={currentDate} onOpenAdd={() => setShowSheet(true)} onOpenVision={() => setShowCamera(true)} onEditTargets={() => setShowSettings(true)} />}
         {tab === "library" && <LibraryPage />}
       </main>
 
@@ -277,6 +286,13 @@ export default function App() {
 
       {showReports && (
         <ReportsPage onClose={() => setShowReports(false)} />
+      )}
+
+      {showSettings && (
+        <SettingsModal
+          onClose={() => setShowSettings(false)}
+          onSaved={() => setDashboardKey(k => k + 1)}
+        />
       )}
 
       {showCalendar && (

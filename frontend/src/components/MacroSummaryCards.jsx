@@ -1,73 +1,68 @@
 /**
- * Top summary — 4 macro cards: Energy / Protein / Net Carbs / Fat
+ * Daily macro summary — Cronometer-style horizontal progress bars.
+ * Energy / Protein / Net Carbs / Fat, each a full-width row with a bar.
  */
 const MACROS = [
-  { key: "energy",    label: "Energy",    unit: "kcal", color: "#FF9500" },
-  { key: "protein",   label: "Protein",   unit: "g",    color: "#34C759" },
-  { key: "net_carbs", label: "Net Carbs", unit: "g",    color: "#007AFF" },
-  { key: "fat",       label: "Fat",       unit: "g",    color: "#FF3B30" },
+  { key: "energy",    label: "Energy",    unit: "kcal", color: "#FF9500", decimals: 0 },
+  { key: "protein",   label: "Protein",   unit: "g",    color: "#34C759", decimals: 1 },
+  { key: "net_carbs", label: "Net Carbs", unit: "g",    color: "#30B0C7", decimals: 1 },
+  { key: "fat",       label: "Fat",       unit: "g",    color: "#AF52DE", decimals: 1 },
 ];
 
-export default function MacroSummaryCards({ summary, loading }) {
+export default function MacroSummaryCards({ summary, loading, onEditTargets }) {
   if (loading) {
     return (
-      <div className="grid grid-cols-2 gap-2 animate-pulse">
-        {[1,2,3,4].map(i => (
-          <div key={i} className="bg-surface-1 rounded-xl h-24 shadow-card" />
+      <div className="card flex flex-col gap-4 animate-pulse">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="flex flex-col gap-2">
+            <div className="h-3 bg-surface-2 rounded w-2/3" />
+            <div className="h-2 bg-surface-2 rounded-full w-full" />
+          </div>
         ))}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 gap-2">
-      {MACROS.map(({ key, label, unit, color }) => {
+    <div className="card flex flex-col gap-3.5">
+      {/* Header row */}
+      <div className="flex items-center justify-between -mb-0.5">
+        <span className="text-[11px] font-semibold text-muted uppercase tracking-wide">Consumed / Target</span>
+        {onEditTargets && (
+          <button
+            onClick={onEditTargets}
+            className="text-[11px] font-semibold text-accent-blue hover:opacity-70 transition-opacity"
+          >
+            Edit targets
+          </button>
+        )}
+      </div>
+
+      {MACROS.map(({ key, label, unit, color, decimals }) => {
         const stat      = summary?.[key];
         const consumed  = stat?.consumed  ?? 0;
         const target    = stat?.target    ?? 1;
-        const remaining = stat?.remaining ?? target;
-        const pct       = stat?.pct       ?? 0;
+        const pct       = target > 0 ? (consumed / target) * 100 : 0;
         const clamped   = Math.min(100, pct);
-        const over      = pct > 100;
+        const over      = pct > 100.5;
 
         return (
-          <div key={key} className="card flex flex-col gap-2">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-muted uppercase tracking-wide">
-                {label}
+          <div key={key} className="flex flex-col gap-1.5">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm text-foreground">
+                <span className="font-semibold">{label}</span>
+                <span className="text-muted"> · {consumed.toFixed(decimals)} / {target.toFixed(decimals)} {unit}</span>
               </span>
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md
-                ${over ? "bg-red-100 text-accent-red" : "bg-surface-3 text-muted"}`}>
-                {pct.toFixed(0)}%
-              </span>
-            </div>
-
-            {/* Consumed / Target */}
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-bold font-mono" style={{ color }}>
-                {consumed.toFixed(key === "energy" ? 0 : 1)}
-              </span>
-              <span className="text-xs text-muted">
-                / {target.toFixed(key === "energy" ? 0 : 1)} {unit}
+              <span className={`text-sm font-semibold font-mono ${over ? "text-accent-green" : "text-muted"}`}>
+                {Math.round(pct)}%
               </span>
             </div>
-
-            {/* Progress bar */}
-            <div className="macro-bar">
+            <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${clamped}%`, backgroundColor: over ? "#FF3B30" : color }}
+                style={{ width: `${clamped}%`, backgroundColor: color }}
               />
             </div>
-
-            {/* Remaining */}
-            <p className="text-[11px] text-muted">
-              {over
-                ? <span className="text-accent-red font-medium">+{(consumed - target).toFixed(1)} over</span>
-                : <>{remaining.toFixed(key === "energy" ? 0 : 1)} {unit} left</>
-              }
-            </p>
           </div>
         );
       })}

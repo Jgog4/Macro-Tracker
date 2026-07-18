@@ -12,7 +12,7 @@ import SuggestModal from "../components/SuggestModal";
 import CustomMealModal from "../components/CustomMealModal";
 import { Plus, Sparkles, RefreshCw, ChefHat, Loader2 } from "lucide-react";
 
-export default function Dashboard({ currentDate, onOpenAdd, onOpenVision }) {
+export default function Dashboard({ currentDate, onOpenAdd, onOpenVision, onEditTargets }) {
   const [summary, setSummary]         = useState(null);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(null);
@@ -63,7 +63,7 @@ export default function Dashboard({ currentDate, onOpenAdd, onOpenVision }) {
     <div className="flex flex-col gap-3 pt-4">
 
       {/* ── Macro Summary ── */}
-      <MacroSummaryCards summary={summary} loading={loading} />
+      <MacroSummaryCards summary={summary} loading={loading} onEditTargets={onEditTargets} />
 
       {/* ── Quick actions ── */}
       <div className="flex gap-2">
