@@ -86,10 +86,10 @@ export default function ReportsPage({ onClose }) {
   const daysLogged = data?.days_with_data ?? 0;
 
   return createPortal(
-    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 9999, backgroundColor: "var(--surface-1)" }}>
+    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 9999, backgroundColor: "rgb(var(--surface-1))" }}>
 
       {/* ── Header ── */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-3 shrink-0" style={{ backgroundColor: "var(--surface-1)" }}>
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-3 shrink-0" style={{ backgroundColor: "rgb(var(--surface-1))" }}>
         <button
           onClick={onClose}
           className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-2 transition-colors text-foreground"

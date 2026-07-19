@@ -62,10 +62,10 @@ export default function FoodDetailModal({ food, onClose, onLog }) {
   // Portal to document.body to escape any overflow/stacking-context traps
   // (required on iOS Safari where position:fixed gets clipped inside scroll containers)
   return createPortal(
-    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 9999, backgroundColor: "var(--surface-1)" }}>
+    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 9999, backgroundColor: "rgb(var(--surface-1))" }}>
 
       {/* ── Top bar ── */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-3 shrink-0" style={{ backgroundColor: "var(--surface-1)" }}>
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-3 shrink-0" style={{ backgroundColor: "rgb(var(--surface-1))" }}>
         <button
           onClick={onClose}
           className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-2 transition-colors text-foreground"
@@ -157,7 +157,7 @@ export default function FoodDetailModal({ food, onClose, onLog }) {
 
       {/* ── Sticky "Add to Diary" button ── */}
       {onLog && (
-        <div className="shrink-0 px-4 py-3 border-t border-surface-3" style={{ backgroundColor: "var(--surface-1)" }}>
+        <div className="shrink-0 px-4 py-3 border-t border-surface-3" style={{ backgroundColor: "rgb(var(--surface-1))" }}>
           <button
             onClick={onLog}
             className="w-full btn-primary py-3 text-sm font-semibold rounded-xl"
