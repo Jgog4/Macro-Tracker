@@ -209,10 +209,11 @@ export default function ReportsPage({ onClose }) {
               <Section title="Calories per Day">
                 <div className="bg-surface-1 rounded-xl p-3 shadow-card">
                   <ResponsiveContainer width="100%" height={200}>
-                    <ComposedChart data={series} margin={{ top: 8, right: 6, left: -18, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E5EA" vertical={false} />
+                    <ComposedChart data={series} margin={{ top: 8, right: 10, left: 4, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(142,142,147,0.25)" vertical={false} />
                       <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#8E8E93" }} interval="preserveStartEnd" minTickGap={18} />
-                      <YAxis tick={{ fontSize: 10, fill: "#8E8E93" }} width={40} />
+                      <YAxis tick={{ fontSize: 10, fill: "#8E8E93" }} width={38}
+                        tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v} />
                       <Tooltip content={<ChartTooltip unit="kcal" />} />
                       <Bar dataKey="calories" fill="#FF9500" radius={[4, 4, 0, 0]} maxBarSize={34} />
                       {target?.calories > 0 && (
@@ -230,10 +231,10 @@ export default function ReportsPage({ onClose }) {
               <Section title="Macros per Day (g)">
                 <div className="bg-surface-1 rounded-xl p-3 shadow-card">
                   <ResponsiveContainer width="100%" height={210}>
-                    <LineChart data={series} margin={{ top: 8, right: 6, left: -18, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E5EA" vertical={false} />
+                    <LineChart data={series} margin={{ top: 8, right: 10, left: 4, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(142,142,147,0.25)" vertical={false} />
                       <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#8E8E93" }} interval="preserveStartEnd" minTickGap={18} />
-                      <YAxis tick={{ fontSize: 10, fill: "#8E8E93" }} width={40} />
+                      <YAxis tick={{ fontSize: 10, fill: "#8E8E93" }} width={32} />
                       <Tooltip content={<ChartTooltip unit="g" />} />
                       <Legend wrapperStyle={{ fontSize: 11 }} iconType="plainline" />
                       <Line type="monotone" dataKey="protein_g" name="Protein" stroke="#34C759" strokeWidth={2} dot={false} />
