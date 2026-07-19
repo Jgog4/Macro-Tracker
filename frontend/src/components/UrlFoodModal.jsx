@@ -54,10 +54,10 @@ export default function UrlFoodModal({ onClose, onSaved }) {
   };
 
   return createPortal(
-    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 9999, backgroundColor: "white" }}>
+    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 9999, backgroundColor: "var(--surface-1)" }}>
 
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-3 shrink-0" style={{ backgroundColor: "white" }}>
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-3 shrink-0" style={{ backgroundColor: "var(--surface-1)" }}>
         <button
           onClick={onClose}
           className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-2 transition-colors text-foreground"
@@ -77,7 +77,7 @@ export default function UrlFoodModal({ onClose, onSaved }) {
                 key={t.id}
                 onClick={() => { setTab(t.id); setPhase("input"); setError(""); }}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors
-                  ${tab === t.id ? "bg-white text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
+                  ${tab === t.id ? "bg-surface-1 text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
               >
                 <t.Icon size={12} />
                 {t.label}

@@ -475,7 +475,7 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
 
             {/* Dropdown options */}
             {showPicker && servingOpts.length > 0 && (
-              <div className="mt-1 rounded-xl border border-surface-3 bg-white shadow-lg overflow-hidden">
+              <div className="mt-1 rounded-xl border border-surface-3 bg-surface-1 shadow-lg overflow-hidden">
                 {servingOpts.map((opt, i) => (
                   <button
                     key={opt.id}
@@ -646,7 +646,7 @@ export function ModalShell({ onClose, title, children }) {
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
       <div className="fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto box-border z-50 overflow-hidden rounded-t-3xl shadow-2xl">
         <div
-          className="bg-white w-full min-w-0 box-border flex flex-col gap-4 overflow-y-auto px-4 pt-5"
+          className="bg-surface-1 w-full min-w-0 box-border flex flex-col gap-4 overflow-y-auto px-4 pt-5"
           style={{
             maxHeight: "85dvh",
             paddingBottom: "calc(90px + env(safe-area-inset-bottom, 0px))",

@@ -358,7 +358,7 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
             </p>
           )}
 
-          <div className="sticky bottom-0 bg-white pt-2 pb-1 -mx-4 px-4 border-t border-surface-3 mt-2">
+          <div className="sticky bottom-0 bg-surface-1 pt-2 pb-1 -mx-4 px-4 border-t border-surface-3 mt-2">
             <button
               onClick={() => setStep("weight")}
               disabled={!canProceed}
@@ -464,7 +464,7 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
             </div>
           )}
 
-          <div className="sticky bottom-0 bg-white pt-2 pb-1 -mx-4 px-4 border-t border-surface-3 mt-2 flex gap-2">
+          <div className="sticky bottom-0 bg-surface-1 pt-2 pb-1 -mx-4 px-4 border-t border-surface-3 mt-2 flex gap-2">
             <button onClick={() => setStep("summary")}
               className="btn-ghost flex items-center gap-1.5 text-sm">
               Skip
@@ -539,7 +539,7 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
 
           {saveError && <p className="text-accent-red text-xs">{saveError}</p>}
 
-          <div className="sticky bottom-0 bg-white pt-2 pb-1 -mx-4 px-4 border-t border-surface-3 mt-2">
+          <div className="sticky bottom-0 bg-surface-1 pt-2 pb-1 -mx-4 px-4 border-t border-surface-3 mt-2">
             <button
               onClick={handleSave}
               disabled={saving}

@@ -29,7 +29,14 @@ export default function App() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [showReports, setShowReports] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
   const menuRef = useRef(null);
+
+  // Apply theme to <html> and persist
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
 
   // Close dropdown when tapping outside
   useEffect(() => {
@@ -53,11 +60,16 @@ export default function App() {
       {/* ── Sticky header ── */}
       <header className="sticky top-0 z-40 bg-surface-1 shadow-nav">
         <div className="px-4 h-14 flex items-center justify-between">
-          {/* Logo */}
+          {/* Logo — tap to toggle light/dark */}
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-accent-blue flex items-center justify-center">
+            <button
+              onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
+              className="w-7 h-7 rounded-lg bg-accent-blue flex items-center justify-center active:scale-90 transition-transform"
+              title="Toggle dark mode"
+              aria-label="Toggle dark mode"
+            >
               <span className="text-white text-xs font-bold">M</span>
-            </div>
+            </button>
             <span className="font-bold text-foreground text-base tracking-tight">Macro Tracker</span>
           </div>
 
@@ -94,7 +106,7 @@ export default function App() {
             </button>
 
             {showMenu && (
-              <div className="absolute right-0 top-11 w-44 bg-white rounded-xl shadow-lg border border-surface-3 overflow-hidden z-50">
+              <div className="absolute right-0 top-11 w-44 bg-surface-1 rounded-xl shadow-lg border border-surface-3 overflow-hidden z-50">
                 <button
                   onClick={() => { setShowMenu(false); setShowReports(true); }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-surface-2 transition-colors"
@@ -122,7 +134,7 @@ export default function App() {
       </main>
 
       {/* ── Bottom navigation ── */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white/95 backdrop-blur shadow-nav border-t border-surface-3 flex z-50"
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-surface-1/95 backdrop-blur shadow-nav border-t border-surface-3 flex z-50"
            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         {/* Today */}
         <NavItem label="Today" active={tab === "today"} onClick={() => setTab("today")}>
@@ -163,7 +175,7 @@ export default function App() {
           onClick={() => setShowSheet(false)}
         >
           <div
-            className="w-full max-w-md mx-auto bg-white rounded-t-3xl px-4 pt-4 pb-8"
+            className="w-full max-w-md mx-auto bg-surface-1 rounded-t-3xl px-4 pt-4 pb-8"
             style={{ paddingBottom: "calc(32px + env(safe-area-inset-bottom,0px))" }}
             onClick={e => e.stopPropagation()}
           >

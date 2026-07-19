@@ -3,6 +3,57 @@
 @tailwind utilities;
 
 @layer base {
+  /* ── Theme tokens ── light (default) and dark, flipped by data-theme on <html> */
+  :root {
+    --surface:    242 242 247;
+    --surface-1:  255 255 255;
+    --surface-2:  242 242 247;
+    --surface-3:  229 229 234;
+    --border:     198 198 200;
+    --foreground: 17 24 39;
+    --muted:      142 142 147;
+    --subtle:     108 108 112;
+  }
+  :root[data-theme="dark"] {
+    --surface:    0 0 0;
+    --surface-1:  28 28 30;
+    --surface-2:  44 44 46;
+    --surface-3:  58 58 60;
+    --border:     72 72 74;
+    --foreground: 242 242 247;
+    --muted:      152 152 159;
+    --subtle:     174 174 178;
+    color-scheme: dark;
+  }
+
+  /* Dark-mode overrides for hardcoded Tailwind accent tints (badges, hovers).
+     Light tints (bg-*-50/100) become translucent accents; dark accent text lightens. */
+  :root[data-theme="dark"] .bg-blue-50,
+  :root[data-theme="dark"] .bg-blue-100   { background-color: rgba(0,122,255,0.20); }
+  :root[data-theme="dark"] .bg-green-50,
+  :root[data-theme="dark"] .bg-green-100  { background-color: rgba(52,199,89,0.20); }
+  :root[data-theme="dark"] .bg-red-50,
+  :root[data-theme="dark"] .bg-red-100    { background-color: rgba(255,59,48,0.20); }
+  :root[data-theme="dark"] .bg-orange-50,
+  :root[data-theme="dark"] .bg-orange-100 { background-color: rgba(255,149,0,0.20); }
+  :root[data-theme="dark"] .bg-purple-50,
+  :root[data-theme="dark"] .bg-purple-100 { background-color: rgba(175,82,222,0.22); }
+  :root[data-theme="dark"] .bg-amber-50,
+  :root[data-theme="dark"] .bg-amber-100  { background-color: rgba(245,158,11,0.20); }
+
+  :root[data-theme="dark"] .text-blue-700   { color: #6AB0FF; }
+  :root[data-theme="dark"] .text-green-600,
+  :root[data-theme="dark"] .text-green-700  { color: #4ADE80; }
+  :root[data-theme="dark"] .text-orange-700 { color: #FFB454; }
+  :root[data-theme="dark"] .text-purple-600,
+  :root[data-theme="dark"] .text-purple-700 { color: #C98BEA; }
+  :root[data-theme="dark"] .text-amber-700,
+  :root[data-theme="dark"] .text-amber-800  { color: #FCD34D; }
+
+  :root[data-theme="dark"] .border-amber-200 { border-color: rgba(245,158,11,0.35); }
+  :root[data-theme="dark"] .hover\:bg-blue-50:hover { background-color: rgba(0,122,255,0.20); }
+  :root[data-theme="dark"] .hover\:bg-red-50:hover  { background-color: rgba(255,59,48,0.20); }
+
   /* Global CSS Lockdown — physically forbid horizontal scrolling at the
      OS/browser level. On iOS Safari a single overflowing element makes the
      whole page scrollable, which shifts fixed/absolute modals off-screen
@@ -69,7 +120,7 @@
   .input {
     @apply bg-surface-2 border border-transparent rounded-xl px-3 py-2.5 text-base
            text-foreground placeholder-muted w-full box-border
-           focus:outline-none focus:border-accent-blue focus:bg-white transition-colors;
+           focus:outline-none focus:border-accent-blue focus:bg-surface-1 transition-colors;
   }
 
   /* ── Progress bar ── */

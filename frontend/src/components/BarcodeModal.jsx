@@ -371,7 +371,7 @@ export default function BarcodeModal({ dateStr, onClose, onLogged }) {
             </div>
 
             {showPicker && (
-              <div className="mt-1 rounded-xl border border-surface-3 bg-white shadow-lg overflow-hidden">
+              <div className="mt-1 rounded-xl border border-surface-3 bg-surface-1 shadow-lg overflow-hidden">
                 {servingOpts.map((opt, i) => (
                   <button key={opt.id}
                     onClick={() => {
@@ -446,7 +446,7 @@ export default function BarcodeModal({ dateStr, onClose, onLogged }) {
               onClick={() => setSaveToLibrary(v => !v)}
               className={`w-11 h-6 rounded-full relative transition-colors ${saveToLibrary ? "bg-accent-blue" : "bg-surface-3"}`}
             >
-              <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${saveToLibrary ? "translate-x-5" : "translate-x-0.5"}`} />
+              <span className={`absolute top-0.5 w-5 h-5 bg-surface-1 rounded-full shadow transition-transform ${saveToLibrary ? "translate-x-5" : "translate-x-0.5"}`} />
             </div>
             <span className="text-sm text-foreground">Also save to My Foods</span>
           </label>

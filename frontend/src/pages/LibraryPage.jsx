@@ -36,7 +36,7 @@ export default function LibraryPage() {
             onClick={() => setTab(t)}
             className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all
               ${tab === t
-                ? "bg-white text-foreground shadow-card"
+                ? "bg-surface-1 text-foreground shadow-card"
                 : "text-muted hover:text-foreground"}`}
           >
             {t}
@@ -347,7 +347,7 @@ function MyFoodsTab() {
           onClick={() => setShowSheet(false)}
         >
           <div
-            className="bg-white rounded-t-2xl px-4 pt-4 pb-8 flex flex-col gap-2"
+            className="bg-surface-1 rounded-t-2xl px-4 pt-4 pb-8 flex flex-col gap-2"
             onClick={e => e.stopPropagation()}
           >
             <div className="w-10 h-1 bg-surface-3 rounded-full mx-auto mb-2" />

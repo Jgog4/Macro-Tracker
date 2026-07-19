@@ -62,7 +62,7 @@ export default function CalendarPicker({ currentDate, onSelect, onClose }) {
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4"
          style={{ background: "rgba(0,0,0,0.35)" }}>
       <div ref={ref}
-           className="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden">
+           className="w-full max-w-sm bg-surface-1 rounded-2xl shadow-xl overflow-hidden">
 
         {/* ── Header: month/year + nav ── */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-surface-3">

@@ -86,10 +86,10 @@ export default function ReportsPage({ onClose }) {
   const daysLogged = data?.days_with_data ?? 0;
 
   return createPortal(
-    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 9999, backgroundColor: "white" }}>
+    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 9999, backgroundColor: "var(--surface-1)" }}>
 
       {/* ── Header ── */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-3 shrink-0" style={{ backgroundColor: "white" }}>
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-3 shrink-0" style={{ backgroundColor: "var(--surface-1)" }}>
         <button
           onClick={onClose}
           className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-2 transition-colors text-foreground"
@@ -114,7 +114,7 @@ export default function ReportsPage({ onClose }) {
                 onClick={() => setPreset(p.id)}
                 className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors
                   ${preset === p.id
-                    ? "bg-white text-foreground shadow-sm"
+                    ? "bg-surface-1 text-foreground shadow-sm"
                     : "text-muted hover:text-foreground"}`}
               >
                 {p.label}
@@ -162,7 +162,7 @@ export default function ReportsPage({ onClose }) {
                 ${includeToday ? "bg-accent-blue" : "bg-surface-3"}`}
             >
               <span
-                className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform
+                className={`absolute top-0.5 w-5 h-5 bg-surface-1 rounded-full shadow transition-transform
                   ${includeToday ? "translate-x-5" : "translate-x-0.5"}`}
               />
             </button>
@@ -289,7 +289,7 @@ export default function ReportsPage({ onClose }) {
 function ChartTooltip({ active, payload, label, unit }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white rounded-lg shadow-lg border border-surface-3 px-3 py-2 text-xs">
+    <div className="bg-surface-1 rounded-lg shadow-lg border border-surface-3 px-3 py-2 text-xs">
       <p className="font-semibold text-foreground mb-1">{label}</p>
       {payload.map((p) => (
         <p key={p.dataKey} style={{ color: p.color || p.fill }}>

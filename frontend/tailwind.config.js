@@ -4,15 +4,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        // iOS-style light theme — matching the workout tracker app
+        // Semantic tokens driven by CSS variables (see index.css) — theme-aware.
         surface: {
-          DEFAULT: "#F2F2F7",   // main background (light gray)
-          1:       "#FFFFFF",   // card / sheet
-          2:       "#F2F2F7",   // input bg / secondary
-          3:       "#E5E5EA",   // hover / pressed / separator
+          DEFAULT: "rgb(var(--surface) / <alpha-value>)",    // main background
+          1:       "rgb(var(--surface-1) / <alpha-value>)",  // card / sheet
+          2:       "rgb(var(--surface-2) / <alpha-value>)",  // input bg / secondary
+          3:       "rgb(var(--surface-3) / <alpha-value>)",  // hover / pressed / separator
         },
-        border:     "#C6C6C8",
-        foreground: "#111827",  // primary text
+        border:     "rgb(var(--border) / <alpha-value>)",
+        foreground: "rgb(var(--foreground) / <alpha-value>)", // primary text
         accent: {
           blue:   "#007AFF",
           green:  "#34C759",
@@ -20,8 +20,8 @@ export default {
           red:    "#FF3B30",
           purple: "#AF52DE",
         },
-        muted:  "#8E8E93",
-        subtle: "#6C6C70",
+        muted:  "rgb(var(--muted) / <alpha-value>)",
+        subtle: "rgb(var(--subtle) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica", "Arial", "sans-serif"],

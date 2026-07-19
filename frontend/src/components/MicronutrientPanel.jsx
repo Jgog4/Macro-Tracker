@@ -99,7 +99,7 @@ export default function MicronutrientPanel({ currentDate }) {
                   onClick={() => setPeriod(p)}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors capitalize
                     ${period === p
-                      ? "bg-white text-foreground shadow-sm"
+                      ? "bg-surface-1 text-foreground shadow-sm"
                       : "text-muted hover:text-foreground"}`}>
                   {p === "day" ? "Today" : p === "week" ? "This Week" : "This Month"}
                 </button>
