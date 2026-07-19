@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { format, subDays, parseISO } from "date-fns";
-import { ArrowLeft, Loader2, BarChart2 } from "lucide-react";
+import { ArrowLeft, Loader2, BarChart2, Maximize2, X } from "lucide-react";
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, LineChart,
   XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, Legend,
@@ -36,6 +36,7 @@ export default function ReportsPage({ onClose }) {
   const [target,       setTarget]       = useState(null);
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState(null);
+  const [expanded,     setExpanded]     = useState(null); // null | "calories" | "macros"
 
   // Compute start / end dates from preset + toggle
   const { start, end } = useMemo(() => {
@@ -206,8 +207,8 @@ export default function ReportsPage({ onClose }) {
 
             {/* ── Calories over time ── */}
             {series.length > 0 && (
-              <Section title="Calories per Day">
-                <div className="bg-surface-1 rounded-xl p-3 shadow-card">
+              <Section title="Calories per Day" onExpand={() => setExpanded("calories")}>
+                <div className="bg-surface-1 rounded-xl p-3 shadow-card cursor-pointer" onClick={() => setExpanded("calories")}>
                   <ResponsiveContainer width="100%" height={200}>
                     <ComposedChart data={series} margin={{ top: 8, right: 10, left: 4, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(142,142,147,0.25)" vertical={false} />
@@ -228,8 +229,8 @@ export default function ReportsPage({ onClose }) {
 
             {/* ── Macros over time ── */}
             {series.length > 0 && (
-              <Section title="Macros per Day (g)">
-                <div className="bg-surface-1 rounded-xl p-3 shadow-card">
+              <Section title="Macros per Day (g)" onExpand={() => setExpanded("macros")}>
+                <div className="bg-surface-1 rounded-xl p-3 shadow-card cursor-pointer" onClick={() => setExpanded("macros")}>
                   <ResponsiveContainer width="100%" height={210}>
                     <LineChart data={series} margin={{ top: 8, right: 10, left: 4, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(142,142,147,0.25)" vertical={false} />
@@ -281,6 +282,97 @@ export default function ReportsPage({ onClose }) {
 
         <div className="h-4" />
       </div>
+
+      {expanded && (
+        <ExpandedChartModal
+          type={expanded}
+          series={series}
+          target={target}
+          onClose={() => setExpanded(null)}
+        />
+      )}
+    </div>,
+    document.body
+  );
+}
+
+// ── Moving average ─────────────────────────────────────────────────────────
+function withMovingAvg(series, keys, window = 7) {
+  return series.map((row, i) => {
+    const from = Math.max(0, i - window + 1);
+    const slice = series.slice(from, i + 1);
+    const out = { ...row };
+    keys.forEach(k => {
+      const sum = slice.reduce((a, r) => a + (r[k] || 0), 0);
+      out[k] = Math.round((sum / slice.length) * 10) / 10;
+    });
+    return out;
+  });
+}
+
+// ── Expanded fullscreen chart with 7-day moving-average toggle ───────────────
+function ExpandedChartModal({ type, series, target, onClose }) {
+  const [smooth, setSmooth] = useState(false);
+  const keys = type === "calories" ? ["calories"] : ["protein_g", "carbs_g", "fat_g"];
+  const data = smooth ? withMovingAvg(series, keys, 7) : series;
+
+  return createPortal(
+    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 10000, backgroundColor: "rgb(var(--surface-1))" }}>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-surface-3 shrink-0">
+        <h2 className="text-base font-bold text-foreground">
+          {type === "calories" ? "Calories per Day" : "Macros per Day (g)"}
+        </h2>
+        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-2 text-foreground">
+          <X size={18} />
+        </button>
+      </div>
+
+      {/* Daily / 7-day avg toggle */}
+      <div className="px-4 py-3 shrink-0">
+        <div className="flex bg-surface-2 rounded-xl p-1 gap-1 max-w-xs">
+          <button onClick={() => setSmooth(false)}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${!smooth ? "bg-surface-1 text-foreground shadow-sm" : "text-muted"}`}>
+            Daily
+          </button>
+          <button onClick={() => setSmooth(true)}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${smooth ? "bg-surface-1 text-foreground shadow-sm" : "text-muted"}`}>
+            7-day average
+          </button>
+        </div>
+      </div>
+
+      {/* Chart fills remaining space */}
+      <div className="flex-1 px-2 pb-4 min-h-0">
+        <ResponsiveContainer width="100%" height="100%">
+          {type === "calories" ? (
+            <ComposedChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(142,142,147,0.25)" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#8E8E93" }} interval="preserveStartEnd" minTickGap={30} />
+              <YAxis tick={{ fontSize: 11, fill: "#8E8E93" }} width={40}
+                tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v} />
+              <Tooltip content={<ChartTooltip unit="kcal" />} />
+              {smooth
+                ? <Line type="monotone" dataKey="calories" name="Calories (7d avg)" stroke="#FF9500" strokeWidth={2.5} dot={false} />
+                : <Bar dataKey="calories" fill="#FF9500" radius={[3, 3, 0, 0]} maxBarSize={26} />}
+              {target?.calories > 0 && (
+                <ReferenceLine y={target.calories} stroke="#8E8E93" strokeDasharray="4 4"
+                  label={{ value: "target", position: "right", fontSize: 10, fill: "#8E8E93" }} />
+              )}
+            </ComposedChart>
+          ) : (
+            <LineChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(142,142,147,0.25)" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#8E8E93" }} interval="preserveStartEnd" minTickGap={30} />
+              <YAxis tick={{ fontSize: 11, fill: "#8E8E93" }} width={34} />
+              <Tooltip content={<ChartTooltip unit="g" />} />
+              <Legend wrapperStyle={{ fontSize: 12 }} iconType="plainline" />
+              <Line type="monotone" dataKey="protein_g" name="Protein" stroke="#34C759" strokeWidth={2.5} dot={false} />
+              <Line type="monotone" dataKey="carbs_g"   name="Carbs"   stroke="#007AFF" strokeWidth={2.5} dot={false} />
+              <Line type="monotone" dataKey="fat_g"     name="Fat"     stroke="#FF3B30" strokeWidth={2.5} dot={false} />
+            </LineChart>
+          )}
+        </ResponsiveContainer>
+      </div>
     </div>,
     document.body
   );
@@ -302,10 +394,17 @@ function ChartTooltip({ active, payload, label, unit }) {
 }
 
 // ── Section wrapper ────────────────────────────────────────────────────────
-function Section({ title, children }) {
+function Section({ title, children, onExpand }) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs font-semibold text-muted uppercase tracking-wider">{title}</p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-muted uppercase tracking-wider">{title}</p>
+        {onExpand && (
+          <button onClick={onExpand} className="flex items-center gap-1 text-[11px] font-semibold text-accent-blue hover:opacity-70">
+            <Maximize2 size={12} /> Expand
+          </button>
+        )}
+      </div>
       {children}
     </div>
   );
