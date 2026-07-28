@@ -72,7 +72,7 @@ async def _next_meal_number(db: AsyncSession, user_id: str, log_date: date_type)
 def _scale_macros(item: Ingredient | Recipe, qty_g: float) -> dict:
     """Scale macros proportionally to quantity consumed."""
     if isinstance(item, Ingredient):
-        base_g = item.serving_size_g or qty_g
+        base_g = item.serving_size_g or 100.0  # null serving_size_g → macros stored per 100g
     else:
         base_g = item.serving_size_g or item.total_weight_g or qty_g
 
@@ -136,7 +136,7 @@ def _accumulate_ingredient_micros(
     quantity_g: float,
 ) -> None:
     """Scale ingredient micronutrients by quantity and add to totals."""
-    base_g = ingredient.serving_size_g or quantity_g
+    base_g = ingredient.serving_size_g or 100.0  # null serving_size_g → micros stored per 100g
     ratio  = quantity_g / base_g if base_g else 1.0
     for field in _MICRO_FIELDS:
         raw = getattr(ingredient, field, None)
