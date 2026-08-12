@@ -16,6 +16,36 @@ function nowTimeStr() {
 
 const num = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
 
+/**
+ * Downscale + re-encode an image to JPEG before upload.
+ * Critical on mobile: iPhone photos are 2-5 MB and often HEIC, which the
+ * vision API rejects. Canvas re-encoding fixes the format AND cuts the
+ * payload ~20x so uploads survive a slow cellular connection.
+ */
+async function prepareImage(file, maxDim = 1400, quality = 0.82) {
+  const dataUrl = await new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result);
+    fr.onerror = rej;
+    fr.readAsDataURL(file);
+  });
+  const img = await new Promise((res, rej) => {
+    const i = new Image();
+    i.onload = () => res(i);
+    i.onerror = () => rej(new Error("Could not read that image"));
+    i.src = dataUrl;
+  });
+  const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+  const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", quality));
+  if (!blob) throw new Error("Could not process that image");
+  return new File([blob], "meal.jpg", { type: "image/jpeg" });
+}
+
 export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose, onLogged }) {
   const [step, setStep]               = useState("input");   // input | review
   const [photos, setPhotos]           = useState([]);        // {file, url}
@@ -51,7 +81,16 @@ export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose,
     setLoading(true); setError("");
     try {
       const fd = new FormData();
-      photos.forEach((p) => fd.append("files", p.file));
+      // Shrink + convert to JPEG so HEIC and multi-MB phone photos both work
+      for (const p of photos) {
+        try {
+          fd.append("files", await prepareImage(p.file));
+        } catch {
+          setError("One of the photos couldn't be read. Try a different one.");
+          setLoading(false);
+          return;
+        }
+      }
       if (description.trim()) fd.append("description", description.trim());
       if (dishName.trim())    fd.append("name", dishName.trim());
 
@@ -72,7 +111,14 @@ export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose,
       );
       setStep("review");
     } catch (e) {
-      setError(e.response?.data?.detail || "Could not estimate this meal. Try adding a description.");
+      // Distinguish real server errors from network/timeout so failures are debuggable
+      if (e.code === "ECONNABORTED") {
+        setError("Timed out. Try again, or use fewer/smaller photos on a slow connection.");
+      } else if (!e.response) {
+        setError("Network error — check your connection and try again.");
+      } else {
+        setError(e.response?.data?.detail || `Server error (${e.response.status}). Try again.`);
+      }
     } finally {
       setLoading(false);
     }

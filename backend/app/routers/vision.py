@@ -129,22 +129,32 @@ async def estimate_meal(
     if len(files) > 4:
         raise HTTPException(status_code=400, detail="Maximum 4 photos allowed.")
 
+    # The vision API only accepts these — HEIC/HEIF must be converted first.
+    VISION_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+
     images: list[tuple[str, str]] = []
     for f in files:
         if not f or not f.filename:
             continue
-        if f.content_type not in ALLOWED_MIME:
-            raise HTTPException(status_code=415, detail=f"Unsupported image type '{f.content_type}'.")
+        if f.content_type not in VISION_MIME:
+            raise HTTPException(
+                status_code=415,
+                detail=f"'{f.content_type or 'unknown'}' images aren't supported by the AI. "
+                       "Please retake or re-save the photo as JPEG.",
+            )
         raw = await f.read()
-        if len(raw) > 20 * 1024 * 1024:
-            raise HTTPException(status_code=413, detail=f"Image '{f.filename}' too large (max 20 MB)")
+        if len(raw) > 5 * 1024 * 1024:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Photo '{f.filename}' is too large ({len(raw)//(1024*1024)} MB). Max 5 MB each.",
+            )
         images.append((base64.b64encode(raw).decode(), f.content_type or "image/jpeg"))
 
     result = await estimate_meal_from_images(images, description=description, name=name)
     if result.confidence == 0.0:
         raise HTTPException(
             status_code=502,
-            detail="Could not estimate this meal. Try adding a short description of what's in it.",
+            detail=result.raw_text or "Could not estimate this meal. Try adding a description of what's in it.",
         )
     return result
 

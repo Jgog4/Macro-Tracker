@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # ── Anthropic (Vision / OCR) ──────────────────────────────────────────────
     ANTHROPIC_API_KEY: str = ""
-    ANTHROPIC_VISION_MODEL: str = "claude-3-5-haiku-20241022"
+    ANTHROPIC_VISION_MODEL: str = "claude-sonnet-5"
 
     # ── App ───────────────────────────────────────────────────────────────────
     APP_ENV: str = "development"

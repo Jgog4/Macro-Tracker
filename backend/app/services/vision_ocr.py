@@ -173,7 +173,7 @@ async def extract_nutrition_from_images(
         resp.raise_for_status()
         data = resp.json()
 
-    raw_content = data["content"][0]["text"].strip()
+    raw_content = _response_text(data)
 
     try:
         parsed  = _extract_json_from_text(raw_content)
@@ -328,6 +328,19 @@ you have a clear ingredient list.
 
 # ── Shared helper: send text to Claude and parse JSON response ────────────────
 
+def _response_text(data: dict) -> str:
+    """
+    Pull the assistant's text out of an Anthropic response.
+
+    Newer models (Sonnet/Opus) may emit a `thinking` block first, so
+    content[0] is not guaranteed to be the text block — find it by type.
+    """
+    for block in data.get("content", []):
+        if block.get("type") == "text" and block.get("text"):
+            return block["text"].strip()
+    return ""
+
+
 def _extract_json_from_text(raw: str) -> dict:
     """
     Robustly extract a JSON object from a Claude response that may include
@@ -383,7 +396,7 @@ async def _call_claude_text(system: str, user_message: str) -> VisionExtractResp
         resp.raise_for_status()
         data = resp.json()
 
-    raw = data["content"][0]["text"].strip()
+    raw = _response_text(data)
 
     try:
         parsed   = _extract_json_from_text(raw)
@@ -441,7 +454,7 @@ async def estimate_from_ingredient_images(
         resp.raise_for_status()
         data = resp.json()
 
-    raw = data["content"][0]["text"].strip()
+    raw = _response_text(data)
 
     try:
         parsed   = _extract_json_from_text(raw)
@@ -490,25 +503,38 @@ async def estimate_meal_from_images(
 
     payload = {
         "model":      settings.ANTHROPIC_VISION_MODEL,
-        "max_tokens": 2500,
+        "max_tokens": 4000,   # meal schema + component array needs headroom
         "system":     MEAL_ESTIMATE_PROMPT,
         "messages":   [{"role": "user", "content": content}],
     }
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key":         settings.ANTHROPIC_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type":      "application/json",
-            },
-            json=payload,
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key":         settings.ANTHROPIC_API_KEY,
+                    "anthropic-version": "2023-06-01",
+                    "content-type":      "application/json",
+                },
+                json=payload,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except httpx.HTTPStatusError as e:
+        # Surface the real reason (bad image format, too large, rate limit, ...)
+        detail = ""
+        try:
+            detail = e.response.json().get("error", {}).get("message", "")
+        except Exception:
+            detail = e.response.text[:200]
+        return VisionExtractResponse(
+            confidence=0.0, raw_text=f"Vision API error {e.response.status_code}: {detail}"
         )
-        resp.raise_for_status()
-        data = resp.json()
+    except httpx.RequestError as e:
+        return VisionExtractResponse(confidence=0.0, raw_text=f"Could not reach the vision API: {e}")
 
-    raw = data["content"][0]["text"].strip()
+    raw = _response_text(data)
 
     try:
         parsed   = _extract_json_from_text(raw)
