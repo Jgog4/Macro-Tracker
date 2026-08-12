@@ -227,6 +227,46 @@ Return ONLY valid JSON — no markdown, no prose. Use this exact structure
 }
 """
 
+_JSON_SCHEMA_MEAL = """
+Return ONLY valid JSON — no markdown, no prose. Use this exact structure
+(null for any field you cannot estimate):
+
+{
+  "name":           "<short dish name>",
+  "serving_size":   "<e.g. '1 plate'>",
+  "serving_size_g": <TOTAL cooked grams of the whole meal>,
+  "ingredients": [
+    {
+      "name":       "<component, e.g. 'Grilled salmon fillet'>",
+      "quantity_g": <cooked grams>,
+      "calories":   <kcal>,
+      "protein_g":  <g>, "carbs_g": <g>, "fat_g": <g>
+    }
+  ],
+  "notes":          "<1-2 sentences on portion assumptions / hidden fats>",
+  "calories":       <kcal — MUST equal the sum of the ingredients>,
+  "protein_g":      <g>, "fat_g": <g>, "carbs_g": <g>,
+  "fiber_g":        <g or null>, "sugar_g":     <g or null>,
+  "sat_fat_g":      <g or null>, "trans_fat_g": <g or null>,
+  "cholesterol_mg": <mg or null>, "sodium_mg":  <mg or null>,
+  "potassium_mg":   <mg or null>, "calcium_mg": <mg or null>,
+  "iron_mg":        <mg or null>, "magnesium_mg": <mg or null>,
+  "zinc_mg":        <mg or null>, "phosphorus_mg": <mg or null>,
+  "vitamin_a_mcg":  <mcg or null>, "vitamin_c_mg": <mg or null>,
+  "vitamin_d_mcg":  <mcg or null>, "vitamin_e_mg": <mg or null>,
+  "vitamin_k_mcg":  <mcg or null>,
+  "thiamine_mg":    <mg or null>, "riboflavin_mg": <mg or null>,
+  "niacin_mg":      <mg or null>, "folate_mcg":   <mcg or null>,
+  "cobalamin_mcg":  <mcg or null>,
+  "monounsaturated_fat_g": <g or null>,
+  "polyunsaturated_fat_g": <g or null>,
+  "omega3_ala_g":   <g or null>, "omega3_epa_g": <g or null>,
+  "omega3_dha_g":   <g or null>,
+  "caffeine_mg":    <mg or null>, "alcohol_g": <g or null>,
+  "confidence": <0.0-1.0>
+}
+"""
+
 INGREDIENT_LIST_PROMPT = f"""
 You are a nutrition analyst. The user has uploaded a photo of an ingredient list,
 food package back, or meal tracking screenshot.
@@ -239,6 +279,35 @@ your knowledge of typical ingredient proportions to make your best estimate.
 
 Important: You are estimating — not reading a label. Use best judgement.
 If the image is ambiguous, still provide your best estimate with a lower confidence score.
+""".strip()
+
+MEAL_ESTIMATE_PROMPT = f"""
+You are a nutrition analyst helping someone log a restaurant or home-cooked meal
+they photographed. You may also be given the user's own description of what is in
+the dish — TRUST THE USER'S DESCRIPTION over your read of the photo when they
+conflict, since they ate it and you did not.
+
+Your job:
+1. Identify each distinct component of the meal (protein, starch, vegetables,
+   sauces, dressings, oils, garnishes). Do not forget cooking fats, dressings and
+   sauces — they are the most commonly under-counted part of a restaurant meal.
+2. Estimate a realistic cooked gram weight for each component using the plate,
+   cutlery and dish as scale references.
+3. Give per-component calories and macros from USDA / standard composition data.
+4. Sum the components into the top-level totals.
+
+Return the component breakdown in an "ingredients" array, and the meal totals in
+the top-level fields. Set "serving_size_g" to the TOTAL cooked weight of the meal.
+Add a short "notes" string naming your main assumptions (portion sizes, hidden
+fats, anything ambiguous).
+
+{_JSON_SCHEMA_MEAL}
+
+Guidance:
+- Restaurant portions are usually LARGER than home portions — do not undercount.
+- Assume food is cooked with oil or butter unless clearly steamed/grilled dry.
+- If the user names a dish but not amounts, use standard restaurant serving sizes.
+- confidence: 0.7-0.9 when the user described the dish, 0.4-0.6 from photo alone.
 """.strip()
 
 RECIPE_URL_PROMPT = f"""
@@ -381,6 +450,75 @@ async def estimate_from_ingredient_images(
         result   = VisionExtractResponse(**filtered)
         if result.serving_size_g is None and result.serving_size:
             result.serving_size_g = _parse_serving_size_g(result.serving_size)
+        return result
+    except (ValueError, TypeError) as exc:
+        return VisionExtractResponse(confidence=0.0, raw_text=str(exc)[:500])
+
+
+async def estimate_meal_from_images(
+    base64_images: list[tuple[str, str]],
+    description: Optional[str] = None,
+    name:        Optional[str] = None,
+) -> VisionExtractResponse:
+    """
+    Estimate a full meal from photo(s) plus the user's own description of what's
+    in it. Returns totals AND a per-component breakdown for review/adjustment.
+    Does NOT save anything.
+    """
+    if not settings.ANTHROPIC_API_KEY:
+        return VisionExtractResponse(confidence=0.0, raw_text="[Anthropic API key not configured]")
+
+    content: list[dict] = []
+    for b64_data, mime_type in base64_images:
+        content.append({
+            "type": "image",
+            "source": {"type": "base64", "media_type": mime_type, "data": b64_data},
+        })
+
+    parts = ["Estimate the nutrition for this meal, broken down by component."]
+    if description and description.strip():
+        parts.append(
+            "The person who ate it describes it as:\n"
+            f"\"{description.strip()}\"\n"
+            "Treat this description as authoritative for what the dish contains."
+        )
+    if name and name.strip():
+        parts.append(f"Call the dish: {name.strip()}")
+    if not base64_images:
+        parts.append("No photo was provided — estimate from the description alone.")
+    content.append({"type": "text", "text": "\n\n".join(parts)})
+
+    payload = {
+        "model":      settings.ANTHROPIC_VISION_MODEL,
+        "max_tokens": 2500,
+        "system":     MEAL_ESTIMATE_PROMPT,
+        "messages":   [{"role": "user", "content": content}],
+    }
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key":         settings.ANTHROPIC_API_KEY,
+                "anthropic-version": "2023-06-01",
+                "content-type":      "application/json",
+            },
+            json=payload,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+    raw = data["content"][0]["text"].strip()
+
+    try:
+        parsed   = _extract_json_from_text(raw)
+        known    = set(VisionExtractResponse.model_fields.keys())
+        filtered = {k: v for k, v in parsed.items() if k in known}
+        result   = VisionExtractResponse(**filtered)
+        if result.serving_size_g is None and result.serving_size:
+            result.serving_size_g = _parse_serving_size_g(result.serving_size)
+        if name and name.strip():
+            result.name = name.strip()
         return result
     except (ValueError, TypeError) as exc:
         return VisionExtractResponse(confidence=0.0, raw_text=str(exc)[:500])

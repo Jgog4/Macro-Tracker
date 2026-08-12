@@ -9,6 +9,7 @@ import VisionModal from "./components/VisionModal";
 import BarcodeModal from "./components/BarcodeModal";
 import CalendarPicker from "./components/CalendarPicker";
 import SettingsModal from "./components/SettingsModal";
+import EstimateMealModal from "./components/EstimateMealModal";
 
 const TABS = [
   { id: "today",   label: "Today",   Icon: CalendarDays },
@@ -29,6 +30,7 @@ export default function App() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [showReports, setShowReports] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showEstimate, setShowEstimate] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
   const menuRef = useRef(null);
 
@@ -156,8 +158,8 @@ export default function App() {
           </button>
         </div>
 
-        {/* Scan */}
-        <NavItem label="Scan" active={false} onClick={() => setShowCamera(true)}>
+        {/* Estimate a meal from a photo */}
+        <NavItem label="Estimate" active={false} onClick={() => setShowEstimate(true)}>
           <Camera size={22} />
         </NavItem>
 
@@ -230,6 +232,20 @@ export default function App() {
                 </div>
               </button>
 
+              {/* Estimate a Meal */}
+              <button
+                onClick={() => { setShowSheet(false); setShowEstimate(true); }}
+                className="flex items-center gap-4 p-4 rounded-2xl bg-surface-1 active:bg-surface-2 text-left transition-colors"
+              >
+                <div className="w-11 h-11 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
+                  <Sparkles size={20} className="text-amber-700" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">Estimate Meal</p>
+                  <p className="text-xs text-muted mt-0.5">Photo a restaurant meal + say what's in it — AI estimates the macros</p>
+                </div>
+              </button>
+
               {/* From Recipes */}
               <button
                 onClick={() => { setShowSheet(false); setShowRecipes(true); }}
@@ -298,6 +314,15 @@ export default function App() {
 
       {showReports && (
         <ReportsPage onClose={() => setShowReports(false)} />
+      )}
+
+      {showEstimate && (
+        <EstimateMealModal
+          dateStr={dateStr}
+          defaultMealNumber={1}
+          onClose={() => setShowEstimate(false)}
+          onLogged={() => { setShowEstimate(false); setDashboardKey(k => k + 1); }}
+        />
       )}
 
       {showSettings && (

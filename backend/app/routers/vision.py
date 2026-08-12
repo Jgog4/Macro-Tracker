@@ -16,6 +16,7 @@ from app.schemas.schemas import VisionExtractResponse, IngredientRead
 from app.services.vision_ocr import (
     extract_nutrition_from_images,
     estimate_from_ingredient_images,
+    estimate_meal_from_images,
     analyze_recipe_url,
 )
 from pydantic import BaseModel as _BaseModel
@@ -108,6 +109,44 @@ async def extract_and_save(
     db.add(ingredient)
     await db.flush()
     return ingredient
+
+
+# ── POST /vision/estimate-meal — photo + description → reviewable estimate ────
+
+@router.post("/estimate-meal", response_model=VisionExtractResponse)
+async def estimate_meal(
+    files:       List[UploadFile]  = File(default=[], description="Photo(s) of the meal (optional if description given)"),
+    description: Optional[str]     = Form(None, description="What the user thinks is in the meal"),
+    name:        Optional[str]     = Form(None, description="Optional dish name"),
+):
+    """
+    Estimate a restaurant / home meal from photo(s) and/or a text description.
+    Returns totals PLUS a per-component breakdown so the user can review and
+    adjust before saving. Does NOT write to the database.
+    """
+    if not files and not (description and description.strip()):
+        raise HTTPException(status_code=400, detail="Provide a photo, a description, or both.")
+    if len(files) > 4:
+        raise HTTPException(status_code=400, detail="Maximum 4 photos allowed.")
+
+    images: list[tuple[str, str]] = []
+    for f in files:
+        if not f or not f.filename:
+            continue
+        if f.content_type not in ALLOWED_MIME:
+            raise HTTPException(status_code=415, detail=f"Unsupported image type '{f.content_type}'.")
+        raw = await f.read()
+        if len(raw) > 20 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail=f"Image '{f.filename}' too large (max 20 MB)")
+        images.append((base64.b64encode(raw).decode(), f.content_type or "image/jpeg"))
+
+    result = await estimate_meal_from_images(images, description=description, name=name)
+    if result.confidence == 0.0:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not estimate this meal. Try adding a short description of what's in it.",
+        )
+    return result
 
 
 # ── POST /vision/estimate-from-ingredients — ingredient list photo ────────────

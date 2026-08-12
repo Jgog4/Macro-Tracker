@@ -508,6 +508,16 @@ class SuggestionRead(BaseModel):
 # Vision / OCR
 # ─────────────────────────────────────────────────────────────────────────────
 
+class MealComponent(BaseModel):
+    """One estimated component of a photographed meal."""
+    name:       str
+    quantity_g: Optional[float] = None
+    calories:   Optional[float] = None
+    protein_g:  Optional[float] = None
+    carbs_g:    Optional[float] = None
+    fat_g:      Optional[float] = None
+
+
 class VisionExtractResponse(BaseModel):
     """Structured nutrition data returned by Claude after analysing an image."""
     name:             Optional[str]   = None
@@ -558,6 +568,9 @@ class VisionExtractResponse(BaseModel):
     alcohol_g:        Optional[float] = None
     confidence:       float           = Field(default=1.0, ge=0, le=1)
     raw_text:         Optional[str]   = None
+    # Meal-estimate extras (empty for label scans)
+    ingredients:      list[MealComponent] = []
+    notes:            Optional[str]   = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
