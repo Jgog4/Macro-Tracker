@@ -99,15 +99,25 @@ export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose,
       setResult(d);
       setName(d.name || dishName.trim() || "Meal");
       setRows(
-        (d.ingredients || []).map((it, i) => ({
-          key: i,
-          name: it.name || "Item",
-          grams: it.quantity_g ?? 0,
-          calories: it.calories ?? 0,
-          protein_g: it.protein_g ?? 0,
-          carbs_g: it.carbs_g ?? 0,
-          fat_g: it.fat_g ?? 0,
-        }))
+        (d.ingredients || []).map((it, i) => {
+          const grams = num(it.quantity_g);
+          return {
+            key: i,
+            name: it.name || "Item",
+            grams,
+            calories: it.calories ?? 0,
+            protein_g: it.protein_g ?? 0,
+            carbs_g: it.carbs_g ?? 0,
+            fat_g: it.fat_g ?? 0,
+            // Keep stable per-gram values so repeated edits do not compound rounding.
+            perGram: grams > 0 ? {
+              calories: num(it.calories) / grams,
+              protein_g: num(it.protein_g) / grams,
+              carbs_g: num(it.carbs_g) / grams,
+              fat_g: num(it.fat_g) / grams,
+            } : null,
+          };
+        })
       );
       setStep("review");
     } catch (e) {
@@ -126,23 +136,36 @@ export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose,
 
   // ── Row editing: changing grams scales that row's macros ──────────────────
   const updateGrams = (key, newGrams) => {
+    // A blank value is valid while the user replaces the existing number.
+    if (newGrams === "") {
+      setRows((rs) => rs.map((r) => r.key === key ? { ...r, grams: "" } : r));
+      return;
+    }
+    if (!/^\d*(?:\.\d*)?$/.test(newGrams)) return;
+
+    // Turn "05" into "5", while preserving decimals such as "0.5".
+    const cleaned = newGrams.replace(/^0+(?=\d)/, "");
+    const g = num(cleaned);
     setRows((rs) =>
       rs.map((r) => {
         if (r.key !== key) return r;
-        const old = r.grams || 0;
-        const g = num(newGrams);
-        if (!old) return { ...r, grams: g };
-        const k = g / old;
+        if (!r.perGram) return { ...r, grams: cleaned };
         return {
           ...r,
-          grams: g,
-          calories:  Math.round(r.calories  * k * 10) / 10,
-          protein_g: Math.round(r.protein_g * k * 10) / 10,
-          carbs_g:   Math.round(r.carbs_g   * k * 10) / 10,
-          fat_g:     Math.round(r.fat_g     * k * 10) / 10,
+          grams: cleaned,
+          calories:  Math.round(r.perGram.calories  * g * 10) / 10,
+          protein_g: Math.round(r.perGram.protein_g * g * 10) / 10,
+          carbs_g:   Math.round(r.perGram.carbs_g   * g * 10) / 10,
+          fat_g:     Math.round(r.perGram.fat_g     * g * 10) / 10,
         };
       })
     );
+  };
+  const finishGramsEdit = (key) => {
+    setRows((rs) => rs.map((r) => {
+      if (r.key !== key || r.grams !== "") return r;
+      return { ...r, grams: 0, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
+    }));
   };
   const removeRow = (key) => setRows((rs) => rs.filter((r) => r.key !== key));
 
@@ -361,9 +384,11 @@ export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose,
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <input
-                        type="number" min="0" step="5" inputMode="decimal"
+                        type="text" inputMode="decimal"
                         value={r.grams}
                         onChange={(e) => updateGrams(r.key, e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        onBlur={() => finishGramsEdit(r.key)}
                         className="input font-mono w-16 text-center py-1.5 px-1"
                       />
                       <span className="text-[11px] text-muted">g</span>
