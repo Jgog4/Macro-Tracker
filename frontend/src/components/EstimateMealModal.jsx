@@ -4,7 +4,7 @@
  *
  * Flow:  input (photos + description) → estimate → review/adjust → save & log
  */
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Camera, ImagePlus, Loader2, Sparkles, Trash2, X, Check, ChevronLeft } from "lucide-react";
 import { visionApi, foodsApi, mealsApi } from "../api/client";
 import { ModalShell } from "./AddFoodModal";
@@ -60,10 +60,36 @@ export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose,
   const [name, setName]         = useState("");
   const [mealNumber, setMealNumber] = useState(defaultMealNumber ?? 1);
   const [time, setTime]         = useState(nowTimeStr);
+  const [mealTimes, setMealTimes] = useState({});
+  const [timeEdited, setTimeEdited] = useState(false);
   const [saving, setSaving]     = useState(false);
 
   const cameraRef = useRef();
   const libraryRef = useRef();
+
+  // Use the established diary time when adding another item to an existing meal.
+  useEffect(() => {
+    if (!dateStr) return;
+    mealsApi.getDay(dateStr).then((res) => {
+      const times = {};
+      (res.data?.meals || []).forEach((meal) => {
+        if (!meal.logged_at) return;
+        const d = new Date(meal.logged_at);
+        times[meal.meal_number] = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      });
+      setMealTimes(times);
+    }).catch(() => {});
+  }, [dateStr]);
+
+  useEffect(() => {
+    if (timeEdited) return;
+    setTime(mealTimes[mealNumber] || nowTimeStr());
+  }, [mealNumber, mealTimes, timeEdited]);
+
+  const handleMealChange = (number) => {
+    setTimeEdited(false);
+    setMealNumber(number);
+  };
 
   // ── Photos ────────────────────────────────────────────────────────────────
   const addFiles = (fileList) => {
@@ -408,7 +434,7 @@ export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose,
             <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5 block">Meal</label>
             <div className="flex gap-1.5">
               {[1, 2, 3, 4, 5, 6].map((n) => (
-                <button key={n} onClick={() => setMealNumber(n)}
+                <button key={n} onClick={() => handleMealChange(n)}
                   className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors
                     ${mealNumber === n ? "bg-accent-blue text-white" : "bg-surface-2 text-muted"}`}>
                   {n}
@@ -418,7 +444,7 @@ export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose,
           </div>
           <div>
             <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5 block">Time</label>
-            <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
+            <input type="time" value={time} onChange={(e) => { setTime(e.target.value); setTimeEdited(true); }}
                    className="input font-mono text-center" />
           </div>
 
