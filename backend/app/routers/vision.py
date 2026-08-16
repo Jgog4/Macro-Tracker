@@ -17,6 +17,7 @@ from app.services.vision_ocr import (
     extract_nutrition_from_images,
     estimate_from_ingredient_images,
     estimate_meal_from_images,
+    refine_meal_estimate,
     analyze_recipe_url,
 )
 from pydantic import BaseModel as _BaseModel
@@ -155,6 +156,27 @@ async def estimate_meal(
         raise HTTPException(
             status_code=502,
             detail=result.raw_text or "Could not estimate this meal. Try adding a description of what's in it.",
+        )
+    return result
+
+
+class _MealRefinementRequest(_BaseModel):
+    """A reviewed meal estimate plus the user's requested correction."""
+    estimate: VisionExtractResponse
+    instruction: str
+
+
+@router.post("/refine-meal-estimate", response_model=VisionExtractResponse)
+async def refine_estimated_meal(body: _MealRefinementRequest):
+    """Apply a natural-language correction to an existing meal estimate."""
+    if not body.instruction or not body.instruction.strip():
+        raise HTTPException(status_code=400, detail="Describe what you would like to adjust.")
+
+    result = await refine_meal_estimate(body.estimate, body.instruction)
+    if result.confidence == 0.0:
+        raise HTTPException(
+            status_code=502,
+            detail=result.raw_text or "Could not refine this estimate. Please try again.",
         )
     return result
 

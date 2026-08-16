@@ -310,6 +310,25 @@ Guidance:
 - confidence: 0.7-0.9 when the user described the dish, 0.4-0.6 from photo alone.
 """.strip()
 
+MEAL_REFINEMENT_PROMPT = f"""
+You are a nutrition analyst refining a prior estimate of a restaurant or
+home-cooked meal. The user will provide the current estimated meal as JSON and
+one or more corrections based on what they ate.
+
+Treat the user's correction as authoritative. Re-estimate the affected
+component(s) using standard food-composition data, then recompute every
+top-level macro and micronutrient total from the revised component breakdown.
+Keep components that the correction does not affect unchanged where reasonable.
+For example, if the user says the beef was 50% less fatty, use a leaner beef
+composition for that component rather than merely subtracting calories.
+
+Return the complete revised meal in exactly the same JSON schema, including the
+full "ingredients" breakdown and a concise "notes" field that explains the
+revision. Do not discuss the process outside the JSON.
+
+{_JSON_SCHEMA_MEAL}
+""".strip()
+
 RECIPE_URL_PROMPT = f"""
 You are a nutrition analyst. The user has provided text content from a recipe webpage.
 
@@ -548,6 +567,20 @@ async def estimate_meal_from_images(
         return result
     except (ValueError, TypeError) as exc:
         return VisionExtractResponse(confidence=0.0, raw_text=str(exc)[:500])
+
+
+async def refine_meal_estimate(
+    estimate: VisionExtractResponse,
+    instruction: str,
+) -> VisionExtractResponse:
+    """Re-estimate a reviewed meal after a user-supplied correction."""
+    user_message = (
+        "Current estimate:\n"
+        f"{json.dumps(estimate.model_dump(exclude={'raw_text'}), ensure_ascii=False)}\n\n"
+        "User's correction:\n"
+        f"{instruction.strip()}"
+    )
+    return await _call_claude_text(MEAL_REFINEMENT_PROMPT, user_message)
 
 
 # ── URL recipe analysis ───────────────────────────────────────────────────────

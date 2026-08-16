@@ -16,6 +16,28 @@ function nowTimeStr() {
 
 const num = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
 
+function rowsFromEstimate(estimate) {
+  return (estimate.ingredients || []).map((it, i) => {
+    const grams = num(it.quantity_g);
+    return {
+      key: i,
+      name: it.name || "Item",
+      grams,
+      calories: it.calories ?? 0,
+      protein_g: it.protein_g ?? 0,
+      carbs_g: it.carbs_g ?? 0,
+      fat_g: it.fat_g ?? 0,
+      // Keep stable per-gram values so repeated edits do not compound rounding.
+      perGram: grams > 0 ? {
+        calories: num(it.calories) / grams,
+        protein_g: num(it.protein_g) / grams,
+        carbs_g: num(it.carbs_g) / grams,
+        fat_g: num(it.fat_g) / grams,
+      } : null,
+    };
+  });
+}
+
 /**
  * Downscale + re-encode an image to JPEG before upload.
  * Critical on mobile: iPhone photos are 2-5 MB and often HEIC, which the
@@ -62,6 +84,8 @@ export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose,
   const [time, setTime]         = useState(nowTimeStr);
   const [mealTimes, setMealTimes] = useState({});
   const [timeEdited, setTimeEdited] = useState(false);
+  const [adjustment, setAdjustment] = useState("");
+  const [refining, setRefining] = useState(false);
   const [saving, setSaving]     = useState(false);
 
   const cameraRef = useRef();
@@ -124,27 +148,7 @@ export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose,
       const d = res.data;
       setResult(d);
       setName(d.name || dishName.trim() || "Meal");
-      setRows(
-        (d.ingredients || []).map((it, i) => {
-          const grams = num(it.quantity_g);
-          return {
-            key: i,
-            name: it.name || "Item",
-            grams,
-            calories: it.calories ?? 0,
-            protein_g: it.protein_g ?? 0,
-            carbs_g: it.carbs_g ?? 0,
-            fat_g: it.fat_g ?? 0,
-            // Keep stable per-gram values so repeated edits do not compound rounding.
-            perGram: grams > 0 ? {
-              calories: num(it.calories) / grams,
-              protein_g: num(it.protein_g) / grams,
-              carbs_g: num(it.carbs_g) / grams,
-              fat_g: num(it.fat_g) / grams,
-            } : null,
-          };
-        })
-      );
+      setRows(rowsFromEstimate(d));
       setStep("review");
     } catch (e) {
       // Distinguish real server errors from network/timeout so failures are debuggable
@@ -219,6 +223,46 @@ export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose,
   // Micros scale with how much the calories changed vs the original estimate
   const microScale =
     result?.calories && result.calories > 0 ? totals.calories / result.calories : 1;
+
+  // Send the current editable breakdown back to AI, so a refinement honours
+  // any gram changes the user has already made in this review screen.
+  const currentEstimate = () => ({
+    ...result,
+    name: name.trim() || result?.name || "Meal",
+    serving_size_g: totals.grams,
+    calories: totals.calories,
+    protein_g: totals.protein_g,
+    carbs_g: totals.carbs_g,
+    fat_g: totals.fat_g,
+    ingredients: rows.map((r) => ({
+      name: r.name,
+      quantity_g: num(r.grams),
+      calories: num(r.calories),
+      protein_g: num(r.protein_g),
+      carbs_g: num(r.carbs_g),
+      fat_g: num(r.fat_g),
+    })),
+  });
+
+  const handleRefine = async () => {
+    if (!adjustment.trim() || !result) return;
+    setRefining(true); setError("");
+    try {
+      const res = await visionApi.refineMealEstimate({
+        estimate: currentEstimate(),
+        instruction: adjustment.trim(),
+      });
+      const revised = res.data;
+      setResult(revised);
+      setName(revised.name || name);
+      setRows(rowsFromEstimate(revised));
+      setAdjustment("");
+    } catch (e) {
+      setError(e.response?.data?.detail || "Could not update the estimate. Please try again.");
+    } finally {
+      setRefining(false);
+    }
+  };
 
   // ── Save as a custom food + log it ────────────────────────────────────────
   const handleSave = async () => {
@@ -363,6 +407,31 @@ export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose,
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-muted uppercase tracking-wide">Name</label>
             <input value={name} onChange={(e) => setName(e.target.value)} className="input" />
+          </div>
+
+          {/* Natural-language refinement */}
+          <div className="rounded-xl border border-accent-purple/20 bg-purple-50/50 p-3 flex flex-col gap-2">
+            <label className="text-xs font-semibold text-accent-purple uppercase tracking-wide">
+              Adjust estimate with AI
+            </label>
+            <textarea
+              value={adjustment}
+              onChange={(e) => setAdjustment(e.target.value)}
+              rows={2}
+              placeholder="e.g. The beef was much leaner — reduce its fat by about 50%."
+              className="input resize-none leading-snug bg-white"
+            />
+            <button
+              onClick={handleRefine}
+              disabled={refining || !adjustment.trim()}
+              className="btn-outline self-start flex items-center gap-1.5 disabled:opacity-40"
+            >
+              {refining ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+              {refining ? "Updating…" : "Update estimate"}
+            </button>
+            <p className="text-[10px] text-muted">
+              AI will revise the relevant components, macros, and micronutrients. You can adjust grams afterward or save directly.
+            </p>
           </div>
 
           {/* Totals */}
