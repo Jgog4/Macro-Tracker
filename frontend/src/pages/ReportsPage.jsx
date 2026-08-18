@@ -290,22 +290,7 @@ export default function ReportsPage({ onClose }) {
                 onExpand={() => setExpanded({ type: "nutrient", nutrient: selectedNutrient })}
               >
                 <div className="bg-surface-1 rounded-xl p-3 shadow-card flex flex-col gap-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    {QUICK_NUTRIENT_KEYS.map(key => {
-                      const nutrient = nutrientByKey(key);
-                      const active = trendKey === key;
-                      return (
-                        <button
-                          key={key}
-                          onClick={() => setTrendKey(key)}
-                          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
-                            active ? "bg-accent-blue text-white" : "bg-surface-2 text-muted hover:text-foreground"
-                          }`}
-                        >
-                          {nutrient.label}
-                        </button>
-                      );
-                    })}
+                  <div className="flex justify-end">
                     <button
                       onClick={() => setShowNutrientFinder(v => !v)}
                       className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-surface-2 text-accent-blue hover:text-foreground"
@@ -541,6 +526,9 @@ function NutrientFinder({ selectedKey, onSelect, onClose }) {
             </button>
           ))}
         </div>
+      )}
+      {!normalized && category === "All" && (
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Quick picks</p>
       )}
       <div className="grid grid-cols-2 gap-1 max-h-44 overflow-y-auto">
         {visible.map(item => (
