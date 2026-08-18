@@ -24,6 +24,7 @@ Aggregates all micronutrients from:
 """
 from datetime import date as date_type, datetime, timezone, timedelta
 from typing import Optional
+from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, func, desc
@@ -478,6 +479,93 @@ async def get_daily_series(
             "cholesterol_mg": round(row.cholesterol_mg, 1),
         }
         for row in result.all()
+    ]
+
+
+# ── GET /meals/nutrient-series — daily totals for any tracked nutrient ───────
+
+@router.get("/nutrient-series")
+async def get_nutrient_series(
+    start: date_type = Query(..., description="Start date (yyyy-MM-dd)"),
+    end:   date_type = Query(..., description="End date inclusive (yyyy-MM-dd)"),
+    db:    AsyncSession = Depends(get_db),
+):
+    """
+    Return per-day totals for every tracked macro and micronutrient. Unlike the
+    lighter /daily-series endpoint, this includes vitamins, minerals, fatty
+    acids, amino acids, and other nutrient details. Recipe micronutrients are
+    calculated from their saved ingredient components.
+    """
+    user = await _get_or_create_user(db)
+    if (end - start).days > 732:
+        raise HTTPException(status_code=400, detail="Date range cannot exceed 2 years")
+    if end < start:
+        raise HTTPException(status_code=400, detail="end must be >= start")
+
+    daily: dict[date_type, dict[str, float]] = defaultdict(dict)
+
+    def add(day: date_type, field: str, value: Optional[float]) -> None:
+        if value is not None:
+            daily[day][field] = round((daily[day].get(field) or 0.0) + value, 6)
+
+    # Snapshot fields apply to every logged item, including recipe entries.
+    items_result = await db.execute(
+        select(MealLog.log_date, MealLogItem)
+        .join(MealLogItem, MealLogItem.meal_log_id == MealLog.id)
+        .where(
+            MealLog.user_id == user.id,
+            MealLog.log_date >= start,
+            MealLog.log_date <= end,
+        )
+    )
+    for log_date, item in items_result.all():
+        for field in _SNAPSHOT_FIELDS:
+            add(log_date, field, getattr(item, field, None))
+
+    # Direct food entries contribute their scaled nutrient profile.
+    direct_result = await db.execute(
+        select(MealLog.log_date, MealLogItem, Ingredient)
+        .join(MealLogItem, MealLogItem.meal_log_id == MealLog.id)
+        .join(Ingredient, MealLogItem.ingredient_id == Ingredient.id)
+        .where(
+            MealLog.user_id == user.id,
+            MealLog.log_date >= start,
+            MealLog.log_date <= end,
+            MealLogItem.ingredient_id.isnot(None),
+        )
+    )
+    for log_date, item, ingredient in direct_result.all():
+        base_g = ingredient.serving_size_g or 100.0
+        ratio = item.quantity_g / base_g if base_g else 1.0
+        for field in _MICRO_FIELDS:
+            raw = getattr(ingredient, field, None)
+            if raw is not None:
+                add(log_date, field, raw * ratio)
+
+    # Recipes use the ingredient-component snapshot created when they were logged.
+    components_result = await db.execute(
+        select(MealLog.log_date, MealLogItemComponent, Ingredient)
+        .join(MealLogItem, MealLogItemComponent.meal_log_item_id == MealLogItem.id)
+        .join(MealLog, MealLogItem.meal_log_id == MealLog.id)
+        .join(Ingredient, MealLogItemComponent.ingredient_id == Ingredient.id)
+        .where(
+            MealLog.user_id == user.id,
+            MealLog.log_date >= start,
+            MealLog.log_date <= end,
+            MealLogItemComponent.ingredient_id.isnot(None),
+        )
+    )
+    for log_date, component, ingredient in components_result.all():
+        base_g = ingredient.serving_size_g or 100.0
+        ratio = component.quantity_g / base_g if base_g else 1.0
+        for field in _MICRO_FIELDS:
+            raw = getattr(ingredient, field, None)
+            if raw is not None:
+                add(log_date, field, raw * ratio)
+
+    return [
+        {"date": log_date.isoformat(), **{key: round(value, 4) for key, value in values.items()}}
+        for log_date, values in sorted(daily.items())
     ]
 
 

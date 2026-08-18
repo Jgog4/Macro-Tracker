@@ -5,12 +5,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { format, subDays, parseISO } from "date-fns";
-import { ArrowLeft, Loader2, BarChart2, Maximize2, X } from "lucide-react";
+import { ArrowLeft, Loader2, BarChart2, Maximize2, Search, X } from "lucide-react";
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, LineChart,
   XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, Legend,
 } from "recharts";
 import { micronutrientsApi, mealsApi } from "../api/client";
+import { GROUPS, formatNutrientValue } from "../constants/nutrientConfig";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const todayStr  = () => format(new Date(), "yyyy-MM-dd");
@@ -25,6 +26,30 @@ const PRESETS = [
   { id: "custom", label: "Custom",  days: null },
 ];
 
+const CORE_NUTRIENTS = [
+  { key: "calories",       label: "Calories",       unit: "kcal", color: "#FF9500", group: "Macros" },
+  { key: "protein_g",      label: "Protein",        unit: "g",    color: "#34C759", group: "Macros" },
+  { key: "carbs_g",        label: "Carbs",          unit: "g",    color: "#007AFF", group: "Macros" },
+  { key: "fat_g",          label: "Fat",            unit: "g",    color: "#FF3B30", group: "Macros" },
+  { key: "fiber_g",        label: "Fiber",          unit: "g",    color: "#8E8E93", group: "Daily basics" },
+  { key: "sugar_g",        label: "Sugar",          unit: "g",    color: "#FF2D55", group: "Daily basics" },
+  { key: "sat_fat_g",      label: "Saturated Fat",  unit: "g",    color: "#FF6B6B", group: "Daily basics" },
+  { key: "sodium_mg",      label: "Sodium",         unit: "mg",   color: "#5856D6", group: "Daily basics" },
+  { key: "cholesterol_mg", label: "Cholesterol",    unit: "mg",   color: "#AF52DE", group: "Daily basics" },
+];
+
+const NUTRIENT_OPTIONS = [
+  ...CORE_NUTRIENTS,
+  ...GROUPS.flatMap(group => group.items.map(item => ({ ...item, color: group.color, group: group.label }))),
+];
+
+const QUICK_NUTRIENT_KEYS = [
+  "calories", "protein_g", "carbs_g", "fat_g", "fiber_g",
+  "omega3_dha_g", "vitamin_c_mg", "iron_mg",
+];
+
+const nutrientByKey = (key) => NUTRIENT_OPTIONS.find(item => item.key === key) || NUTRIENT_OPTIONS[0];
+
 // ── Main component ─────────────────────────────────────────────────────────
 export default function ReportsPage({ onClose }) {
   const [preset,       setPreset]       = useState("1w");
@@ -33,10 +58,13 @@ export default function ReportsPage({ onClose }) {
   const [includeToday, setIncludeToday] = useState(true);
   const [data,         setData]         = useState(null);
   const [series,       setSeries]       = useState([]);
+  const [nutrientSeries, setNutrientSeries] = useState([]);
   const [target,       setTarget]       = useState(null);
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState(null);
-  const [expanded,     setExpanded]     = useState(null); // null | "calories" | "macros"
+  const [expanded,     setExpanded]     = useState(null);
+  const [trendKey,     setTrendKey]     = useState("fiber_g");
+  const [showNutrientFinder, setShowNutrientFinder] = useState(false);
 
   // Compute start / end dates from preset + toggle
   const { start, end } = useMemo(() => {
@@ -66,15 +94,21 @@ export default function ReportsPage({ onClose }) {
     if (!start || !end || start > end) return;
     setData(null);
     setSeries([]);
+    setNutrientSeries([]);
     setError(null);
     setLoading(true);
     Promise.all([
       micronutrientsApi.getRange(start, end),
       micronutrientsApi.dailySeries(start, end),
+      micronutrientsApi.nutrientSeries(start, end),
     ])
-      .then(([agg, ser]) => {
+      .then(([agg, ser, nutrients]) => {
         setData(agg.data);
         setSeries((ser.data || []).map(d => ({
+          ...d,
+          label: format(parseISO(d.date), "MMM d"),
+        })));
+        setNutrientSeries((nutrients.data || []).map(d => ({
           ...d,
           label: format(parseISO(d.date), "MMM d"),
         })));
@@ -85,6 +119,8 @@ export default function ReportsPage({ onClose }) {
 
   const avg        = data?.daily_avg ?? null;
   const daysLogged = data?.days_with_data ?? 0;
+  const selectedNutrient = nutrientByKey(trendKey);
+  const trendHasData = nutrientSeries.some(row => Number(row[trendKey]) > 0);
 
   return createPortal(
     <div className="fixed inset-0 flex flex-col" style={{ zIndex: 9999, backgroundColor: "rgb(var(--surface-1))" }}>
@@ -247,6 +283,79 @@ export default function ReportsPage({ onClose }) {
               </Section>
             )}
 
+            {/* ── Individual nutrient trend ── */}
+            {nutrientSeries.length > 0 && (
+              <Section
+                title="Nutrient Trend"
+                onExpand={() => setExpanded({ type: "nutrient", nutrient: selectedNutrient })}
+              >
+                <div className="bg-surface-1 rounded-xl p-3 shadow-card flex flex-col gap-3">
+                  <div className="flex flex-wrap gap-1.5">
+                    {QUICK_NUTRIENT_KEYS.map(key => {
+                      const nutrient = nutrientByKey(key);
+                      const active = trendKey === key;
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => setTrendKey(key)}
+                          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
+                            active ? "bg-accent-blue text-white" : "bg-surface-2 text-muted hover:text-foreground"
+                          }`}
+                        >
+                          {nutrient.label}
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={() => setShowNutrientFinder(v => !v)}
+                      className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-surface-2 text-accent-blue hover:text-foreground"
+                    >
+                      + Find nutrient
+                    </button>
+                  </div>
+
+                  {showNutrientFinder && (
+                    <NutrientFinder
+                      selectedKey={trendKey}
+                      onSelect={(key) => { setTrendKey(key); setShowNutrientFinder(false); }}
+                      onClose={() => setShowNutrientFinder(false)}
+                    />
+                  )}
+
+                  <button
+                    className="text-left"
+                    onClick={() => setExpanded({ type: "nutrient", nutrient: selectedNutrient })}
+                  >
+                    <div className="flex items-baseline justify-between mb-1">
+                      <p className="text-sm font-semibold text-foreground">
+                        {selectedNutrient.label} <span className="text-muted font-normal">per day</span>
+                      </p>
+                      <p className="text-xs font-mono text-muted">
+                        Avg {formatNutrientValue(avg?.[trendKey])} {selectedNutrient.unit}
+                      </p>
+                    </div>
+                    {trendHasData ? (
+                      <ResponsiveContainer width="100%" height={190}>
+                        <LineChart data={nutrientSeries} margin={{ top: 8, right: 10, left: 4, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(142,142,147,0.25)" vertical={false} />
+                          <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#8E8E93" }} interval="preserveStartEnd" minTickGap={18} />
+                          <YAxis tick={{ fontSize: 10, fill: "#8E8E93" }} width={42}
+                            tickFormatter={v => formatTrendAxis(v)} />
+                          <Tooltip content={<ChartTooltip unit={selectedNutrient.unit} />} />
+                          <Line type="monotone" dataKey={trendKey} name={selectedNutrient.label}
+                            stroke={selectedNutrient.color} strokeWidth={2.5} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-[190px] flex items-center justify-center text-center px-6">
+                        <p className="text-xs text-muted">No recorded {selectedNutrient.label.toLowerCase()} data in this period.</p>
+                      </div>
+                    )}
+                  </button>
+                </div>
+              </Section>
+            )}
+
             {/* ── Secondary nutrients ── */}
             <Section title="Other Nutrients (daily avg)">
               <div className="card-no-pad divide-y divide-surface-3">
@@ -285,8 +394,9 @@ export default function ReportsPage({ onClose }) {
 
       {expanded && (
         <ExpandedChartModal
-          type={expanded}
-          series={series}
+          type={typeof expanded === "string" ? expanded : expanded.type}
+          nutrient={typeof expanded === "object" ? expanded.nutrient : null}
+          series={typeof expanded === "object" ? nutrientSeries : series}
           target={target}
           onClose={() => setExpanded(null)}
         />
@@ -311,16 +421,20 @@ function withMovingAvg(series, keys, window = 7) {
 }
 
 // ── Expanded fullscreen chart with 7-day moving-average toggle ───────────────
-function ExpandedChartModal({ type, series, target, onClose }) {
+function ExpandedChartModal({ type, nutrient, series, target, onClose }) {
   const [smooth, setSmooth] = useState(false);
-  const keys = type === "calories" ? ["calories"] : ["protein_g", "carbs_g", "fat_g"];
+  const keys = type === "calories"
+    ? ["calories"]
+    : type === "nutrient"
+      ? [nutrient.key]
+      : ["protein_g", "carbs_g", "fat_g"];
   const data = smooth ? withMovingAvg(series, keys, 7) : series;
 
   return createPortal(
     <div className="fixed inset-0 flex flex-col" style={{ zIndex: 10000, backgroundColor: "rgb(var(--surface-1))" }}>
       <div className="flex items-center justify-between px-4 py-3 border-b border-surface-3 shrink-0">
         <h2 className="text-base font-bold text-foreground">
-          {type === "calories" ? "Calories per Day" : "Macros per Day (g)"}
+          {type === "calories" ? "Calories per Day" : type === "nutrient" ? `${nutrient.label} per Day (${nutrient.unit})` : "Macros per Day (g)"}
         </h2>
         <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-2 text-foreground">
           <X size={18} />
@@ -359,6 +473,16 @@ function ExpandedChartModal({ type, series, target, onClose }) {
                   label={{ value: "target", position: "right", fontSize: 10, fill: "#8E8E93" }} />
               )}
             </ComposedChart>
+          ) : type === "nutrient" ? (
+            <LineChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(142,142,147,0.25)" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#8E8E93" }} interval="preserveStartEnd" minTickGap={30} />
+              <YAxis tick={{ fontSize: 11, fill: "#8E8E93" }} width={46} tickFormatter={v => formatTrendAxis(v)} />
+              <Tooltip content={<ChartTooltip unit={nutrient.unit} />} />
+              <Line type="monotone" dataKey={nutrient.key}
+                name={smooth ? `${nutrient.label} (7d avg)` : nutrient.label}
+                stroke={nutrient.color} strokeWidth={2.5} dot={false} />
+            </LineChart>
           ) : (
             <LineChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(142,142,147,0.25)" vertical={false} />
@@ -378,6 +502,74 @@ function ExpandedChartModal({ type, series, target, onClose }) {
   );
 }
 
+// ── Nutrient finder — search + compact categories, not a giant select list ──
+function NutrientFinder({ selectedKey, onSelect, onClose }) {
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("All");
+  const categories = ["All", ...new Set(NUTRIENT_OPTIONS.map(item => item.group))];
+  const normalized = query.trim().toLowerCase();
+  const visible = normalized
+    ? NUTRIENT_OPTIONS.filter(item => `${item.label} ${item.group}`.toLowerCase().includes(normalized))
+    : category === "All"
+      ? QUICK_NUTRIENT_KEYS.map(nutrientByKey)
+      : NUTRIENT_OPTIONS.filter(item => item.group === category);
+
+  return (
+    <div className="rounded-xl bg-surface-2 p-2.5 flex flex-col gap-2" onClick={e => e.stopPropagation()}>
+      <div className="flex items-center gap-2">
+        <Search size={14} className="text-muted shrink-0" />
+        <input
+          autoFocus
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search vitamins, minerals, amino acids…"
+          className="bg-transparent outline-none text-sm text-foreground min-w-0 flex-1"
+        />
+        <button onClick={onClose} className="text-xs text-accent-blue font-semibold">Done</button>
+      </div>
+      {!normalized && (
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-0.5 px-0.5">
+          {categories.map(item => (
+            <button
+              key={item}
+              onClick={() => setCategory(item)}
+              className={`shrink-0 px-2 py-1 rounded-md text-[10px] font-semibold ${
+                category === item ? "bg-accent-blue text-white" : "bg-surface-1 text-muted"
+              }`}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-1 max-h-44 overflow-y-auto">
+        {visible.map(item => (
+          <button
+            key={item.key}
+            onClick={() => onSelect(item.key)}
+            className={`text-left px-2.5 py-2 rounded-lg text-xs transition-colors ${
+              selectedKey === item.key ? "bg-blue-100 text-accent-blue font-semibold" : "bg-surface-1 text-foreground hover:bg-blue-50"
+            }`}
+          >
+            <span className="block truncate">{item.label}</span>
+            <span className="text-[10px] text-muted">{item.unit} · {item.group}</span>
+          </button>
+        ))}
+        {!visible.length && <p className="col-span-2 text-xs text-muted text-center py-3">No matching nutrient</p>}
+      </div>
+    </div>
+  );
+}
+
+function formatTrendAxis(value) {
+  const absolute = Math.abs(value || 0);
+  if (absolute >= 1000) return `${(value / 1000).toFixed(1)}k`;
+  if (absolute >= 100) return Math.round(value).toString();
+  if (absolute >= 10) return value.toFixed(0);
+  if (absolute >= 1) return value.toFixed(1);
+  return value.toFixed(2);
+}
+
 // ── Chart tooltip ──────────────────────────────────────────────────────────
 function ChartTooltip({ active, payload, label, unit }) {
   if (!active || !payload?.length) return null;
@@ -386,7 +578,7 @@ function ChartTooltip({ active, payload, label, unit }) {
       <p className="font-semibold text-foreground mb-1">{label}</p>
       {payload.map((p) => (
         <p key={p.dataKey} style={{ color: p.color || p.fill }}>
-          {p.name}: <span className="font-mono font-semibold">{Math.round(p.value)}{unit}</span>
+          {p.name}: <span className="font-mono font-semibold">{formatNutrientValue(p.value)} {unit}</span>
         </p>
       ))}
     </div>
