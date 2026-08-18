@@ -394,8 +394,12 @@ export default function ReportsPage({ onClose }) {
 // ── Moving average ─────────────────────────────────────────────────────────
 function withMovingAvg(series, keys, window = 7) {
   return series.map((row, i) => {
-    const from = Math.max(0, i - window + 1);
-    const slice = series.slice(from, i + 1);
+    // Use the previous calendar days, rather than simply the last N logged
+    // entries, so a 7-day line stays a true seven-day moving average.
+    const from = new Date(`${row.date}T12:00:00`);
+    from.setDate(from.getDate() - window + 1);
+    const fromDate = format(from, "yyyy-MM-dd");
+    const slice = series.slice(0, i + 1).filter(item => item.date >= fromDate);
     const out = { ...row };
     keys.forEach(k => {
       const sum = slice.reduce((a, r) => a + (r[k] || 0), 0);
@@ -405,15 +409,15 @@ function withMovingAvg(series, keys, window = 7) {
   });
 }
 
-// ── Expanded fullscreen chart with 7-day moving-average toggle ───────────────
+// ── Expanded fullscreen chart with trailing moving-average options ───────────
 function ExpandedChartModal({ type, nutrient, series, target, onClose }) {
-  const [smooth, setSmooth] = useState(false);
+  const [movingWindow, setMovingWindow] = useState(0); // 0 = daily, otherwise trailing calendar-day average
   const keys = type === "calories"
     ? ["calories"]
     : type === "nutrient"
       ? [nutrient.key]
       : ["protein_g", "carbs_g", "fat_g"];
-  const data = smooth ? withMovingAvg(series, keys, 7) : series;
+  const data = movingWindow ? withMovingAvg(series, keys, movingWindow) : series;
 
   return createPortal(
     <div className="fixed inset-0 flex flex-col" style={{ zIndex: 10000, backgroundColor: "rgb(var(--surface-1))" }}>
@@ -426,16 +430,20 @@ function ExpandedChartModal({ type, nutrient, series, target, onClose }) {
         </button>
       </div>
 
-      {/* Daily / 7-day avg toggle */}
+      {/* Daily / trailing moving-average selector */}
       <div className="px-4 py-3 shrink-0">
-        <div className="flex bg-surface-2 rounded-xl p-1 gap-1 max-w-xs">
-          <button onClick={() => setSmooth(false)}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${!smooth ? "bg-surface-1 text-foreground shadow-sm" : "text-muted"}`}>
+        <div className="flex bg-surface-2 rounded-xl p-1 gap-1 max-w-sm">
+          <button onClick={() => setMovingWindow(0)}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${!movingWindow ? "bg-surface-1 text-foreground shadow-sm" : "text-muted"}`}>
             Daily
           </button>
-          <button onClick={() => setSmooth(true)}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${smooth ? "bg-surface-1 text-foreground shadow-sm" : "text-muted"}`}>
-            7-day average
+          <button onClick={() => setMovingWindow(7)}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${movingWindow === 7 ? "bg-surface-1 text-foreground shadow-sm" : "text-muted"}`}>
+            7-day moving
+          </button>
+          <button onClick={() => setMovingWindow(30)}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${movingWindow === 30 ? "bg-surface-1 text-foreground shadow-sm" : "text-muted"}`}>
+            30-day moving
           </button>
         </div>
       </div>
@@ -450,8 +458,8 @@ function ExpandedChartModal({ type, nutrient, series, target, onClose }) {
               <YAxis tick={{ fontSize: 11, fill: "#8E8E93" }} width={40}
                 tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v} />
               <Tooltip content={<ChartTooltip unit="kcal" />} />
-              {smooth
-                ? <Line type="monotone" dataKey="calories" name="Calories (7d avg)" stroke="#FF9500" strokeWidth={2.5} dot={false} />
+              {movingWindow
+                ? <Line type="monotone" dataKey="calories" name={`Calories (${movingWindow}d moving avg)`} stroke="#FF9500" strokeWidth={2.5} dot={false} />
                 : <Bar dataKey="calories" fill="#FF9500" radius={[3, 3, 0, 0]} maxBarSize={26} />}
               {target?.calories > 0 && (
                 <ReferenceLine y={target.calories} stroke="#8E8E93" strokeDasharray="4 4"
@@ -465,7 +473,7 @@ function ExpandedChartModal({ type, nutrient, series, target, onClose }) {
               <YAxis tick={{ fontSize: 11, fill: "#8E8E93" }} width={46} tickFormatter={v => formatTrendAxis(v)} />
               <Tooltip content={<ChartTooltip unit={nutrient.unit} />} />
               <Line type="monotone" dataKey={nutrient.key}
-                name={smooth ? `${nutrient.label} (7d avg)` : nutrient.label}
+                name={movingWindow ? `${nutrient.label} (${movingWindow}d moving avg)` : nutrient.label}
                 stroke={nutrient.color} strokeWidth={2.5} dot={false} />
             </LineChart>
           ) : (
