@@ -7,6 +7,7 @@ import { format, addDays, subDays } from "date-fns";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { mealsApi } from "../api/client";
 import { ModalShell } from "./AddFoodModal";
+import { getLastFoodPortion, saveLastFoodPortion } from "../utils/recentFoodPortions";
 
 function nowTimeStr() {
   const d = new Date();
@@ -16,7 +17,10 @@ function nowTimeStr() {
 export default function LogFoodModal({ food, onClose, onLogged }) {
   const [targetDate, setTargetDate] = useState(new Date());
   const [mealNumber, setMealNumber] = useState(1);
-  const [qty,        setQty]        = useState(String(food.serving_size_g || 100));
+  const [qty,        setQty]        = useState(() => {
+    const last = getLastFoodPortion(food);
+    return String(last?.quantity_g || food.serving_size_g || 100);
+  });
   const [time,       setTime]       = useState(nowTimeStr());
   const [logging,    setLogging]    = useState(false);
   const [error,      setError]      = useState("");
@@ -80,6 +84,7 @@ export default function LogFoodModal({ food, onClose, onLogged }) {
         logged_at:   loggedAt.toISOString(),
         items: [{ ingredient_id: food.id, quantity_g: qtyNum }],
       });
+      saveLastFoodPortion(food, { unit: "g", amount: qtyNum, quantity_g: qtyNum });
       onLogged?.();
       onClose();
     } catch (e) {

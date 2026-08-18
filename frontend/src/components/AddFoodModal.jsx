@@ -13,6 +13,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { foodsApi, mealsApi, recipesApi } from "../api/client";
 import { X, Search, Loader2, ChevronRight, ChevronLeft, ChevronDown } from "lucide-react";
+import { getLastFoodPortion, saveLastFoodPortion } from "../utils/recentFoodPortions";
 
 const SOURCE_BADGE = {
   personal:   { label: "My Foods",   color: "bg-green-100 text-green-700" },
@@ -270,11 +271,17 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
   // ── Select a food from results ────────────────────────────────────────────
   const handleSelect = (food) => {
     const opts = buildServingOptions(food);
+    const lastPortion = getLastFoodPortion(food);
+    const lastOpt = lastPortion ? opts.find(opt => opt.id === lastPortion.unit) : null;
+    const selectedOpt = lastOpt || opts[0];
     setSelected(food);
     setServingOpts(opts);
-    setServingOpt(opts[0]);
-    // Default amount: 1 for named servings, 100 for raw grams
-    setAmount(opts[0].id === "g" ? "100" : "1");
+    setServingOpt(selectedOpt);
+    // Restore the last successful portion when possible. Otherwise default to
+    // one named serving or 100 g for foods without a named serving.
+    setAmount(lastOpt && lastPortion.amount > 0
+      ? String(lastPortion.amount)
+      : selectedOpt.id === "g" ? "100" : "1");
     setShowPicker(false);
     setError("");
     // Reset "set item weight" fields
@@ -322,6 +329,11 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
         log_date: dateStr, meal_number: mealNumber,
         logged_at: loggedAt.toISOString(),
         items: [item],
+      });
+      saveLastFoodPortion(selected, {
+        unit: servingOpt?.id,
+        amount: amountNum,
+        quantity_g: qtyNum,
       });
       onLogged();
     } catch (e) {
