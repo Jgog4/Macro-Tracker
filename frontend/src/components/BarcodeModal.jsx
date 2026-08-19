@@ -224,7 +224,10 @@ export default function BarcodeModal({ dateStr, onClose, onLogged }) {
   // ── Derived live macros ───────────────────────────────────────────────────
   const amountNum = parseFloat(amount) || 0;
   const qtyNum    = amountNum * (servingOpt?.gramsEach ?? 1);
-  const baseG     = food?.serving_size_g || (qtyNum || 100);
+  // Foods without a named serving store nutrition per 100 g. Using qtyNum
+  // here made the preview ratio permanently 1, even though the saved item was
+  // correctly scaled by the backend.
+  const baseG     = food?.serving_size_g || 100;
   const ratio     = qtyNum / baseG;
   const live = food ? {
     calories: (food.calories  || 0) * ratio,

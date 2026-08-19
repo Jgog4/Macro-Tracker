@@ -3,6 +3,7 @@
 Claude extracts macros and returns them as JSON for review before saving.
 """
 import base64
+import re
 import httpx
 from typing import Optional
 
@@ -387,12 +388,41 @@ async def lookup_barcode(barcode: str):
             serving_g = float(p["serving_quantity"])
         except (ValueError, TypeError):
             pass
+    # Some Open Food Facts entries provide only a text serving size (e.g.
+    # "30 g") while their nutrition is stored in *_serving fields.
+    if serving_g is None and serving_desc:
+        match = re.search(r"(\d+(?:[.,]\d+)?)\s*g\b", serving_desc, re.IGNORECASE)
+        if match:
+            try:
+                serving_g = float(match.group(1).replace(",", "."))
+            except ValueError:
+                pass
 
     base = serving_g or 100.0
 
+    def _number(value) -> Optional[float]:
+        try:
+            return float(value) if value is not None else None
+        except (TypeError, ValueError):
+            return None
+
     def _n100(key: str) -> Optional[float]:
-        v = n.get(f"{key}_100g")
-        return float(v) if v is not None else None
+        """Read OFF values regardless of whether their source is 100 g or serving."""
+        per_100 = _number(n.get(f"{key}_100g"))
+        if per_100 is not None:
+            return per_100
+
+        per_serving = _number(n.get(f"{key}_serving"))
+        if per_serving is not None and serving_g and serving_g > 0:
+            return per_serving * 100.0 / serving_g
+
+        # Newer/partially completed OFF entries sometimes retain only *_value.
+        value = _number(n.get(f"{key}_value"))
+        if value is None:
+            return None
+        if p.get("nutrition_data_per") == "serving" and serving_g and serving_g > 0:
+            return value * 100.0 / serving_g
+        return value
 
     def _scaled(key: str) -> Optional[float]:
         v = _n100(key)
@@ -406,6 +436,14 @@ async def lookup_barcode(barcode: str):
         if kj is not None:
             cal = round(kj / 4.184, 1)
 
+    protein = _scaled("proteins")
+    fat = _scaled("fat")
+    carbs = _scaled("carbohydrates")
+    # If a product exposes macros but omits energy, provide a useful derived
+    # estimate rather than logging a zero-calorie food.
+    if (cal is None or cal == 0) and any(v is not None for v in (protein, fat, carbs)):
+        cal = round((protein or 0) * 4 + (carbs or 0) * 4 + (fat or 0) * 9, 1)
+
     # Sodium in OFF = g/100g → convert to mg
     sodium_scaled = _scaled("sodium")
     sodium_mg = round(sodium_scaled * 1000, 1) if sodium_scaled is not None else None
@@ -416,9 +454,9 @@ async def lookup_barcode(barcode: str):
         serving_size_desc=serving_desc,
         serving_size_g=serving_g,
         calories=cal or 0.0,
-        protein_g=_scaled("proteins") or 0.0,
-        fat_g=_scaled("fat") or 0.0,
-        carbs_g=_scaled("carbohydrates") or 0.0,
+        protein_g=protein or 0.0,
+        fat_g=fat or 0.0,
+        carbs_g=carbs or 0.0,
         sat_fat_g=_scaled("saturated-fat"),
         trans_fat_g=_scaled("trans-fat"),
         fiber_g=_scaled("fiber"),
