@@ -86,6 +86,7 @@ export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose,
   const [timeEdited, setTimeEdited] = useState(false);
   const [adjustment, setAdjustment] = useState("");
   const [refining, setRefining] = useState(false);
+  const [saveAsSingleEntry, setSaveAsSingleEntry] = useState(false);
   const [saving, setSaving]     = useState(false);
 
   const cameraRef = useRef();
@@ -264,7 +265,7 @@ export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose,
     }
   };
 
-  // ── Save as a custom food + log it ────────────────────────────────────────
+  // ── Save as adjustable components, or as one combined food + log it ──────
   const handleSave = async () => {
     if (!name.trim()) { setError("Give the meal a name"); return; }
     setSaving(true); setError("");
@@ -277,31 +278,74 @@ export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose,
         "monounsaturated_fat_g","polyunsaturated_fat_g",
         "omega3_ala_g","omega3_epa_g","omega3_dha_g","caffeine_mg","alcohol_g",
       ];
-      const payload = {
-        source: "custom",
-        name: name.trim(),
-        serving_size_g: Math.round(totals.grams) || null,
-        serving_size_desc: "1 meal",
-        calories:  Math.round(totals.calories * 10) / 10,
-        protein_g: Math.round(totals.protein_g * 10) / 10,
-        carbs_g:   Math.round(totals.carbs_g * 10) / 10,
-        fat_g:     Math.round(totals.fat_g * 10) / 10,
-      };
-      MICROS.forEach((k) => {
-        const v = result?.[k];
-        if (v != null) payload[k] = Math.round(v * microScale * 1000) / 1000;
-      });
-
-      const created = await foodsApi.create(payload);
       const [h, m] = time.split(":").map(Number);
       const loggedAt = new Date(`${dateStr}T${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:00`);
 
-      await mealsApi.logFood({
-        log_date: dateStr,
-        meal_number: mealNumber,
-        logged_at: loggedAt.toISOString(),
-        items: [{ ingredient_id: created.data.id, quantity_g: payload.serving_size_g || 100 }],
-      });
+      if (!saveAsSingleEntry && hasRows) {
+        // Each AI component becomes its own internal food record. Its macros are
+        // stored for the estimated component weight, making later diary weight
+        // edits scale exactly like any other logged food without cluttering My Foods.
+        const componentRows = rows.filter(row => num(row.grams) > 0);
+        if (!componentRows.length) throw new Error("Keep at least one component to log separately.");
+
+        const created = await Promise.all(componentRows.map(async (row) => {
+          const grams = num(row.grams);
+          const calorieShare = totals.calories > 0
+            ? num(row.calories) / totals.calories
+            : 1 / componentRows.length;
+          const payload = {
+            source: "estimated_component",
+            name: row.name,
+            serving_size_g: Math.round(grams * 10) / 10,
+            serving_size_desc: `AI estimate · ${name.trim()}`,
+            calories:  Math.round(num(row.calories) * 10) / 10,
+            protein_g: Math.round(num(row.protein_g) * 10) / 10,
+            carbs_g:   Math.round(num(row.carbs_g) * 10) / 10,
+            fat_g:     Math.round(num(row.fat_g) * 10) / 10,
+          };
+          // AI gives micros for the full dish, not each component. Allocate them
+          // by calorie share so the meal total is preserved and still scales on edit.
+          MICROS.forEach((key) => {
+            const value = result?.[key];
+            if (value != null) payload[key] = Math.round(value * microScale * calorieShare * 1000) / 1000;
+          });
+          return foodsApi.create(payload);
+        }));
+
+        await mealsApi.logFood({
+          log_date: dateStr,
+          meal_number: mealNumber,
+          logged_at: loggedAt.toISOString(),
+          items: created.map((response, index) => ({
+            ingredient_id: response.data.id,
+            quantity_g: num(componentRows[index].grams),
+          })),
+        });
+      } else {
+        const payload = {
+          source: "custom",
+          name: name.trim(),
+          serving_size_g: Math.round(totals.grams) || null,
+          serving_size_desc: "1 meal",
+          calories:  Math.round(totals.calories * 10) / 10,
+          protein_g: Math.round(totals.protein_g * 10) / 10,
+          carbs_g:   Math.round(totals.carbs_g * 10) / 10,
+          fat_g:     Math.round(totals.fat_g * 10) / 10,
+        };
+        MICROS.forEach((key) => {
+          const value = result?.[key];
+          if (value != null) payload[key] = Math.round(value * microScale * 1000) / 1000;
+        });
+
+        const created = await foodsApi.create(payload);
+        await mealsApi.logFood({
+          log_date: dateStr,
+          meal_number: mealNumber,
+          logged_at: loggedAt.toISOString(),
+          items: [{ ingredient_id: created.data.id, quantity_g: payload.serving_size_g || 100 }],
+        });
+      }
+
       onLogged?.();
       onClose();
     } catch (e) {
@@ -517,13 +561,33 @@ export default function EstimateMealModal({ dateStr, defaultMealNumber, onClose,
                    className="input font-mono text-center" />
           </div>
 
+          {hasRows && (
+            <button
+              type="button"
+              onClick={() => setSaveAsSingleEntry(value => !value)}
+              className="flex items-center justify-between gap-3 rounded-xl bg-surface-2 px-3 py-3 text-left"
+            >
+              <div>
+                <p className="text-sm font-semibold text-foreground">Save as one meal entry</p>
+                <p className="text-[11px] text-muted mt-0.5">
+                  {saveAsSingleEntry
+                    ? "One combined entry saved to My Foods"
+                    : "Default: log components separately so each weight stays editable"}
+                </p>
+              </div>
+              <span className={`w-11 h-6 rounded-full relative shrink-0 transition-colors ${saveAsSingleEntry ? "bg-accent-blue" : "bg-surface-3"}`}>
+                <span className={`absolute top-0.5 w-5 h-5 bg-surface-1 rounded-full shadow transition-transform ${saveAsSingleEntry ? "translate-x-5" : "translate-x-0.5"}`} />
+              </span>
+            </button>
+          )}
+
           {error && <p className="text-accent-red text-xs">{error}</p>}
 
           <div className="sticky bottom-0 bg-surface-1 pt-2 pb-1 -mx-4 px-4 border-t border-surface-3">
             <button onClick={handleSave} disabled={saving}
                     className="btn-primary w-full flex items-center justify-center gap-2 py-3.5 disabled:opacity-40">
               {saving ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
-              Save to My Foods &amp; Log
+              {saveAsSingleEntry || !hasRows ? "Save one meal entry & Log" : `Log ${rows.filter(row => num(row.grams) > 0).length} components`}
             </button>
             <p className="text-[10px] text-muted text-center mt-1.5 mb-1">
               AI estimate — always approximate. Adjust anything that looks off.

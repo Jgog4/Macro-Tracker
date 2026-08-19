@@ -208,7 +208,7 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
                             </span>
                           )}
                         </p>
-                        <div className="flex items-center gap-0.5 shrink-0 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-0.5 shrink-0 ml-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                           <button onClick={() => startEdit(item)}
                             className="p-1 rounded-lg hover:bg-surface-3 text-muted">
                             <Pencil size={11} />
@@ -292,4 +292,3 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
     </div>
   );
 }
-
