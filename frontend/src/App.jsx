@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { format, addDays, subDays } from "date-fns";
-import { CalendarDays, BookOpen, Plus, Camera, Search, Utensils, Sparkles, Menu, BarChart2, Sliders, X, ScanLine } from "lucide-react";
+import { CalendarDays, BookOpen, Plus, Camera, Search, Utensils, Sparkles, Menu, BarChart2, Sliders, Download, X, ScanLine } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import LibraryPage from "./pages/LibraryPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -10,6 +10,7 @@ import BarcodeModal from "./components/BarcodeModal";
 import CalendarPicker from "./components/CalendarPicker";
 import SettingsModal from "./components/SettingsModal";
 import EstimateMealModal from "./components/EstimateMealModal";
+import ExportModal from "./components/ExportModal";
 
 const TABS = [
   { id: "today",   label: "Today",   Icon: CalendarDays },
@@ -31,6 +32,7 @@ export default function App() {
   const [showReports, setShowReports] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showEstimate, setShowEstimate] = useState(false);
+  const [showExport, setShowExport]     = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
   const menuRef = useRef(null);
 
@@ -122,6 +124,13 @@ export default function App() {
                 >
                   <Sliders size={15} className="text-accent-blue shrink-0" />
                   Macro Targets
+                </button>
+                <button
+                  onClick={() => { setShowMenu(false); setShowExport(true); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-surface-2 transition-colors border-t border-surface-3"
+                >
+                  <Download size={15} className="text-accent-blue shrink-0" />
+                  Export Data
                 </button>
               </div>
             )}
@@ -323,6 +332,10 @@ export default function App() {
           onClose={() => setShowEstimate(false)}
           onLogged={() => { setShowEstimate(false); setDashboardKey(k => k + 1); }}
         />
+      )}
+
+      {showExport && (
+        <ExportModal onClose={() => setShowExport(false)} />
       )}
 
       {showSettings && (

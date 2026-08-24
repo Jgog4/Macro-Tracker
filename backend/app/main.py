@@ -19,7 +19,7 @@ from sqlalchemy import text
 
 from app.config import get_settings
 from app.database import Base, engine
-from app.routers import foods, meals, recipes, vision, suggest, api_keys
+from app.routers import foods, meals, recipes, vision, suggest, api_keys, export
 
 settings = get_settings()
 
@@ -193,6 +193,7 @@ app.include_router(recipes.router,  prefix="/api/v1")
 app.include_router(vision.router,   prefix="/api/v1")
 app.include_router(suggest.router,  prefix="/api/v1")
 app.include_router(api_keys.router, prefix="/api/v1")
+app.include_router(export.router,   prefix="/api/v1")
 
 
 # ── Health check ─────────────────────────────────────────────────────────────

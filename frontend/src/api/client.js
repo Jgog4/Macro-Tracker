@@ -66,6 +66,13 @@ export const micronutrientsApi = {
   nutrientSeries: (start, end) => api.get("/meals/nutrient-series", { params: { start, end } }),
 };
 
+// ── Export (CSV backup) ──────────────────────────────────────────────────────
+export const exportApi = {
+  // responseType blob so the download still works once auth headers are added
+  csv: (kind) => api.get(`/export/${kind}.csv`, { responseType: "blob", timeout: 120000 }),
+  zip: ()     => api.get("/export/all.zip",     { responseType: "blob", timeout: 120000 }),
+};
+
 // ── Suggest ──────────────────────────────────────────────────────────────────
 export const suggestApi = {
   suggest:        (params = {})        => api.get("/suggest/", { params }),
