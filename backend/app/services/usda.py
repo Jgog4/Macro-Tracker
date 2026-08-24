@@ -238,13 +238,16 @@ def _extract_nutrients(food_data: dict) -> dict:
 async def search_usda(query: str, limit: int = 10) -> list[USDASearchResult]:
     """Search USDA FoodData Central and return lightweight results."""
     async with httpx.AsyncClient(timeout=10.0) as client:
-        resp = await client.get(
+        # USDA accepts data-type filtering as an array in the JSON body.  The
+        # old GET query-string form serializes this as one comma-separated
+        # value, which the API now rejects with a 404.
+        resp = await client.post(
             f"{settings.USDA_BASE_URL}/foods/search",
-            params={
+            params={"api_key": settings.USDA_API_KEY},
+            json={
                 "query":    query,
                 "pageSize": limit,
-                "api_key":  settings.USDA_API_KEY,
-                "dataType": "Foundation,SR Legacy,Branded",
+                "dataType": ["Foundation", "SR Legacy", "Branded"],
             },
         )
         resp.raise_for_status()
