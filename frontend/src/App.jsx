@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { format, addDays, subDays } from "date-fns";
-import { CalendarDays, BookOpen, Plus, Camera, Search, Utensils, Sparkles, Menu, BarChart2, Sliders, Download, X, ScanLine } from "lucide-react";
+import { CalendarDays, BookOpen, Plus, Camera, Search, Utensils, Sparkles, Menu, BarChart2, Sliders, Download, LogOut, X, ScanLine } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import LibraryPage from "./pages/LibraryPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -11,6 +11,8 @@ import CalendarPicker from "./components/CalendarPicker";
 import SettingsModal from "./components/SettingsModal";
 import EstimateMealModal from "./components/EstimateMealModal";
 import ExportModal from "./components/ExportModal";
+import LoginScreen from "./components/LoginScreen";
+import { authApi, clearToken } from "./api/client";
 
 const TABS = [
   { id: "today",   label: "Today",   Icon: CalendarDays },
@@ -34,7 +36,17 @@ export default function App() {
   const [showEstimate, setShowEstimate] = useState(false);
   const [showExport, setShowExport]     = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
+  const [authState, setAuthState] = useState("checking");  // checking | locked | open
   const menuRef = useRef(null);
+
+  // Is a password configured, and is our stored token still valid?
+  const checkAuth = () => {
+    authApi.status()
+      .then((r) => setAuthState(r.data.authenticated ? "open" : "locked"))
+      // If the check itself fails, don't lock the user out of their own data.
+      .catch(() => setAuthState("open"));
+  };
+  useEffect(checkAuth, []);
 
   // Apply theme to <html> and persist
   useEffect(() => {
@@ -57,6 +69,13 @@ export default function App() {
   const goForward = () => setCurrentDate(d => addDays(d, 1));
   const isToday   = format(currentDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
   const dateStr   = format(currentDate, "yyyy-MM-dd");
+
+  if (authState === "checking") {
+    return <div className="min-h-screen bg-surface" />;   // brief blank, avoids login flash
+  }
+  if (authState === "locked") {
+    return <LoginScreen onSuccess={() => setAuthState("open")} />;
+  }
 
   return (
     <div className="relative overflow-x-hidden min-h-screen w-full max-w-md mx-auto bg-surface">
@@ -131,6 +150,13 @@ export default function App() {
                 >
                   <Download size={15} className="text-accent-blue shrink-0" />
                   Export Data
+                </button>
+                <button
+                  onClick={() => { clearToken(); window.location.reload(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-surface-2 transition-colors border-t border-surface-3"
+                >
+                  <LogOut size={15} className="text-muted shrink-0" />
+                  Sign Out
                 </button>
               </div>
             )}

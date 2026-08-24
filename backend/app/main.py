@@ -9,7 +9,7 @@ import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -19,7 +19,8 @@ from sqlalchemy import text
 
 from app.config import get_settings
 from app.database import Base, engine
-from app.routers import foods, meals, recipes, vision, suggest, api_keys, export
+from app.routers import foods, meals, recipes, vision, suggest, api_keys, export, auth as auth_router
+from app.auth import require_auth, auth_enabled
 
 settings = get_settings()
 
@@ -187,13 +188,18 @@ app.add_middleware(
 )
 
 # ── API Routers ───────────────────────────────────────────────────────────────
-app.include_router(foods.router,    prefix="/api/v1")
-app.include_router(meals.router,    prefix="/api/v1")
-app.include_router(recipes.router,  prefix="/api/v1")
-app.include_router(vision.router,   prefix="/api/v1")
-app.include_router(suggest.router,  prefix="/api/v1")
-app.include_router(api_keys.router, prefix="/api/v1")
-app.include_router(export.router,   prefix="/api/v1")
+# /auth is intentionally open — it's how you obtain a token.
+app.include_router(auth_router.router, prefix="/api/v1")
+
+# Everything else requires a valid token (no-op until APP_PASSWORD is set).
+_gated = [Depends(require_auth)]
+app.include_router(foods.router,    prefix="/api/v1", dependencies=_gated)
+app.include_router(meals.router,    prefix="/api/v1", dependencies=_gated)
+app.include_router(recipes.router,  prefix="/api/v1", dependencies=_gated)
+app.include_router(vision.router,   prefix="/api/v1", dependencies=_gated)
+app.include_router(suggest.router,  prefix="/api/v1", dependencies=_gated)
+app.include_router(api_keys.router, prefix="/api/v1", dependencies=_gated)
+app.include_router(export.router,   prefix="/api/v1", dependencies=_gated)
 
 
 # ── Health check ─────────────────────────────────────────────────────────────

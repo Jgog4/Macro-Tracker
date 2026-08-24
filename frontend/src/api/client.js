@@ -11,6 +11,36 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// ── Auth ─────────────────────────────────────────────────────────────────────
+const TOKEN_KEY = "mt_token";
+export const getToken   = ()  => localStorage.getItem(TOKEN_KEY) || "";
+export const setToken   = (t) => localStorage.setItem(TOKEN_KEY, t);
+export const clearToken = ()  => localStorage.removeItem(TOKEN_KEY);
+
+// Attach the token to every request.
+api.interceptors.request.use((config) => {
+  const t = getToken();
+  if (t) config.headers.Authorization = `Bearer ${t}`;
+  return config;
+});
+
+// If the token is rejected, drop it and bounce back to the login screen.
+api.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    if (err.response?.status === 401 && getToken()) {
+      clearToken();
+      window.location.reload();
+    }
+    return Promise.reject(err);
+  }
+);
+
+export const authApi = {
+  status: ()         => api.get("/auth/status", { params: { token: getToken() } }),
+  login:  (password) => api.post("/auth/login", { password }),
+};
+
 // ── Foods ────────────────────────────────────────────────────────────────────
 export const foodsApi = {
   list:           (source)             => api.get("/foods/",               { params: source ? { source } : {} }),

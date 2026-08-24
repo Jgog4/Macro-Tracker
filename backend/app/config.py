@@ -11,6 +11,9 @@ class Settings(BaseSettings):
 
     # ── Security ──────────────────────────────────────────────────────────────
     SECRET_KEY: str = "dev-secret-change-in-prod"
+    # Single shared password gating the whole API.
+    # Empty = auth DISABLED (so a deploy can't lock you out before it's set).
+    APP_PASSWORD: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
 
