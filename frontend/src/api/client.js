@@ -92,6 +92,7 @@ export const visionApi = {
 export const micronutrientsApi = {
   // start / end are "yyyy-MM-dd" strings
   getRange:     (start, end) => api.get("/meals/micronutrients", { params: { start, end } }),
+  getSources:   (nutrient, start, end) => api.get("/meals/nutrient-sources", { params: { nutrient, start, end } }),
   dailySeries:  (start, end) => api.get("/meals/daily-series",   { params: { start, end } }),
   nutrientSeries: (start, end) => api.get("/meals/nutrient-series", { params: { start, end } }),
 };

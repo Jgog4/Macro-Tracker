@@ -8,10 +8,11 @@
  * RDV reference values are standard adult male FDA Daily Values.
  */
 import { useState, useEffect, useCallback } from "react";
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { ChevronDown, ChevronUp, FlaskConical, Loader2 } from "lucide-react";
 import { micronutrientsApi } from "../api/client";
 import { RDV, GROUPS, formatNutrientValue } from "../constants/nutrientConfig";
+import { ModalShell } from "./AddFoodModal";
 
 // ── Period helpers ─────────────────────────────────────────────────────────
 function getPeriodRange(currentDate, period) {
@@ -41,6 +42,7 @@ export default function MicronutrientPanel({ currentDate }) {
   const [loading, setLoading] = useState(false);
   const [error, setError]   = useState(null);
   const [openGroups, setOpenGroups] = useState({ vitamins: true });
+  const [selectedNutrient, setSelectedNutrient] = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -67,6 +69,7 @@ export default function MicronutrientPanel({ currentDate }) {
   const values = data
     ? (period === "day" ? data.totals : data.daily_avg)
     : null;
+  const range = getPeriodRange(currentDate, period);
 
   return (
     <div className="card-no-pad">
@@ -128,18 +131,29 @@ export default function MicronutrientPanel({ currentDate }) {
                   values={values}
                   isOpen={!!openGroups[group.key]}
                   onToggle={() => toggleGroup(group.key)}
+                  onSelectNutrient={setSelectedNutrient}
                 />
               ))}
             </div>
           ) : null}
         </div>
       )}
+      {selectedNutrient && (
+        <NutrientSourcesModal
+          nutrient={selectedNutrient}
+          start={range.start}
+          end={range.end}
+          period={period}
+          currentDate={currentDate}
+          onClose={() => setSelectedNutrient(null)}
+        />
+      )}
     </div>
   );
 }
 
 // ── Nutrient group collapsible ─────────────────────────────────────────────
-function NutrientGroup({ group, values, isOpen, onToggle }) {
+function NutrientGroup({ group, values, isOpen, onToggle, onSelectNutrient }) {
   // Count how many items in this group have actual data
   const withData = group.items.filter(i => values?.[i.key] != null).length;
 
@@ -173,6 +187,7 @@ function NutrientGroup({ group, values, isOpen, onToggle }) {
               value={values?.[item.key] ?? null}
               rdv={RDV[item.key] ?? null}
               color={group.color}
+              onClick={() => onSelectNutrient(item)}
             />
           ))}
         </div>
@@ -182,16 +197,21 @@ function NutrientGroup({ group, values, isOpen, onToggle }) {
 }
 
 // ── Individual nutrient row ───────────────────────────────────────────────
-function NutrientRow({ label, unit, value, rdv, color }) {
+function NutrientRow({ label, unit, value, rdv, color, onClick }) {
   const hasData = value != null;
   const pct     = hasData && rdv ? Math.min(100, (value / rdv) * 100) : 0;
 
   const formatVal = formatNutrientValue;
 
   return (
-    <div className="flex flex-col gap-0.5">
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex flex-col gap-0.5 rounded-lg -mx-1 px-1 py-1 text-left hover:bg-surface-2 active:bg-surface-3 transition-colors"
+      aria-label={`View ${label} sources`}
+    >
       <div className="flex items-center justify-between">
-        <span className="text-xs text-foreground">{label}</span>
+        <span className="text-xs text-foreground">{label} <span className="text-[10px] text-muted">Sources</span></span>
         <span className={`text-xs font-mono ${hasData ? "text-foreground" : "text-muted/50"}`}>
           {hasData ? `${formatVal(value)} ${unit}` : "—"}
           {hasData && rdv && (
@@ -217,6 +237,78 @@ function NutrientRow({ label, unit, value, rdv, color }) {
         // Thin placeholder line when no data
         <div className="h-1 bg-surface-3 rounded-full opacity-40" />
       )}
-    </div>
+    </button>
+  );
+}
+
+// ── Nutrient-source breakdown ──────────────────────────────────────────────
+function NutrientSourcesModal({ nutrient, start, end, period, currentDate, onClose }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    setData(null); setError(null);
+    micronutrientsApi.getSources(nutrient.key, start, end)
+      .then(res => { if (active) setData(res.data); })
+      .catch(() => { if (active) setError("Could not load nutrient sources"); });
+    return () => { active = false; };
+  }, [nutrient.key, start, end]);
+
+  const periodLabel = period === "day"
+    ? format(currentDate, "MMMM d, yyyy")
+    : `${format(parseISO(start), "MMM d")} – ${format(parseISO(end), "MMM d, yyyy")}`;
+  const divisor = period === "day" ? 1 : (data?.days_with_data || 1);
+  const total = data ? data.total / divisor : null;
+  const sourceRows = data?.sources || [];
+
+  return (
+    <ModalShell onClose={onClose} title={`${nutrient.label} sources`}>
+      <div className="-mt-1">
+        <p className="text-xs text-muted">{periodLabel}</p>
+        {period !== "day" && data && (
+          <p className="text-[11px] text-muted mt-1">Daily average across {data.days_with_data} logged day{data.days_with_data === 1 ? "" : "s"}</p>
+        )}
+      </div>
+
+      {!data && !error ? (
+        <div className="flex justify-center py-10"><Loader2 size={20} className="animate-spin text-muted" /></div>
+      ) : error ? (
+        <p className="text-sm text-accent-red text-center py-8">{error}</p>
+      ) : (
+        <>
+          <div className="rounded-xl bg-surface-2 px-4 py-3 flex items-end justify-between">
+            <span className="text-xs text-muted">{period === "day" ? "Total" : "Daily average"}</span>
+            <span className="font-mono text-lg font-bold text-foreground">{formatNutrientValue(total)} {nutrient.unit}</span>
+          </div>
+          {sourceRows.length ? (
+            <div className="divide-y divide-surface-3">
+              {sourceRows.map((source, index) => {
+                const value = source.value / divisor;
+                const pct = total ? Math.min(100, (value / total) * 100) : 0;
+                return (
+                  <div key={`${source.name}-${source.detail || "direct"}-${index}`} className="py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{source.name}</p>
+                        <p className="text-[11px] text-muted truncate">
+                          {source.detail ? `In ${source.detail} · ` : ""}{formatNutrientValue(source.quantity_g / divisor)} g
+                        </p>
+                      </div>
+                      <span className="font-mono text-sm text-foreground shrink-0">{formatNutrientValue(value)} {nutrient.unit}</span>
+                    </div>
+                    <div className="h-1 mt-2 bg-surface-3 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: "#AF52DE" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted text-center py-8">No logged foods supplied this nutrient in the selected period.</p>
+          )}
+        </>
+      )}
+    </ModalShell>
   );
 }

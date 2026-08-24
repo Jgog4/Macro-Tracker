@@ -430,6 +430,122 @@ async def get_micronutrients(
     )
 
 
+# ── GET /meals/nutrient-sources — foods contributing to one nutrient ────────
+
+@router.get("/nutrient-sources")
+async def get_nutrient_sources(
+    nutrient: str = Query(..., description="Nutrient field name"),
+    start: date_type = Query(..., description="Start date (yyyy-MM-dd)"),
+    end:   date_type = Query(..., description="End date inclusive (yyyy-MM-dd)"),
+    db:    AsyncSession = Depends(get_db),
+):
+    """Return the foods that contributed to one nutrient in a date range.
+
+    Direct foods use their logged item. Recipe foods use their saved component
+    snapshots, so the user can see the specific ingredient inside the recipe
+    that supplied the nutrient.
+    """
+    valid_fields = _SNAPSHOT_FIELDS | set(_MICRO_FIELDS)
+    if nutrient not in valid_fields:
+        raise HTTPException(status_code=400, detail="Unknown nutrient")
+    if (end - start).days > 732:
+        raise HTTPException(status_code=400, detail="Date range cannot exceed 2 years")
+    if end < start:
+        raise HTTPException(status_code=400, detail="end must be >= start")
+
+    user = await _get_or_create_user(db)
+    sources: dict[tuple[str, str | None], dict] = {}
+
+    def add_source(name: str, detail: str | None, quantity_g: float, value: Optional[float]) -> None:
+        if value is None or value == 0:
+            return
+        key = (name, detail)
+        entry = sources.setdefault(key, {
+            "name": name,
+            "detail": detail,
+            "quantity_g": 0.0,
+            "value": 0.0,
+        })
+        entry["quantity_g"] += quantity_g or 0.0
+        entry["value"] += value
+
+    if nutrient in _SNAPSHOT_FIELDS:
+        # These values are frozen on each diary item, including recipe entries.
+        item_result = await db.execute(
+            select(MealLogItem)
+            .join(MealLog, MealLogItem.meal_log_id == MealLog.id)
+            .where(
+                MealLog.user_id == user.id,
+                MealLog.log_date >= start,
+                MealLog.log_date <= end,
+            )
+        )
+        for item in item_result.scalars().all():
+            add_source(item.display_name, None, item.quantity_g, getattr(item, nutrient, None))
+    else:
+        # Direct foods contribute from their nutrient profile at the logged weight.
+        direct_result = await db.execute(
+            select(MealLogItem, Ingredient)
+            .join(MealLog, MealLogItem.meal_log_id == MealLog.id)
+            .join(Ingredient, MealLogItem.ingredient_id == Ingredient.id)
+            .where(
+                MealLog.user_id == user.id,
+                MealLog.log_date >= start,
+                MealLog.log_date <= end,
+                MealLogItem.ingredient_id.isnot(None),
+            )
+        )
+        for item, ingredient in direct_result.all():
+            raw = getattr(ingredient, nutrient, None)
+            base_g = ingredient.serving_size_g or 100.0
+            value = raw * (item.quantity_g / base_g) if raw is not None and base_g else None
+            add_source(item.display_name, None, item.quantity_g, value)
+
+        # Recipe ingredient snapshots retain the recipe context for clarity.
+        component_result = await db.execute(
+            select(MealLogItemComponent, MealLogItem, Ingredient)
+            .join(MealLogItem, MealLogItemComponent.meal_log_item_id == MealLogItem.id)
+            .join(MealLog, MealLogItem.meal_log_id == MealLog.id)
+            .join(Ingredient, MealLogItemComponent.ingredient_id == Ingredient.id)
+            .where(
+                MealLog.user_id == user.id,
+                MealLog.log_date >= start,
+                MealLog.log_date <= end,
+                MealLogItemComponent.ingredient_id.isnot(None),
+            )
+        )
+        for component, item, ingredient in component_result.all():
+            raw = getattr(ingredient, nutrient, None)
+            base_g = ingredient.serving_size_g or 100.0
+            value = raw * (component.quantity_g / base_g) if raw is not None and base_g else None
+            add_source(component.ingredient_name, item.display_name, component.quantity_g, value)
+
+    days_result = await db.execute(
+        select(func.count(func.distinct(MealLog.log_date))).where(
+            MealLog.user_id == user.id,
+            MealLog.log_date >= start,
+            MealLog.log_date <= end,
+        )
+    )
+    days_with_data = days_result.scalar() or 0
+
+    ordered = sorted(sources.values(), key=lambda entry: entry["value"], reverse=True)
+    return {
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
+        "days_with_data": days_with_data,
+        "total": round(sum(entry["value"] for entry in ordered), 4),
+        "sources": [
+            {
+                **entry,
+                "quantity_g": round(entry["quantity_g"], 1),
+                "value": round(entry["value"], 4),
+            }
+            for entry in ordered
+        ],
+    }
+
+
 # ── GET /meals/daily-series — per-day macro totals for charting ───────────────
 
 @router.get("/daily-series")
