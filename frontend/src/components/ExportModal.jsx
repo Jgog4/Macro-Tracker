@@ -10,9 +10,9 @@ import { exportApi } from "../api/client";
 import { ModalShell } from "./AddFoodModal";
 
 const DATASETS = [
-  { key: "food_log",           label: "Food log",          desc: "Every item you've logged — one row each" },
-  { key: "daily_totals",       label: "Daily totals",      desc: "One row per day: calories and macros" },
-  { key: "foods",              label: "Food library",      desc: "My Foods + restaurant items, full nutrition" },
+  { key: "food_log",           label: "Food log",          desc: "Every item logged — macros + all 85 micronutrients" },
+  { key: "daily_totals",       label: "Daily totals",      desc: "One row per day — macros + all 85 micronutrients" },
+  { key: "foods",              label: "Food library",      desc: "My Foods + restaurant items, complete nutrition" },
   { key: "recipes",            label: "Recipes",           desc: "Recipe totals and serving sizes" },
   { key: "recipe_ingredients", label: "Recipe components", desc: "What's in each recipe" },
   { key: "targets",            label: "Macro targets",     desc: "Your calorie and macro goals" },
