@@ -20,7 +20,7 @@ from sqlalchemy import text
 from app.config import get_settings
 from app.database import Base, engine
 from app.routers import foods, meals, recipes, vision, suggest, api_keys, export, auth as auth_router
-from app.auth import require_auth, auth_enabled
+from app.auth import require_auth
 
 settings = get_settings()
 
