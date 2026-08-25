@@ -8,6 +8,13 @@ the USDA match is unambiguous.
 Usage:
     railway run python3 -m scripts.enrich_micros          # review changes
     railway run python3 -m scripts.enrich_micros --apply  # write only blanks
+    railway run python3 -m scripts.enrich_micros --all-usda --apply
+
+``--all-usda`` also processes every library food that already has a USDA FDC
+identifier. Those IDs are an exact provenance link, so they are safe to
+backfill automatically. Foods without an FDC ID remain review-only until we
+can make an unambiguous food-specific match; this avoids assigning generic
+nutrition to a branded product that only looks similar.
 """
 import asyncio
 import os
@@ -88,23 +95,41 @@ async def fetch_usda(client: httpx.AsyncClient, fdc_id: int) -> dict:
 
 async def main() -> None:
     apply = "--apply" in sys.argv
+    include_all_usda = "--all-usda" in sys.argv
     if not os.environ.get("USDA_API_KEY"):
         raise RuntimeError("USDA_API_KEY is required")
 
     conn = await asyncpg.connect(os.environ["DATABASE_URL"])
-    rows = await conn.fetch(
+    manual_rows = await conn.fetch(
         "SELECT * FROM mt_ingredients WHERE name = ANY($1::text[])",
         list(USDA_MATCHES),
     )
-    by_name = {row["name"]: row for row in rows}
+    targets: list[tuple[asyncpg.Record, int, str]] = []
+    seen_ids: set[str] = set()
+    for row in manual_rows:
+        fdc_id = USDA_MATCHES[row["name"]]
+        targets.append((row, fdc_id, "reviewed match"))
+        seen_ids.add(str(row["id"]))
+
+    if include_all_usda:
+        # These foods were imported from this exact FDC record, so no name
+        # matching or macro replacement is involved.
+        linked_rows = await conn.fetch(
+            "SELECT * FROM mt_ingredients WHERE usda_fdc_id IS NOT NULL"
+        )
+        for row in linked_rows:
+            if str(row["id"]) not in seen_ids:
+                targets.append((row, row["usda_fdc_id"], "linked FDC record"))
+                seen_ids.add(str(row["id"]))
+
+    if not targets:
+        print("No matching ingredients found.")
+        await conn.close()
+        return
 
     async with httpx.AsyncClient(timeout=20.0) as client:
-        for name, fdc_id in USDA_MATCHES.items():
-            row = by_name.get(name)
-            if not row:
-                print(f"SKIP  {name} (not in database)")
-                continue
-
+        for row, fdc_id, match_kind in targets:
+            name = row["name"]
             food = await fetch_usda(client, fdc_id)
             per_100g = nutrient_values(food)
             scale = (row["serving_size_g"] or 100.0) / 100.0
@@ -116,7 +141,8 @@ async def main() -> None:
             choline = additions.get("choline_mg")
             print(
                 f"{'APPLY' if apply else 'REVIEW'} {name} ← {food.get('description')} "
-                f"| {len(additions)} missing fields | choline +{choline if choline is not None else 0:g} mg"
+                f"({match_kind}) | {len(additions)} missing fields "
+                f"| choline +{choline if choline is not None else 0:g} mg"
             )
             if not apply or not additions:
                 continue
