@@ -18,6 +18,10 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
   const [editQty, setEditQty]       = useState("");
   const [editMeal, setEditMeal]     = useState("");
   const [saving, setSaving]         = useState(null);
+  const [editingComponent, setEditingComponent] = useState(null);
+  const [componentQty, setComponentQty] = useState("");
+  const [savingComponent, setSavingComponent] = useState(null);
+  const [deletingComponent, setDeletingComponent] = useState(null);
   const [savingRecipe, setSavingRecipe] = useState(false);
   const [recipePrompt, setRecipePrompt] = useState(false);
   const [recipeName, setRecipeName]     = useState("");
@@ -61,6 +65,38 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
     }
     catch (e) { console.error(e); }
     finally { setSaving(null); }
+  };
+
+  const startComponentEdit = (item, component) => {
+    setEditingComponent({ itemId: item.id, componentId: component.id });
+    setComponentQty(String(component.quantity_g));
+  };
+
+  const cancelComponentEdit = () => {
+    setEditingComponent(null);
+    setComponentQty("");
+  };
+
+  const handleSaveComponent = async (itemId, componentId) => {
+    const qty = parseFloat(componentQty);
+    if (!qty || qty <= 0) return;
+    setSavingComponent(componentId);
+    try {
+      await mealsApi.updateComponent(itemId, componentId, { quantity_g: qty });
+      cancelComponentEdit();
+      onRefresh();
+    } catch (e) { console.error(e); }
+    finally { setSavingComponent(null); }
+  };
+
+  const handleDeleteComponent = async (itemId, componentId) => {
+    setDeletingComponent(componentId);
+    try {
+      await mealsApi.deleteComponent(itemId, componentId);
+      if (editingComponent?.componentId === componentId) cancelComponentEdit();
+      onRefresh();
+    } catch (e) { console.error(e); }
+    finally { setDeletingComponent(null); }
   };
 
   const handleSaveAsRecipe = async () => {
@@ -226,15 +262,44 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
                   {item.recipe_id && expandedItems[item.id] && item.components?.length > 0 && (
                     <div className="bg-surface-2 border-t border-surface-3">
                       {item.components.map(comp => (
-                        <div key={comp.id}
-                          className="flex items-center justify-between px-4 py-1.5 border-b border-surface-3 last:border-0">
+                        <div key={comp.id} className="flex items-center justify-between gap-2 px-4 py-1.5 border-b border-surface-3 last:border-0">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             <span className="text-muted/40 text-xs shrink-0 select-none">└</span>
                             <p className="text-xs text-subtle truncate">{comp.ingredient_name}</p>
                           </div>
-                          <p className="text-[11px] font-mono text-muted shrink-0 ml-2">
-                            {comp.quantity_g.toFixed(1)}g
-                          </p>
+                          {editingComponent?.componentId === comp.id ? (
+                            <div className="flex items-center gap-1 shrink-0">
+                              <input
+                                type="number"
+                                value={componentQty}
+                                onChange={e => setComponentQty(e.target.value)}
+                                className="input w-16 py-0.5 px-1.5 text-xs"
+                                autoFocus min="0.1" step="0.1"
+                                onKeyDown={e => {
+                                  if (e.key === "Enter") handleSaveComponent(item.id, comp.id);
+                                  if (e.key === "Escape") cancelComponentEdit();
+                                }}
+                              />
+                              <span className="text-[10px] text-muted">g</span>
+                              <button onClick={() => handleSaveComponent(item.id, comp.id)} disabled={savingComponent === comp.id}
+                                className="p-1 rounded text-accent-green hover:bg-green-50">
+                                {savingComponent === comp.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                              </button>
+                              <button onClick={cancelComponentEdit} className="p-1 rounded text-muted hover:bg-surface-3"><X size={12} /></button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              <button onClick={() => startComponentEdit(item, comp)}
+                                className="flex items-center gap-1 py-0.5 px-1 rounded hover:bg-surface-3 text-muted hover:text-accent-blue">
+                                <span className="text-[11px] font-mono">{comp.quantity_g.toFixed(1)}g</span>
+                                <Pencil size={10} />
+                              </button>
+                              <button onClick={() => handleDeleteComponent(item.id, comp.id)} disabled={deletingComponent === comp.id}
+                                className="p-1 rounded text-muted hover:text-accent-red hover:bg-red-50">
+                                {deletingComponent === comp.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

@@ -38,7 +38,7 @@ from app.models.models import (
     DailyTarget, User,
 )
 from app.schemas.schemas import (
-    MealLogCreate, MealLogRead, MealLogItemRead, MealLogItemUpdate, MealCopyRequest,
+    MealLogCreate, MealLogRead, MealLogItemRead, MealLogItemUpdate, MealLogItemComponentUpdate, MealCopyRequest,
     DailyTargetCreate, DailyTargetRead, DailySummaryRead, MacroStat,
     MicronutrientSummaryRead, MicronutrientTotals,
 )
@@ -87,6 +87,46 @@ def _scale_macros(item: Ingredient | Recipe, qty_g: float) -> dict:
         "sodium_mg":      round((item.sodium_mg      or 0) * ratio, 2),
         "cholesterol_mg": round((item.cholesterol_mg or 0) * ratio, 2),
     }
+
+
+async def _recalculate_meal_totals(db: AsyncSession, meal_id: str) -> None:
+    """Refresh the cached totals stored on a meal after one of its items changes."""
+    result = await db.execute(select(MealLogItem).where(MealLogItem.meal_log_id == meal_id))
+    items = result.scalars().all()
+    meal = await db.get(MealLog, meal_id)
+    if not meal:
+        return
+    meal.total_calories       = round(sum(i.calories       for i in items), 2)
+    meal.total_protein_g      = round(sum(i.protein_g      for i in items), 2)
+    meal.total_fat_g          = round(sum(i.fat_g          for i in items), 2)
+    meal.total_carbs_g        = round(sum(i.carbs_g        for i in items), 2)
+    meal.total_sodium_mg      = round(sum(i.sodium_mg      for i in items), 2)
+    meal.total_cholesterol_mg = round(sum(i.cholesterol_mg for i in items), 2)
+
+
+async def _recalculate_recipe_item_from_components(db: AsyncSession, item: MealLogItem) -> None:
+    """Rebuild a logged recipe's macro snapshot from its per-day component snapshots."""
+    result = await db.execute(
+        select(MealLogItemComponent, Ingredient)
+        .outerjoin(Ingredient, MealLogItemComponent.ingredient_id == Ingredient.id)
+        .where(MealLogItemComponent.meal_log_item_id == item.id)
+    )
+    totals = {field: 0.0 for field in _SNAPSHOT_FIELDS}
+    total_weight_g = 0.0
+    for component, ingredient in result.all():
+        total_weight_g += component.quantity_g
+        # Components normally retain an ingredient id. If its library food was
+        # deleted later, retain its existing historical contribution rather than
+        # inventing replacement nutrition data.
+        if not ingredient:
+            continue
+        macros = _scale_macros(ingredient, component.quantity_g)
+        for field, value in macros.items():
+            totals[field] += value
+
+    item.quantity_g = round(total_weight_g, 2)
+    for field, value in totals.items():
+        setattr(item, field, round(value, 2))
 
 
 def _add_micro(totals: dict, field: str, value: Optional[float]) -> None:
@@ -789,6 +829,65 @@ async def update_log_item(
     await db.flush()
     await db.refresh(item)
     return item
+
+
+# ── PATCH / DELETE a logged recipe component ─────────────────────────────────
+
+@router.patch("/items/{item_id}/components/{component_id}", response_model=MealLogItemRead)
+async def update_logged_recipe_component(
+    item_id: str,
+    component_id: str,
+    body: MealLogItemComponentUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Change one ingredient for this logged recipe without editing the saved recipe."""
+    item = await db.get(MealLogItem, item_id, options=[selectinload(MealLogItem.components)])
+    if not item or not item.recipe_id:
+        raise HTTPException(status_code=404, detail="Logged recipe not found")
+
+    component = next((c for c in item.components if c.id == component_id), None)
+    if not component:
+        raise HTTPException(status_code=404, detail="Recipe ingredient not found")
+
+    component.quantity_g = body.quantity_g
+    await db.flush()
+    await _recalculate_recipe_item_from_components(db, item)
+    await db.flush()
+    await _recalculate_meal_totals(db, item.meal_log_id)
+    await db.flush()
+    await db.refresh(item, attribute_names=["components"])
+    return item
+
+
+@router.delete("/items/{item_id}/components/{component_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_logged_recipe_component(
+    item_id: str,
+    component_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Omit one ingredient from this day's recipe entry only."""
+    item = await db.get(MealLogItem, item_id, options=[selectinload(MealLogItem.components)])
+    if not item or not item.recipe_id:
+        raise HTTPException(status_code=404, detail="Logged recipe not found")
+
+    component = next((c for c in item.components if c.id == component_id), None)
+    if not component:
+        raise HTTPException(status_code=404, detail="Recipe ingredient not found")
+
+    meal_id = item.meal_log_id
+    await db.delete(component)
+    await db.flush()
+
+    remaining = await db.execute(
+        select(MealLogItemComponent).where(MealLogItemComponent.meal_log_item_id == item.id)
+    )
+    if not remaining.scalars().first():
+        # A recipe with no components is not a useful diary entry.
+        await db.delete(item)
+    else:
+        await _recalculate_recipe_item_from_components(db, item)
+    await db.flush()
+    await _recalculate_meal_totals(db, meal_id)
 
 
 # ── DELETE a meal log item ────────────────────────────────────────────────────

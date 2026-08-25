@@ -268,6 +268,11 @@ class MealLogItemUpdate(BaseModel):
     meal_number: Optional[int] = None   # if set, moves item to this meal number
 
 
+class MealLogItemComponentUpdate(BaseModel):
+    """An adjustment to one ingredient in a logged recipe only."""
+    quantity_g: float = Field(..., gt=0)
+
+
 class MealCopyRequest(BaseModel):
     target_date:        date
     target_meal_number: int
