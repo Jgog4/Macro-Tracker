@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { format, addDays, subDays } from "date-fns";
-import { CalendarDays, BookOpen, Plus, Camera, Search, Utensils, Sparkles, Menu, BarChart2, Sliders, Download, LogOut, X, ScanLine } from "lucide-react";
+import { CalendarDays, BookOpen, Plus, Camera, Search, Utensils, Sparkles, Menu, BarChart2, Sliders, Download, LogOut, UserCircle, X, ScanLine } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import LibraryPage from "./pages/LibraryPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -11,6 +11,7 @@ import CalendarPicker from "./components/CalendarPicker";
 import SettingsModal from "./components/SettingsModal";
 import EstimateMealModal from "./components/EstimateMealModal";
 import ExportModal from "./components/ExportModal";
+import AccountModal from "./components/AccountModal";
 import LoginScreen from "./components/LoginScreen";
 import { authApi, clearToken } from "./api/client";
 
@@ -35,6 +36,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showEstimate, setShowEstimate] = useState(false);
   const [showExport, setShowExport]     = useState(false);
+  const [showAccount, setShowAccount]   = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
   const [authState, setAuthState] = useState("checking");  // checking | locked | open
   const menuRef = useRef(null);
@@ -150,6 +152,13 @@ export default function App() {
                 >
                   <Download size={15} className="text-accent-blue shrink-0" />
                   Export Data
+                </button>
+                <button
+                  onClick={() => { setShowMenu(false); setShowAccount(true); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-surface-2 transition-colors border-t border-surface-3"
+                >
+                  <UserCircle size={15} className="text-accent-blue shrink-0" />
+                  My Account
                 </button>
                 <button
                   onClick={() => { clearToken(); window.location.reload(); }}
@@ -358,6 +367,10 @@ export default function App() {
           onClose={() => setShowEstimate(false)}
           onLogged={() => { setShowEstimate(false); setDashboardKey(k => k + 1); }}
         />
+      )}
+
+      {showAccount && (
+        <AccountModal onClose={() => setShowAccount(false)} />
       )}
 
       {showExport && (

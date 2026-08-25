@@ -49,6 +49,9 @@ class User(Base):
     id:         Mapped[str]      = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     email:      Mapped[str]      = mapped_column(String(255), unique=True, nullable=False)
     name:       Mapped[str]      = mapped_column(String(255), nullable=True)
+    # PBKDF2 hash of the app password — set/changed from My Account, never plaintext.
+    password_hash:       Mapped[str | None]      = mapped_column(String(255))
+    password_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     targets:   Mapped[list["DailyTarget"]] = relationship("DailyTarget", back_populates="user", cascade="all, delete-orphan")

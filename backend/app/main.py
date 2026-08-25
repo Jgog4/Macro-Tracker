@@ -132,6 +132,10 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS alcohol_g               FLOAT",
                 "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS beta_hydroxybutyrate_g  FLOAT",
 
+                # ── Account / auth ──
+                "ALTER TABLE mt_users ADD COLUMN IF NOT EXISTS password_hash       VARCHAR(255)",
+                "ALTER TABLE mt_users ADD COLUMN IF NOT EXISTS password_updated_at TIMESTAMPTZ",
+
                 # ── Recipe columns ──
                 "ALTER TABLE mt_recipes ADD COLUMN IF NOT EXISTS num_servings INTEGER NOT NULL DEFAULT 1",
             ]

@@ -37,8 +37,10 @@ api.interceptors.response.use(
 );
 
 export const authApi = {
-  status: ()         => api.get("/auth/status", { params: { token: getToken() } }),
+  status: ()         => api.get("/auth/status"),
   login:  (password) => api.post("/auth/login", { password }),
+  setPassword: (new_password, current_password) =>
+    api.post("/auth/password", { new_password, current_password: current_password || null }),
 };
 
 // ── Foods ────────────────────────────────────────────────────────────────────
