@@ -35,6 +35,11 @@ USDA_MATCHES = {
     "Egg, Whole, Raw, Fresh": 171287,       # Egg, whole, raw, fresh
     "Egg, Raw": 171287,
     "Egg Yolk, Raw": 172184,                # Egg, yolk, raw, fresh
+    # Reviewed against the app's per-100 g macro profile by
+    # audit_micronutrient_matches.py on 2026-08-25.
+    "Rice, White, Long-Grain, Regular, Enriched, Cooked": 168878,
+    "Honey": 169640,
+    "Butter, Salted": 173410,
 }
 
 # USDA nutrient ID → the app's micronutrient column.  Core macros are excluded
