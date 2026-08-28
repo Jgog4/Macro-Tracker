@@ -40,34 +40,45 @@ USDA_MATCHES = {
     "Rice, White, Long-Grain, Regular, Enriched, Cooked": 168878,
     "Honey": 169640,
     "Butter, Salted": 173410,
+    # Product labels preserve calories/macros; this reviewed generic cured-dried
+    # beef record supplies only nutrition fields that the labels do not report.
+    "BRESAOLA": 170604,                  # Beef, cured, dried
+    "BRESAOLA DRY-CURED BEEF, BRESAOLA": 170604,
+    "Dal salumiere Bresaola": 170604,
 }
 
-# USDA nutrient ID → the app's micronutrient column.  Core macros are excluded
-# on purpose: package/Cronometer macro values remain the source of truth.
+# USDA nutrient ID → Ingredient field. The script is intentionally standalone:
+# `railway run` executes with the local macOS Python 3.9, while the web app runs
+# in Python 3.12. Core fields are still protected by COALESCE below.
 NUTRIENT_MAP = {
-    1079: "fiber_g", 1082: "soluble_fiber_g", 1084: "insoluble_fiber_g",
-    1085: "monounsaturated_fat_g", 1086: "polyunsaturated_fat_g",
-    1092: "potassium_mg", 1096: "chromium_mcg", 1098: "copper_mg",
-    1099: "fluoride_mg", 1100: "iodine_mcg", 1101: "manganese_mg",
-    1102: "molybdenum_mcg", 1103: "selenium_mcg", 1105: "retinol_mcg",
-    1106: "vitamin_a_mcg", 1107: "beta_carotene_mcg", 1108: "alpha_carotene_mcg",
-    1109: "vitamin_e_mg", 1120: "beta_cryptoxanthin_mcg",
-    1121: "lycopene_mcg", 1122: "lutein_zeaxanthin_mcg",
-    1123: "beta_tocopherol_mg", 1124: "gamma_tocopherol_mg",
-    1125: "delta_tocopherol_mg", 1162: "vitamin_c_mg",
-    1165: "thiamine_mg", 1166: "riboflavin_mg", 1167: "niacin_mg",
-    1170: "pantothenic_acid_mg", 1175: "pyridoxine_mg",
-    1177: "folate_mcg", 1178: "cobalamin_mcg", 1180: "choline_mg",
-    1183: "vitamin_k_mcg", 1185: "phytosterol_mg", 1187: "folate_mcg",
-    1210: "tryptophan_g", 1211: "threonine_g", 1212: "isoleucine_g",
-    1213: "leucine_g", 1214: "lysine_g", 1215: "methionine_g",
-    1216: "cystine_g", 1217: "phenylalanine_g", 1218: "tyrosine_g",
-    1219: "valine_g", 1220: "arginine_g", 1221: "histidine_g",
+    1008: "calories", 1003: "protein_g", 1004: "fat_g", 1005: "carbs_g",
+    1093: "sodium_mg", 1253: "cholesterol_mg", 1258: "sat_fat_g",
+    1072: "trans_fat_g", 1257: "trans_fat_g", 1079: "fiber_g",
+    1009: "sugar_g", 2000: "sugar_g", 1092: "potassium_mg",
+    1106: "vitamin_a_mcg", 1162: "vitamin_c_mg", 1410: "vitamin_d_mcg",
+    1109: "vitamin_e_mg", 1183: "vitamin_k_mcg", 1165: "thiamine_mg",
+    1166: "riboflavin_mg", 1167: "niacin_mg", 1170: "pantothenic_acid_mg",
+    1175: "pyridoxine_mg", 1178: "cobalamin_mcg", 1229: "biotin_mcg",
+    1187: "folate_mcg", 1177: "folate_mcg", 1180: "choline_mg",
+    1105: "retinol_mcg", 1108: "alpha_carotene_mcg", 1107: "beta_carotene_mcg",
+    1120: "beta_cryptoxanthin_mcg", 1122: "lutein_zeaxanthin_mcg",
+    1121: "lycopene_mcg", 1123: "beta_tocopherol_mg", 1124: "gamma_tocopherol_mg",
+    1125: "delta_tocopherol_mg", 1087: "calcium_mg", 1089: "iron_mg",
+    1090: "magnesium_mg", 1091: "phosphorus_mg", 1095: "zinc_mg",
+    1098: "copper_mg", 1101: "manganese_mg", 1103: "selenium_mcg",
+    1096: "chromium_mcg", 1100: "iodine_mcg", 1102: "molybdenum_mcg",
+    1099: "fluoride_mg", 1085: "monounsaturated_fat_g",
+    1086: "polyunsaturated_fat_g", 1278: "omega3_ala_g", 1404: "omega3_epa_g",
+    1405: "omega3_dha_g", 1292: "omega6_la_g", 1316: "omega6_aa_g",
+    1185: "phytosterol_mg", 1082: "soluble_fiber_g", 1084: "insoluble_fiber_g",
+    1012: "fructose_g", 1015: "galactose_g", 1011: "glucose_g", 1013: "lactose_g",
+    1014: "maltose_g", 1010: "sucrose_g", 1057: "caffeine_mg", 1051: "water_g",
+    1007: "ash_g", 1059: "alcohol_g", 1210: "tryptophan_g", 1211: "threonine_g",
+    1212: "isoleucine_g", 1213: "leucine_g", 1214: "lysine_g",
+    1215: "methionine_g", 1216: "cystine_g", 1217: "phenylalanine_g",
+    1218: "tyrosine_g", 1219: "valine_g", 1220: "arginine_g", 1221: "histidine_g",
     1222: "alanine_g", 1223: "aspartic_acid_g", 1224: "glutamic_acid_g",
-    1225: "glycine_g", 1226: "proline_g", 1227: "serine_g",
-    1228: "hydroxyproline_g", 1229: "biotin_mcg", 1278: "omega3_ala_g",
-    1292: "omega6_la_g", 1316: "omega6_aa_g", 1404: "omega3_epa_g",
-    1405: "omega3_dha_g", 1410: "vitamin_d_mcg",
+    1225: "glycine_g", 1226: "proline_g", 1227: "serine_g", 1228: "hydroxyproline_g",
 }
 
 
