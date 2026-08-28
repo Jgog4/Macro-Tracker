@@ -21,6 +21,7 @@ from app.services.vision_ocr import (
     refine_meal_estimate,
     analyze_recipe_url,
 )
+from app.services.nutrient_completion import complete_missing_micros
 from pydantic import BaseModel as _BaseModel
 
 router = APIRouter(prefix="/vision", tags=["Vision / OCR"])
@@ -109,6 +110,8 @@ async def extract_and_save(
            if k not in ("calories", "protein_g", "fat_g", "carbs_g", "serving_size_g")},
     )
     db.add(ingredient)
+    await db.flush()
+    await complete_missing_micros(ingredient)
     await db.flush()
     return ingredient
 
@@ -238,6 +241,8 @@ async def estimate_from_ingredients(
     )
     db.add(ingredient)
     await db.flush()
+    await complete_missing_micros(ingredient)
+    await db.flush()
     return ingredient
 
 
@@ -327,6 +332,8 @@ async def analyze_from_url(
            if k not in ("calories", "protein_g", "fat_g", "carbs_g", "serving_size_g")},
     )
     db.add(ingredient)
+    await db.flush()
+    await complete_missing_micros(ingredient)
     await db.flush()
     return ingredient
 

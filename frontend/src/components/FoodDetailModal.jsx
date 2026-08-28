@@ -17,6 +17,15 @@ const SOURCE_LABEL = {
   personal:   "Personal",
   usda:       "USDA",
   restaurant: "Restaurant",
+  barcode:    "Barcode",
+  estimated_component: "AI estimate",
+};
+
+const COMPLETION_LABEL = {
+  reference_completed: "Micronutrients completed from a USDA reference",
+  reference_no_new_fields: "USDA reference already covered available nutrients",
+  no_safe_reference: "Some micronutrients are unavailable for this food",
+  lookup_unavailable: "Micronutrient reference lookup was unavailable",
 };
 
 // ── Macro definitions for the summary bar ─────────────────────────────────
@@ -80,6 +89,17 @@ export default function FoodDetailModal({ food, onClose, onLog }) {
             {food.brand ? ` · ${food.brand}` : ""}
             {` · ${serving}`}
           </p>
+          {food.micronutrient_completion_status && (
+            <p className={`text-[10px] mt-1 ${
+              food.micronutrient_completion_status === "reference_completed"
+                ? "text-accent-green" : "text-muted"
+            }`}>
+              {COMPLETION_LABEL[food.micronutrient_completion_status]
+                || "Micronutrient coverage recorded"}
+              {food.micronutrient_reference_name
+                ? ` · ${food.micronutrient_reference_name}` : ""}
+            </p>
+          )}
         </div>
       </div>
 

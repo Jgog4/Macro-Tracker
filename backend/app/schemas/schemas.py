@@ -174,6 +174,10 @@ class IngredientRead(IngredientBase):
     id:         str
     source:     str
     usda_fdc_id: Optional[int] = None
+    micronutrient_reference_fdc_id: Optional[int] = None
+    micronutrient_reference_name: Optional[str] = None
+    micronutrient_completion_status: Optional[str] = None
+    micronutrient_completed_at: Optional[datetime] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

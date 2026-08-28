@@ -11,6 +11,7 @@ from app.database import get_db
 from app.models.models import Ingredient, MealLogItem
 from app.schemas.schemas import IngredientCreate, IngredientRead, IngredientUpdate, USDASearchResult
 from app.services.usda import search_usda, import_usda_food
+from app.services.nutrient_completion import complete_missing_micros
 
 router = APIRouter(prefix="/foods", tags=["Foods"])
 
@@ -167,6 +168,8 @@ async def create_ingredient(
     """Manually create a custom ingredient (e.g. from a nutrition label you read yourself)."""
     ingredient = Ingredient(**body.model_dump())
     db.add(ingredient)
+    await db.flush()
+    await complete_missing_micros(ingredient)
     await db.flush()
     return ingredient
 

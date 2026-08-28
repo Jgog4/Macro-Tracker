@@ -225,7 +225,9 @@ def _extract_nutrients(food_data: dict) -> dict:
         )
         if nutrient_id in NUTRIENT_MAP:
             field = NUTRIENT_MAP[nutrient_id]
-            value = n.get("value") or n.get("amount")
+            value = n.get("value")
+            if value is None:
+                value = n.get("amount")
             if value is not None:
                 if field in _MCG_TO_MG_FIELDS:
                     value = value / 1000.0   # mcg → mg

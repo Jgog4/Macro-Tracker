@@ -193,6 +193,13 @@ class Ingredient(Base):
     beta_hydroxybutyrate_g:Mapped[float | None] = mapped_column(Float)
 
     usda_fdc_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
+    # Provenance for a generic USDA profile used only to complete blank
+    # micronutrients on a label/barcode food. It is deliberately separate from
+    # usda_fdc_id, which means the food itself was imported from USDA.
+    micronutrient_reference_fdc_id: Mapped[int | None] = mapped_column(BigInteger)
+    micronutrient_reference_name: Mapped[str | None] = mapped_column(String(500))
+    micronutrient_completion_status: Mapped[str | None] = mapped_column(String(50))
+    micronutrient_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     recipe_id:   Mapped[str | None] = mapped_column(ForeignKey("mt_recipes.id", ondelete="SET NULL"))
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

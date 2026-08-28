@@ -132,6 +132,12 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS alcohol_g               FLOAT",
                 "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS beta_hydroxybutyrate_g  FLOAT",
 
+                # ── Micronutrient completion provenance ──
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS micronutrient_reference_fdc_id BIGINT",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS micronutrient_reference_name VARCHAR(500)",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS micronutrient_completion_status VARCHAR(50)",
+                "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS micronutrient_completed_at TIMESTAMPTZ",
+
                 # ── Account / auth ──
                 "ALTER TABLE mt_users ADD COLUMN IF NOT EXISTS password_hash       VARCHAR(255)",
                 "ALTER TABLE mt_users ADD COLUMN IF NOT EXISTS password_updated_at TIMESTAMPTZ",
