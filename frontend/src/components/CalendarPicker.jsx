@@ -52,7 +52,6 @@ export default function CalendarPicker({ currentDate, onSelect, onClose }) {
   const years = Array.from({ length: 13 }, (_, i) => viewYear - 6 + i);
 
   const handleDayClick = (day) => {
-    if (isAfter(day, today)) return; // no future dates
     onSelect(day);
     onClose();
   };
@@ -82,8 +81,7 @@ export default function CalendarPicker({ currentDate, onSelect, onClose }) {
 
           <button
             onClick={() => setViewMonth(m => addMonths(m, 1))}
-            disabled={isSameMonth(viewMonth, today)}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-2 text-muted disabled:opacity-30">
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-2 text-muted">
             <ChevronRight size={18} />
           </button>
         </div>
@@ -124,17 +122,16 @@ export default function CalendarPicker({ currentDate, onSelect, onClose }) {
             const inMonth  = isSameMonth(day, viewMonth);
             const selected = isSameDay(day, currentDate);
             const isToday  = isSameDay(day, today);
-            const future   = isAfter(day, today);
 
             return (
               <button
                 key={i}
                 onClick={() => handleDayClick(day)}
-                disabled={future || !inMonth}
+                disabled={!inMonth}
                 className={`
                   relative h-9 w-full flex items-center justify-center rounded-full
                   text-sm transition-colors
-                  ${!inMonth || future ? "opacity-0 pointer-events-none" : ""}
+                  ${!inMonth ? "opacity-0 pointer-events-none" : ""}
                   ${selected
                     ? "bg-accent-blue text-white font-semibold"
                     : isToday

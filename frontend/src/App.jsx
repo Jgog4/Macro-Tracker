@@ -110,8 +110,8 @@ export default function App() {
                 className="text-sm font-semibold text-foreground min-w-[90px] text-center hover:text-accent-blue transition-colors">
                 {isToday ? "Today" : format(currentDate, "MMM d")}
               </button>
-              <button onClick={goForward} disabled={isToday}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-muted hover:bg-surface-3 transition-colors disabled:opacity-30 text-lg leading-none">
+              <button onClick={goForward}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-muted hover:bg-surface-3 transition-colors text-lg leading-none">
                 ›
               </button>
             </div>
