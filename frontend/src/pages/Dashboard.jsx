@@ -63,7 +63,12 @@ export default function Dashboard({ currentDate, onOpenAdd, onOpenVision, onEdit
     <div className="flex flex-col gap-3 pt-4">
 
       {/* ── Macro Summary ── */}
-      <MacroSummaryCards summary={summary} loading={loading} onEditTargets={onEditTargets} />
+      <MacroSummaryCards
+        summary={summary}
+        loading={loading}
+        currentDate={currentDate}
+        onEditTargets={onEditTargets}
+      />
 
       {/* ── Quick actions ── */}
       <div className="flex gap-2">

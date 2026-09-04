@@ -2,14 +2,21 @@
  * Daily macro summary — Cronometer-style horizontal progress bars.
  * Energy / Protein / Net Carbs / Fat, each a full-width row with a bar.
  */
+import { useEffect, useState } from "react";
+import { format } from "date-fns";
+import { Loader2 } from "lucide-react";
+import { micronutrientsApi } from "../api/client";
+import { ModalShell } from "./AddFoodModal";
+
 const MACROS = [
-  { key: "energy",    label: "Energy",    unit: "kcal", color: "#FF9500", decimals: 0 },
-  { key: "protein",   label: "Protein",   unit: "g",    color: "#34C759", decimals: 1 },
-  { key: "net_carbs", label: "Net Carbs", unit: "g",    color: "#30B0C7", decimals: 1 },
-  { key: "fat",       label: "Fat",       unit: "g",    color: "#AF52DE", decimals: 1 },
+  { key: "energy",    nutrient: "calories", label: "Energy",    unit: "kcal", color: "#FF9500", decimals: 0 },
+  { key: "protein",   nutrient: "protein_g", label: "Protein",   unit: "g",    color: "#34C759", decimals: 1 },
+  { key: "net_carbs", nutrient: "carbs_g", label: "Net Carbs", unit: "g",    color: "#30B0C7", decimals: 1 },
+  { key: "fat",       nutrient: "fat_g", label: "Fat",       unit: "g",    color: "#AF52DE", decimals: 1 },
 ];
 
-export default function MacroSummaryCards({ summary, loading, onEditTargets }) {
+export default function MacroSummaryCards({ summary, loading, currentDate, onEditTargets }) {
+  const [selectedMacro, setSelectedMacro] = useState(null);
   if (loading) {
     return (
       <div className="card flex flex-col gap-4 animate-pulse">
@@ -38,7 +45,8 @@ export default function MacroSummaryCards({ summary, loading, onEditTargets }) {
         )}
       </div>
 
-      {MACROS.map(({ key, label, unit, color, decimals }) => {
+      {MACROS.map((macro) => {
+        const { key, label, unit, color, decimals } = macro;
         const stat      = summary?.[key];
         const consumed  = stat?.consumed  ?? 0;
         const target    = stat?.target    ?? 1;
@@ -47,7 +55,12 @@ export default function MacroSummaryCards({ summary, loading, onEditTargets }) {
         const over      = pct > 100.5;
 
         return (
-          <div key={key} className="flex flex-col gap-1.5">
+          <button
+            key={key}
+            onClick={() => setSelectedMacro(macro)}
+            className="flex flex-col gap-1.5 text-left rounded-lg -mx-1 px-1 py-0.5 hover:bg-surface-2 transition-colors"
+            aria-label={`View ${label} sources`}
+          >
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-foreground">
                 <span className="font-semibold">{label}</span>
@@ -63,9 +76,77 @@ export default function MacroSummaryCards({ summary, loading, onEditTargets }) {
                 style={{ width: `${clamped}%`, backgroundColor: color }}
               />
             </div>
-          </div>
+          </button>
         );
       })}
+
+      {selectedMacro && currentDate && (
+        <MacroSourcesModal
+          macro={selectedMacro}
+          currentDate={currentDate}
+          onClose={() => setSelectedMacro(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function MacroSourcesModal({ macro, currentDate, onClose }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const dateStr = format(currentDate, "yyyy-MM-dd");
+
+  useEffect(() => {
+    let active = true;
+    micronutrientsApi.getSources(macro.nutrient, dateStr, dateStr)
+      .then(res => { if (active) setData(res.data); })
+      .catch(() => { if (active) setError("Could not load food sources"); });
+    return () => { active = false; };
+  }, [macro.nutrient, dateStr]);
+
+  const total = data?.total ?? 0;
+  return (
+    <ModalShell onClose={onClose} title={`${macro.label} sources`}>
+      <p className="text-xs text-muted -mt-1 mb-3">{format(currentDate, "MMMM d, yyyy")}</p>
+      {!data && !error ? (
+        <div className="flex justify-center py-10"><Loader2 size={20} className="animate-spin text-muted" /></div>
+      ) : error ? (
+        <p className="text-sm text-accent-red text-center py-8">{error}</p>
+      ) : (
+        <>
+          <div className="rounded-xl bg-surface-2 px-4 py-3 flex items-end justify-between">
+            <span className="text-xs text-muted">Total</span>
+            <span className="font-mono text-lg font-bold text-foreground">
+              {total.toFixed(macro.decimals)} {macro.unit}
+            </span>
+          </div>
+          {data.sources.length ? (
+            <div className="divide-y divide-surface-3">
+              {data.sources.map((source, index) => {
+                const pct = total ? Math.min(100, (source.value / total) * 100) : 0;
+                return (
+                  <div key={`${source.name}-${index}`} className="py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{source.name}</p>
+                        <p className="text-[11px] text-muted">{source.quantity_g.toFixed(1)} g</p>
+                      </div>
+                      <span className="font-mono text-sm text-foreground shrink-0">
+                        {source.value.toFixed(macro.decimals)} {macro.unit}
+                      </span>
+                    </div>
+                    <div className="h-1 mt-2 bg-surface-3 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: macro.color }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted text-center py-8">No logged foods supplied this nutrient today.</p>
+          )}
+        </>
+      )}
+    </ModalShell>
   );
 }
