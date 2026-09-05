@@ -35,9 +35,9 @@ function buildServingOptions(food, customG = null) {
   const options = [];
 
   const servingG = (customG && customG > 0) ? customG : food.serving_size_g;
+  const raw = (food.serving_size_desc || "").trim();
 
   if (servingG) {
-    const raw   = (food.serving_size_desc || "").trim();
     // Suppress ugly USDA unit codes like "22 GRM", "28.35 G", etc.
     const isRawGrams = /^\d+\.?\d*\s*(g|grm|gram|grams|gr|ml)$/i.test(raw);
     let label;
@@ -51,6 +51,11 @@ function buildServingOptions(food, customG = null) {
       label = "serving";
     }
     options.push({ id: "serving", label, gramsEach: servingG });
+  } else if (raw && !/^per\s*100\s*g$/i.test(raw)) {
+    // Cronometer exports sometimes contain nutrition for a named serving but
+    // omit that serving's gram weight.  The values are still accurate for one
+    // serving; 100 is an internal scale factor only, never a claimed weight.
+    options.push({ id: "serving", label: raw, gramsEach: 100, servingOnly: true });
   }
 
   // "g" is always available — lets user enter any gram weight
@@ -236,6 +241,10 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
                          ?? selected?.serving_size_g;
   const baseG = effectiveServingG || 100; // null serving_size_g → macros stored per 100g
   const ratio = qtyNum / baseG;
+  const isServingOnly = selected && !effectiveServingG
+    && !!selected.serving_size_desc
+    && !/^per\s*100\s*g$/i.test(selected.serving_size_desc.trim());
+  const needsWeightForGrams = isServingOnly && servingOpt?.id === "g";
 
   // Use custom-entered macros if the food has all zeros
   const allMacrosZero = selected && !selected.calories && !selected.protein_g && !selected.carbs_g && !selected.fat_g;
@@ -293,6 +302,10 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
   // ── Log to diary ──────────────────────────────────────────────────────────
   const handleLog = async () => {
     if (!selected || qtyNum <= 0) return;
+    if (needsWeightForGrams) {
+      setError("Set the gram weight of one serving before logging by grams.");
+      return;
+    }
     setLogging(true);
     setError("");
     try {
@@ -394,7 +407,9 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
                     <p className="text-[11px] text-muted">
                       {food.brand ? `${food.brand} · ` : ""}
                       {food.calories != null && (
-                        `${Math.round(food.serving_size_g ? food.calories / food.serving_size_g * 100 : food.calories)} kcal / 100g`
+                        food.serving_size_g || !food.serving_size_desc || /^per\s*100\s*g$/i.test(food.serving_size_desc.trim())
+                          ? `${Math.round(food.serving_size_g ? food.calories / food.serving_size_g * 100 : food.calories)} kcal / 100g`
+                          : `${Math.round(food.calories)} kcal / ${food.serving_size_desc}`
                       )}
                     </p>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold shrink-0 ${badge.color}`}>
@@ -475,7 +490,7 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
                   {servingOpt?.id === "g"
                     ? "g"
                     : servingOpt
-                      ? `${servingOpt.label}${servingOpt.gramsEach ? ` — ${servingOpt.gramsEach % 1 === 0 ? servingOpt.gramsEach : servingOpt.gramsEach.toFixed(1)}g` : ""}`
+                      ? `${servingOpt.label}${servingOpt.gramsEach && !servingOpt.servingOnly ? ` — ${servingOpt.gramsEach % 1 === 0 ? servingOpt.gramsEach : servingOpt.gramsEach.toFixed(1)}g` : ""}`
                       : "—"}
                 </span>
                 <ChevronDown
@@ -510,7 +525,7 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
                         : "hover:bg-surface-1 text-foreground"}`}
                   >
                     <span>{opt.id === "g" ? "g" : opt.label}</span>
-                    {opt.id !== "g" && (
+                    {opt.id !== "g" && !opt.servingOnly && (
                       <span className="text-xs text-muted ml-2 shrink-0">
                         {opt.gramsEach % 1 === 0 ? opt.gramsEach : opt.gramsEach.toFixed(1)}g each
                       </span>
@@ -523,7 +538,9 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
             {/* Context line: shows computed grams when using a named serving */}
             {servingOpt?.id !== "g" && amountNum > 0 && (
               <p className="text-[11px] text-muted mt-1.5">
-                = {Math.round(qtyNum * 10) / 10}g logged
+                {servingOpt.servingOnly
+                  ? `= ${amountNum} serving${amountNum === 1 ? "" : "s"} logged`
+                  : `= ${Math.round(qtyNum * 10) / 10}g logged`}
               </p>
             )}
           </div>
@@ -533,7 +550,7 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col gap-3">
               <p className="text-xs font-semibold text-amber-800">Set item weight</p>
               <p className="text-[11px] text-amber-700 -mt-1">
-                No weight stored for this food. Enter the gram weight of one item so quantity scales correctly.
+                This food is accurate per named serving, but its gram weight is not stored. Enter the gram weight of one serving to enable gram-based logging.
               </p>
 
               <div className="flex items-center gap-2">

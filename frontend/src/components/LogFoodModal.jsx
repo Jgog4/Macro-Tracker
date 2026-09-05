@@ -17,8 +17,11 @@ function nowTimeStr() {
 export default function LogFoodModal({ food, onClose, onLogged }) {
   const [targetDate, setTargetDate] = useState(new Date());
   const [mealNumber, setMealNumber] = useState(1);
+  const servingOnly = !food.serving_size_g && !!food.serving_size_desc
+    && !/^per\s*100\s*g$/i.test(food.serving_size_desc.trim());
   const [qty,        setQty]        = useState(() => {
     const last = getLastFoodPortion(food);
+    if (servingOnly) return String((last?.quantity_g || 100) / 100);
     return String(last?.quantity_g || food.serving_size_g || 100);
   });
   const [time,       setTime]       = useState(nowTimeStr());
@@ -60,8 +63,11 @@ export default function LogFoodModal({ food, onClose, onLogged }) {
   }, []);
 
   const qtyNum  = parseFloat(qty) || 0;
+  // Serving-only imports use 100 internally as one source serving. It is a
+  // scale factor, not a statement that the serving weighs 100 g.
+  const loggedQty = servingOnly ? qtyNum * 100 : qtyNum;
   const baseG   = food.serving_size_g || 100; // null serving_size_g → macros stored per 100g
-  const ratio   = qtyNum / baseG;
+  const ratio   = loggedQty / baseG;
   const live    = {
     calories: (food.calories  || 0) * ratio,
     protein:  (food.protein_g || 0) * ratio,
@@ -82,9 +88,9 @@ export default function LogFoodModal({ food, onClose, onLogged }) {
         log_date:    dateStr,
         meal_number: mealNumber,
         logged_at:   loggedAt.toISOString(),
-        items: [{ ingredient_id: food.id, quantity_g: qtyNum }],
+        items: [{ ingredient_id: food.id, quantity_g: loggedQty }],
       });
-      saveLastFoodPortion(food, { unit: "g", amount: qtyNum, quantity_g: qtyNum });
+      saveLastFoodPortion(food, { unit: servingOnly ? "serving" : "g", amount: qtyNum, quantity_g: loggedQty });
       onLogged?.();
       onClose();
     } catch (e) {
@@ -151,15 +157,17 @@ export default function LogFoodModal({ food, onClose, onLogged }) {
         {/* Quantity + Time */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1 block">Quantity (g)</label>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1 block">
+              Quantity ({servingOnly ? "servings" : "g"})
+            </label>
             <input
               type="number"
               value={qty}
               onChange={e => setQty(e.target.value)}
               className="input font-mono"
-              placeholder="100"
-              min="1"
-              step="0.5"
+              placeholder={servingOnly ? "1" : "100"}
+              min={servingOnly ? "0.1" : "1"}
+              step={servingOnly ? "0.25" : "0.5"}
               autoFocus
             />
           </div>
@@ -193,7 +201,11 @@ export default function LogFoodModal({ food, onClose, onLogged }) {
             ))}
           </div>
           <p className="text-[10px] text-muted mt-2 text-center">
-            For {qtyNum > 0 ? `${qtyNum}g` : "—"} serving
+            For {qtyNum > 0
+              ? servingOnly
+                ? `${qtyNum} serving${qtyNum === 1 ? "" : "s"}`
+                : `${qtyNum}g`
+              : "—"}
           </p>
         </div>
 

@@ -27,9 +27,10 @@ import httpx
 
 MACRO_IDS = {1008: "calories", 1003: "protein_g", 1004: "fat_g", 1005: "carbs_g"}
 STOP_WORDS = {
-    "and", "or", "with", "without", "raw", "fresh", "cooked", "dry", "the",
+    "and", "or", "with", "without", "fresh", "the",
     "of", "in", "from", "food", "foods", "organic", "frozen", "unsweetened",
 }
+PREPARATION_WORDS = {"raw", "cooked", "fried", "baked", "boiled", "grilled", "dried", "smoked"}
 
 
 def option(name: str, default: int) -> int:
@@ -54,6 +55,10 @@ def tokens(value: str) -> set[str]:
         word[:-1] if word.endswith("s") and len(word) > 4 else word
         for word in words if word not in STOP_WORDS
     }
+
+
+def preparation_words(value: str) -> set[str]:
+    return set(re.findall(r"[a-z]+", value.lower())) & PREPARATION_WORDS
 
 
 def macros(food: dict) -> dict[str, float]:
@@ -104,6 +109,7 @@ async def main() -> None:
     if not os.environ.get("USDA_API_KEY"):
         raise RuntimeError("USDA_API_KEY is required")
     apply = "--apply" in sys.argv
+    quiet = "--quiet" in sys.argv
     limit = option("--limit", 25)
     offset = nonnegative_option("--offset", 0)
     conn = await asyncpg.connect(os.environ["DATABASE_URL"])
@@ -136,6 +142,7 @@ async def main() -> None:
                 continue
 
             source_tokens = tokens(row["name"])
+            source_preparation = preparation_words(row["name"])
             scored = []
             for candidate in candidates:
                 candidate_macros = macros(candidate)
@@ -144,12 +151,16 @@ async def main() -> None:
                     continue
                 error, grams = profile
                 candidate_tokens = tokens(candidate.get("description", ""))
+                candidate_preparation = preparation_words(candidate.get("description", ""))
+                if source_preparation and not source_preparation.issubset(candidate_preparation):
+                    continue
                 coverage = len(source_tokens & candidate_tokens) / max(len(source_tokens), 1)
                 scored.append((coverage, error, grams, candidate))
 
             safe = [entry for entry in scored if entry[0] >= 0.67 and entry[1] <= 0.08]
             if not safe:
-                print(f"SKIP    {row['name']} | {row['serving_size_desc']}")
+                if not quiet:
+                    print(f"SKIP    {row['name']} | {row['serving_size_desc']}")
                 continue
             coverage, error, grams, candidate = sorted(safe, key=lambda x: (-x[0], x[1]))[0]
             print(
