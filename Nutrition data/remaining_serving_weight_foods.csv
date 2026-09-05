@@ -1,0 +1,188 @@
+food_id,food_name,brand,original_serving,calories_per_original_serving,protein_g_per_original_serving,carbs_g_per_original_serving,fat_g_per_original_serving,fiber_g_per_original_serving,sodium_mg_per_original_serving,diary_entries,first_logged,last_logged,review_status
+2ac645d5-9e6d-4edb-b584-191c963de6cb,"CanPrev, Magnesium Bis-Glycinate 200",,2.00 capsule,0.0,0.0,0.0,0.0,,,55,2023-04-09,2023-07-31,Needs verified grams per original serving
+b5eb18e0-9d33-4a31-9d90-34ca56705dc8,"Whittaker's, Milk Chocolate Bar, Fresh Roasted Almond Gold",,1.00 serving,263.45,6.9,18.0,18.4,,21.0,24,2024-09-13,2025-12-01,Needs verified grams per original serving
+87c51d57-35d9-4f17-91e2-8a8023c64130,"Raising Cane's, Chicken Finger, 130 Cal",,5.00 finger,650.0,65.0,25.0,30.0,5.0,950.0,18,2024-02-22,2026-05-02,Needs verified grams per original serving
+188d34ec-a759-422b-b3af-649386b4c097,"Raising Cane's, Cane's Sauce",,1.50 Serving,285.0,0.0,9.0,28.5,0.0,870.0,16,2024-02-22,2026-05-02,Needs verified grams per original serving
+03c6ed77-6521-4325-883b-878c5c14e9ff,"Whole Foods, Carrot Cake",,1.50 slice,750.0,6.0,88.5,42.0,1.5,465.0,15,2024-02-25,2026-04-05,Needs verified grams per original serving
+8185da5b-e3bc-4fd3-a304-87ca7c67853a,"Reese’s, Zero Sugar Miniature Cups, Chocolate Candy & Peanut Butter",,0.33 x 3.0 pieces,36.63,0.67,5.33,2.66,1.0,23.31,14,2025-01-02,2025-05-20,Needs verified grams per original serving
+7ac258df-537f-4b7c-b7b8-00ae47714fbb,"Eastern Fisheries, Scallops",,1.66 x 3.0 scallops,182.6,29.88,9.96,1.66,0.0,315.4,9,2023-07-09,2023-12-20,Needs verified grams per original serving
+e3ccc16f-13b0-4030-aacc-8f2dfb907d9d,"Metamucil, Sugar-Free, Orange Smooth",,1.00 x 2.0 rounded teaspoons,45.0,0.0,11.0,0.0,6.0,10.0,9,2023-04-11,2023-09-13,Needs verified grams per original serving
+cdabb8ea-595a-407f-b247-db22b7cd52ac,Cactus club bacon cheddar burger,,1.00 1,830.0,52.0,55.0,47.0,3.0,1970.0,7,2024-02-24,2025-09-04,Needs verified grams per original serving
+fc9cd00d-0d58-4465-8208-fd217c611b29,"Cheeseburger on a Bun, Third Pound, Plain",,1.00 each,526.64,35.74,29.92,28.28,1.03,1037.39,6,2026-04-22,2026-07-09,Needs verified grams per original serving
+4963c41d-d3b6-4751-a99f-a83e43f452b3,"Garlic, Fresh",,1.00 clove,3.9,0.2,0.85,0.01,0.08,0.51,6,2023-04-17,2024-02-06,Needs verified grams per original serving
+15227416-ca17-402a-a7b4-55c526b0430a,"Western Family, Rice Cakes, Caramel Corn",,2.00 rice cake,100.0,2.0,22.0,0.0,0.0,60.0,6,2025-10-14,2025-10-17,Needs verified grams per original serving
+4dd504e7-70c8-45ed-8f43-20a4f3cff6db,"A&W, Papa Burger, Double",,1.00 Serving,640.0,38.0,42.0,35.0,1.0,1210.0,5,2023-08-09,2026-03-21,Needs verified grams per original serving
+09e9569a-bb59-4d85-b43d-f1b7c5d2ff4b,"Tomato, Red, Raw",,"1.00 medium - 2 3/5"" diameter",22.14,1.08,4.78,0.25,1.48,6.15,5,2024-05-07,2026-09-03,Needs verified grams per original serving
+bf9a3277-3257-40ab-8f78-104b8f8d9bb7,"Whole Foods, Sesame Bagel",,1.00 bagel,320.0,10.0,57.0,6.0,3.0,510.0,5,2024-11-01,2025-05-17,Needs verified grams per original serving
+4f17da6f-368c-493d-8566-5fa5f9685490,"Chipotle, Roasted Chili-Corn Salsa, Medium",,0.80 order,58.01,2.02,12.98,0.8,1.92,263.71,4,2024-03-12,2024-12-28,Needs verified grams per original serving
+f70122ea-7855-4166-9862-d0c0926c3db8,Coffee,,1.00 small or tall - each 12 fl oz,3.55,0.43,1.67,0.07,1.67,7.1,4,2026-03-28,2026-08-21,Needs verified grams per original serving
+f64b8ea6-eb40-479b-a01b-c9f6b364af21,"Eggs, Cooked (golden )",,1.00 extra large,86.8,7.04,0.63,5.94,0.0,69.44,4,2023-08-06,2023-08-09,Needs verified grams per original serving
+4bb3982a-fd5c-4842-84a1-be3b924ce007,"Lindt, Pralines Classiques, Assorted Fine Chocolates",,0.50 x 4.0 pieces,125.0,1.5,12.0,8.0,1.0,12.5,4,2024-12-31,2025-01-07,Needs verified grams per original serving
+7886bf80-85ba-48c6-846e-505832febc53,"Sesame Snaps, Sesame Snack, Classic",,1.00 package,150.0,4.0,14.0,9.0,2.0,3.0,4,2024-11-29,2025-12-16,Needs verified grams per original serving
+531fb673-f07e-4ead-8013-e37c0927b757,"Whole Foods, Everything Bagel",,1.00 bagel,310.0,9.0,57.0,3.0,4.0,890.0,4,2024-07-16,2024-10-07,Needs verified grams per original serving
+a2146084-c2c7-4f8c-b905-a0fd0a6b1d17,"A&W, Buddy Burger",,2.00 burger,620.0,26.0,72.0,26.0,4.0,1400.0,3,2025-06-19,2025-10-09,Needs verified grams per original serving
+89612e6f-9134-493e-84ee-c2116b9b8cae,"Bakestone Brothers, Pita, White",,2.00 pita,320.0,10.0,62.0,1.0,2.0,500.0,3,2024-04-20,2024-06-24,Needs verified grams per original serving
+8c606886-6192-41d2-baaf-5f19199b6c3d,"Bazooka, Bubble Gum, Original",,2.00 piece,40.0,0.0,10.0,0.0,,10.0,3,2025-06-07,2026-08-10,Needs verified grams per original serving
+dcbb0d34-33d4-4540-88c4-bb80371c176f,"Bick's, Baby Dills, Garlic",,2.00 pickle,6.0,0.2,2.0,0.0,,540.0,3,2023-11-13,2023-11-19,Needs verified grams per original serving
+294d3a70-f126-44a8-9b28-12a08293c8f6,"BJ's Brewhouse, Aperol Spritz",,1.00 Serving,160.0,0.0,18.0,0.0,0.0,1.0,3,2025-12-23,2026-08-20,Needs verified grams per original serving
+b38c810a-7d5e-4155-af2a-768decadac33,"Brownie, Chocolate",,"1.00 regular - approx 2"" x 2""",211.45,2.61,24.18,11.75,1.35,11.2,3,2024-04-20,2026-07-03,Needs verified grams per original serving
+76d17a3c-3e5f-41bf-908c-0afda7438a25,"Cheeseburger on a Bun, Half Pound, with Bacon, Lettuce, Pickle, Onion, Mustard",,1.00 each,744.96,54.16,32.41,42.8,1.67,1523.49,3,2023-06-09,2026-06-17,Needs verified grams per original serving
+427f631e-3fd0-4b32-8dca-4cb1100e4d38,"Chicken Enchiladas, No Beans, With Cheese",,"3.00 each - 6"" long, 6"" diameter tortilla rolled",602.0,44.8,46.97,26.05,5.4,1976.35,3,2023-05-03,2024-12-27,Needs verified grams per original serving
+6f145679-0529-47f2-9bb9-f11c47249819,"Herdez, Mexican Salsa, Hot",,4.00 x 2.0 c à soupe,40.0,0.8,4.0,0.0,0.0,1080.0,3,2024-01-29,2024-07-08,Needs verified grams per original serving
+a5d20202-ffdd-4a77-b8b6-4bb97a76122a,"Jojo’s, Dark Chocolate Bites, Pistachios, Almonds, Cranberries",,0.50 x 4.0 bites,120.0,3.5,8.0,8.5,2.5,0.0,3,2026-02-28,2026-03-08,Needs verified grams per original serving
+2ea1d88e-d552-4948-b695-50140011f7c8,"Kind, Breakfast Bar, Peanut Butter",,2.00 x 2.0 bars,440.0,10.0,54.0,22.0,10.0,270.0,3,2025-06-22,2025-09-07,Needs verified grams per original serving
+939d1369-c178-4f9f-ab23-61bd2e02fc41,Piri piri sauce,,1.00 Serving,105.22,0.9,11.29,7.05,0.91,885.29,3,2023-06-30,2023-07-02,Needs verified grams per original serving
+f2b50cc5-bf96-4636-a632-2df211de23b5,Poke bowl (raw tuna and rice bowl),,1.50 bowl,939.53,52.64,74.09,48.29,12.89,948.98,3,2024-02-09,2025-05-15,Needs verified grams per original serving
+42a71084-2902-45c2-abe6-7f702404ef92,"Spring roll, with pork",,1.50 each,245.53,14.06,29.85,7.28,1.39,119.68,3,2025-04-16,2026-07-12,Needs verified grams per original serving
+985202d7-9e4e-420a-8db7-ea02d180872a,"Unreal, Coconut Minis, Dark Chocolate",,0.33 x 3.0 bars,69.99,0.67,8.0,5.0,1.0,0.0,3,2024-10-20,2026-07-06,Needs verified grams per original serving
+dde68d0e-e7c9-4f33-83f2-f065713b6f4d,"Unreal, Dark Chocolate Peanut Butter Cups",,1.00 serving,79.95,1.0,7.0,6.0,1.0,40.0,3,2026-05-14,2026-08-02,Needs verified grams per original serving
+2b8cc638-73f2-49f2-aad7-705e639e7c28,"A&W, Teen Burger",,1.00 burger,500.0,27.0,36.0,30.0,2.0,940.0,2,2025-12-25,2026-03-21,Needs verified grams per original serving
+b6b629da-eb87-4b00-8410-e48e88b68a8f,"Blue Hill Bay, Smoked Ahi Tuna Poke Bowl",,1.80 bowl,648.0,43.2,99.0,4.5,1.8,2646.0,2,2023-05-12,2023-05-17,Needs verified grams per original serving
+5d2771a3-3b11-4b73-9259-e3149ecb1755,Bounty,,1.00 Serving,140.23,1.05,17.01,7.32,,29.07,2,2025-06-18,2026-02-05,Needs verified grams per original serving
+7390fcd2-b470-4755-83de-73a47b6b392f,"Burger on a Bun, Third Pound, Plain",,1.00 each,422.88,30.6,28.57,19.57,1.03,563.67,2,2026-04-10,2026-05-04,Needs verified grams per original serving
+4b19061e-2d10-4fb7-a89c-5abb18488236,"Carlson, Cod Liver Oil, Super 1000 mg",,3.00 softgel,30.0,0.0,0.0,3.0,,,2,2023-10-29,2024-01-28,Needs verified grams per original serving
+448c414f-e9a3-4918-8322-0f4dbdfdb0aa,"Casa Mendosa, Triple Baked Tortillas, Original",,1.00 tortilla,190.0,5.0,31.0,5.0,1.0,330.0,2,2023-10-24,2023-10-31,Needs verified grams per original serving
+01706c4d-4fdb-4aef-b541-060351c9bcb7,"Cheeseburger on a Bun, Third Pound with Mayo, Bacon, Lettuce, Pickle, Onion, Mustard",,1.00 each,706.54,41.78,32.49,44.42,1.67,1566.51,2,2024-03-23,2025-07-11,Needs verified grams per original serving
+eab4bcf2-0626-4302-a59f-c47a154438e8,"Chipotle, Tomato Salsa, Mild",,1.00 order,17.19,0.71,3.82,0.14,0.89,549.12,2,2024-03-12,2024-04-02,Needs verified grams per original serving
+90a2ac8c-06c2-4569-96a8-385a707581f3,"Core Power, Elite Vanilla",,1.00 bottle,231.84,41.98,7.99,3.52,0.0,248.4,2,2023-09-24,2023-09-26,Needs verified grams per original serving
+1c9e0bd4-6eb6-4f4f-b2bb-9bd759e80554,"Country Archer, Teriyaki Grass-Fed Beef Jerky, Teriyaki",,1.00 serving,70.0,10.0,6.0,0.5,0.0,220.08,2,2023-07-17,2023-07-18,Needs verified grams per original serving
+4f4e2368-ce86-4bb1-bfe3-ef4bac76fd3e,"Dairy Queen, Blizzard, Oreo Cookies",,0.15 small,98.89,2.36,14.89,3.67,0.3,50.04,2,2025-09-17,2026-07-15,Needs verified grams per original serving
+c406e1a1-20c8-4c73-95db-af8afdc31db4,"Hardbite, Potato Chips, All Dressed",,0.25 x 20.0 chips,50.0,1.0,6.0,2.5,0.75,31.25,2,2023-07-16,2026-01-31,Needs verified grams per original serving
+bf824034-1dac-4eba-ae23-27c4c057259b,"Just Panela, Cane Sugar",,2.00 Serving,36.0,0.0,8.0,0.0,0.0,0.0,2,2023-08-08,2023-09-08,Needs verified grams per original serving
+abf0c423-f55f-47ca-b1a3-68ecc2682426,"Krispy Kreme, Doughnuts, Original Glazed",,0.50 Doughnut,95.0,1.5,11.0,5.5,0.25,42.5,2,2025-07-05,2026-05-07,Needs verified grams per original serving
+85b1a27b-779b-4371-8bb2-db836773c2f3,"Premier Seafoods, Wild Smoked Sockeye Salmon Candy",,1.00 x 3.0 pieces,130.0,16.0,11.0,2.5,0.0,340.0,2,2023-12-16,2026-07-13,Needs verified grams per original serving
+b2eb4f46-222c-4651-9911-34a9a4699371,Purdy's Chocolatier,,0.80 x 2.0 pieces,112.0,1.6,12.8,7.2,0.8,32.0,2,2024-01-01,2024-01-01,Needs verified grams per original serving
+58f7c2fd-a42c-4a88-86d8-d5697e0ad081,"Que Pasa, Tortilla Chips, Twist Of Lime",,0.60 x 28.0 chips,150.0,2.4,19.2,5.4,1.8,81.0,2,2023-05-22,2025-07-24,Needs verified grams per original serving
+ee947d35-b165-4dc8-b4d3-b788dfde714f,"Save on Foods, Portugese Buns",,1.00 Bun,210.0,8.0,37.0,2.5,2.0,390.0,2,2026-04-10,2026-04-13,Needs verified grams per original serving
+2f1c92f2-b3a8-4441-8359-417f41537a71,"Spring Lamb, Lamb Sausage",,1.00 sausage,180.0,11.0,5.0,13.0,1.0,390.0,2,2023-07-07,2023-07-08,Needs verified grams per original serving
+0bc33cc8-6e2a-4e91-8504-3a21fcd73c41,"Stapleton Sausage Co., Greek Lamb Donair",,2.00 serving,300.0,34.0,8.0,14.0,2.0,860.0,2,2023-12-08,2023-12-09,Needs verified grams per original serving
+c676e4e5-f41f-4679-86eb-ab88a13ae9e8,"Taco Chips, Salted",,25.00 chip,354.39,5.33,50.42,15.51,4.79,245.86,2,2024-07-06,2024-12-27,Needs verified grams per original serving
+afb3ecfb-60fb-48a5-8bd0-b6f343ee327e,"Tante Fanny, Puff pastery",,1.00 serving,423.0,6.0,35.0,29.0,1.0,380.0,2,2024-05-21,2024-06-02,Needs verified grams per original serving
+075d6a63-e356-4fae-853a-4d26fb8cc1fc,"The Keg, Fish & Chips",,1.00 Serving,780.0,39.0,104.0,22.0,5.0,3440.0,2,2023-11-04,2024-07-21,Needs verified grams per original serving
+4e8dd287-eabf-41a0-9c80-5fe29ac4c125,"Ace Sushi, Vegetable Spring Roll",,4.00 Serving,400.0,8.0,40.0,24.0,4.0,120.0,1,2023-06-23,2023-06-23,Needs verified grams per original serving
+198dfc92-8182-4979-822e-5720d8f1178b,"Actipan, Whole-Grain Bread Rolls",,1.00 portion,283.0,13.6,32.9,12.3,7.0,640.0,1,2023-09-02,2023-09-02,Needs verified grams per original serving
+e1177b50-cddc-43b7-9675-53d4721f993c,"Aldi, Happy Farms, Deli Sliced Cheese, Sharp Cheddar",,1.00 slice,80.0,5.0,0.5,7.0,0.0,135.0,1,2023-09-20,2023-09-20,Needs verified grams per original serving
+ca4990f6-a51f-44e3-8209-db9d031e19b2,"Alter Eco, Dark Salted Organic Chocolate, Brown Butter",,0.20 x 5.0 sections,46.0,0.6,3.6,3.6,1.0,12.8,1,2024-02-19,2024-02-19,Needs verified grams per original serving
+ae2ea4e9-b715-44bd-adae-3148f69008ee,"Asian Home Gourmet, Spice Paste For Thai Yellow Curry",,1.50 serving,52.46,1.5,4.5,3.0,1.5,959.99,1,2023-09-22,2023-09-22,Needs verified grams per original serving
+398b329e-0817-43bc-85e8-b05f113750f2,Bánh mì (vietnamesisches Sandwich),,1.00 sandwich,597.21,30.37,59.96,25.88,3.59,1008.66,1,2026-01-17,2026-01-17,Needs verified grams per original serving
+2baeea30-c47e-42fb-a06c-b7d846e34b83,"Beautiful Denmark, Danish Butter Cookies",,0.50 x 4.0 cookies,85.0,1.0,11.5,4.0,0.5,50.0,1,2025-07-17,2025-07-17,Needs verified grams per original serving
+122e4137-e341-46d6-9c1b-7f5a9653fec3,"Beef Enchiladas, without Beans or Cheese",,"1.00 each - 6"" long, 6"" diameter tortilla rolled",167.68,10.18,15.39,7.25,1.8,564.98,1,2023-07-31,2023-07-31,Needs verified grams per original serving
+419147bf-5ae2-4658-9835-859b9a3d067d,"Bick's, Mini Crunch'ems, Garlic Rush",,2.00 x 3.0 pickles,6.0,0.2,2.0,0.0,,520.0,1,2024-04-30,2024-04-30,Needs verified grams per original serving
+133c6708-0f1a-4d34-ae81-5b4917860f5d,"Boston Pizza, Jambalaya Fettuccini",,0.80 Serving,1096.0,48.8,115.2,48.8,8.0,2248.0,1,2025-01-25,2025-01-25,Needs verified grams per original serving
+984633fc-845c-4264-a5f4-53ba56aebfc5,"Burger on a Bun, Third Pound with Ketchup",,1.00 each,438.03,30.76,32.68,19.59,1.07,699.72,1,2026-04-12,2026-04-12,Needs verified grams per original serving
+fbc0a5b5-8bfa-41e8-9dcf-16f4f8d311d8,"Burger on a Bun, Third Pound with Ketchup, Mayo",,1.00 each,531.53,30.89,32.76,29.88,1.07,787.03,1,2026-05-09,2026-05-09,Needs verified grams per original serving
+c7b668d6-c07e-4cd6-a0a8-089ea95c1f8e,Cactus club blackened creole chicken,,1.00 1,710.0,52.0,42.0,38.0,6.0,1840.0,1,2024-04-23,2024-04-23,Needs verified grams per original serving
+939dc95d-8d10-4f62-91b1-402a391ecabf,Cactus club Cajun chicken sandwich,,1.00 1,733.0,40.0,42.0,45.0,4.0,1180.0,1,2026-06-05,2026-06-05,Needs verified grams per original serving
+467f34bb-6c97-4bc0-a516-d19cf9c3f9b8,Cactus Club Crispy Chicken Sandwitch,,1.00 1,970.0,46.0,67.0,52.0,4.0,1590.0,1,2026-04-12,2026-04-12,Needs verified grams per original serving
+aa788f9d-2d03-4dd0-9c84-f1979c68bf39,Cactus club The Med Bowl - chicken,,1.00 1,870.0,39.0,78.0,40.0,8.0,1880.0,1,2024-03-21,2024-03-21,Needs verified grams per original serving
+c333e9af-98cc-4919-9460-ed9841be1f98,"Celery, Raw",,"2.00 small - stalk - 5"" long",5.1,0.17,1.13,0.05,0.54,32.98,1,2023-05-20,2023-05-20,Needs verified grams per original serving
+3efd812e-84d2-4d86-aa9c-8f6eb74b1582,"Chicken Enchiladas, without Beans or Cheese",,"1.00 each - 6"" long, 6"" diameter tortilla rolled",145.24,11.73,15.39,4.06,1.8,564.95,1,2023-07-31,2023-07-31,Needs verified grams per original serving
+0e9134e4-5a25-4a27-895f-91ea62470754,Chicken Salad Sandwich,,1.80 sandwich,615.63,29.99,53.7,30.46,3.24,986.56,1,2024-02-13,2024-02-13,Needs verified grams per original serving
+69cbcfb2-5bcf-42f8-97b4-d247b4ce89de,"Chicken Tenders, Strips or Fingers, Store Bought",,1.50 strip,235.41,14.12,14.26,13.18,0.56,606.12,1,2024-02-16,2024-02-16,Needs verified grams per original serving
+6b90246b-e632-4b9c-b39a-926c53532139,"Chili's, Baby Back Ribs, Dry Rub, Half Rack",,1.26 Serving,982.8,63.0,28.98,68.04,2.52,3729.6,1,2025-02-09,2025-02-09,Needs verified grams per original serving
+2f5a0c5a-fea0-43e1-9a63-b494132124a6,"Chipotle Chicken Fajita Burrito (Brown Rice, Guacamole, Fajita Veggies, Pinto Beans, Cheese)",,0.90 Burrito,927.0,54.0,99.0,38.25,18.9,,1,2024-11-05,2024-11-05,Needs verified grams per original serving
+46da7928-ac03-4d57-a629-2046f0c8282a,"Cilantro, Leaves, Raw",,"1.00 tbsp, chopped",0.23,0.02,0.04,0.01,0.03,0.46,1,2023-07-29,2023-07-29,Needs verified grams per original serving
+e575023e-7377-43ed-ba6e-df8401d8a310,"Danish Farms, Butter Cookies",,0.25 x 4.0 Cookies,40.0,0.5,5.25,1.75,0.0,16.25,1,2025-07-24,2025-07-24,Needs verified grams per original serving
+58e0fa5d-ef82-40a4-b285-3964e2725e62,"Davert, No7 Noodle Cup, Tomato Sauce",,1.50 Serving,338.52,12.04,73.56,1.95,8.46,1432.2,1,2023-09-03,2023-09-03,Needs verified grams per original serving
+5579b459-22ad-4ae3-9aca-e376078bbf99,"Dempster, 100% Whole Grains, 12 Grain",,0.50 x 2.0 slices,95.0,4.0,16.5,1.75,2.0,135.0,1,2023-10-08,2023-10-08,Needs verified grams per original serving
+5481fc3b-fc30-4307-a0a6-5c0a8ca638b2,"D' Italiano, Hamburger Buns, Brioche Style",,1.00 Bun,190.0,6.0,34.0,3.5,1.0,300.0,1,2025-07-28,2025-07-28,Needs verified grams per original serving
+73390bd0-f13b-44eb-a9ef-c3ea53576045,"Farmer's Market, Butter Tarts, Pecan",,1.00 tart,380.0,4.0,48.0,20.0,2.0,200.0,1,2025-11-06,2025-11-06,Needs verified grams per original serving
+974f0f76-e041-4ce3-b3b9-2209ac22ecd8,"Feature Foods, Herring Fillets in Wine Marinade",,2.00 serving,210.0,16.0,14.0,10.0,0.0,940.0,1,2023-12-25,2023-12-25,Needs verified grams per original serving
+650a51e7-c2a5-4afa-9434-f7e731d1d843,"Firebirds, Smokehouse Chicken Sandwich",,1.00 Serving,680.0,44.0,72.0,21.0,0.0,1440.0,1,2025-09-27,2025-09-27,Needs verified grams per original serving
+9ae7864c-cf2c-490a-b6cb-87850e4b7a4b,"Fish, Battered and Fried",,1.50 fillet (16cm x 9cm x 1cm),395.97,33.99,12.52,22.49,0.4,201.0,1,2023-04-27,2023-04-27,Needs verified grams per original serving
+46e5e6f6-b8ff-4fe2-a2d1-39bd1b67986e,"Five Guys, Cheeseburger",,1.00 Serving,980.0,47.0,40.0,55.0,2.0,1050.0,1,2023-11-04,2023-11-04,Needs verified grams per original serving
+eac8502f-ee8c-4347-930f-d471a930686a,Focaccia Bread,,"0.30 slice - 1/8 of 12"" diameter",67.33,1.52,10.11,2.25,0.49,177.4,1,2023-06-23,2023-06-23,Needs verified grams per original serving
+473869a8-faac-4096-9291-0fecd316a8c5,"Frive, Chicken Shawarma",,1.70 serving,973.67,79.73,91.76,30.84,,1293.67,1,2025-03-16,2025-03-16,Needs verified grams per original serving
+f3ee6e2f-7650-4dde-86a8-3c427367a1c1,"Good Days, Greek Salad",,1.00 Salad,200.0,9.0,14.0,13.0,5.0,1450.0,1,2023-07-12,2023-07-12,Needs verified grams per original serving
+84429c5f-a490-4419-bc6e-9f94a0a0fd20,"Good to Go, Blondies, Chocolate Chip",,2.60 x 2.0 Blondies,520.0,13.0,41.6,36.4,15.6,234.0,1,2025-09-25,2025-09-25,Needs verified grams per original serving
+26e76bb5-484c-4ecd-9fd4-7b04bf10924c,Greek Style Chicken Salad,,1.00 x 0.5 salad,200.0,13.0,6.0,14.0,2.0,700.0,1,2024-04-20,2024-04-20,Needs verified grams per original serving
+16ac0a69-16cb-4be2-be19-edf46c71f568,"Hardbite, Chips, Wild Onion & Yogurt",,1.50 x 20.0 chips serving,300.0,6.0,36.0,15.0,4.5,225.0,1,2025-04-11,2025-04-11,Needs verified grams per original serving
+6bdeb0c1-7d3b-4a86-a2a9-42c0a22f8b0e,"Hardee's, Fried Chicken Thigh",,1.00 thigh,339.22,19.19,30.15,15.05,1.19,999.92,1,2026-04-11,2026-04-11,Needs verified grams per original serving
+37805f17-d268-43a7-af43-c8f7b91f56b0,"HEB, Salmon Nigiri, Raw",,2.00 x 6.0 pieces,580.0,32.0,68.0,18.0,0.0,1340.0,1,2024-03-16,2024-03-16,Needs verified grams per original serving
+c3f213b0-ca89-41d5-9681-c05a9ddc1d9e,"Hornby Organic, Chocolate Espresso",,1.00 bar,370.0,10.0,43.0,19.0,5.0,90.0,1,2026-04-11,2026-04-11,Needs verified grams per original serving
+fb457a44-7c22-422d-a8cc-6bf769c96f6e,"Hot Dog Bun, White",,"1.00 regular - 6"" x 2"" x 1 1/2""",119.97,4.2,21.55,1.68,0.77,212.42,1,2025-05-17,2025-05-17,Needs verified grams per original serving
+cd7995ec-6185-49f6-9344-9f80e12efe9b,Jimmy John's Jjblt Sandwich,,1.20 regular,689.77,27.3,56.48,39.23,3.28,1611.82,1,2025-01-25,2025-01-25,Needs verified grams per original serving
+aee9aacb-d346-45db-b3c7-39cc310d1550,"Kettle & Fire, Bone Broth, Classic Beef",,0.70 container,56.0,13.3,0.35,0.0,0.35,518.0,1,2023-12-09,2023-12-09,Needs verified grams per original serving
+1bfe3d6e-e71a-4c2b-9954-4d2952f21a2b,"Kettle Potato Chips, Sea Salt & Vinegar",,3.00 chip,34.28,0.32,3.69,2.1,0.38,48.51,1,2023-05-22,2023-05-22,Needs verified grams per original serving
+582eafc0-6ad7-4969-93a9-defb5d694b51,"KFC, Cole Slaw",,0.50 order,85.74,0.51,7.29,6.28,1.01,90.46,1,2023-09-24,2023-09-24,Needs verified grams per original serving
+5201cb3a-5d7a-42a7-9901-b25702e3628f,"Kii Naturals, Artisan Crackers, Cranberry & Cashew",,2.00 serving,140.0,6.0,26.0,3.0,2.0,260.0,1,2025-07-12,2025-07-12,Needs verified grams per original serving
+796eba23-f81f-4435-9434-7033b7b9572d,"Kind, Maple Glazed Pecan & Sea Salt",,1.00 bar,210.0,5.0,14.0,17.0,5.0,140.0,1,2025-09-05,2025-09-05,Needs verified grams per original serving
+13a2b7c5-b166-4caf-bbb2-3ca021cf6ce5,"King's, Hawaiian Sweet Rolls, Original",,1.00 roll,90.0,2.0,14.0,2.0,0.5,75.0,1,2025-08-31,2025-08-31,Needs verified grams per original serving
+e945064d-82d6-4234-988f-56b5f22c7980,"Kura Sushi, Spicy Scallop Hand Roll, Seaweed",,2.00 Serving,200.0,10.0,24.0,6.0,2.0,270.0,1,2024-10-22,2024-10-22,Needs verified grams per original serving
+df5341b9-5961-4b9a-98a3-49f74acef372,"Kura Sushi, Tamago",,0.30 Serving,39.0,1.8,5.7,0.9,,66.0,1,2026-05-06,2026-05-06,Needs verified grams per original serving
+89c61dc8-b000-4250-a477-8dc34c80fac6,"Lamb Ribs, Rack, No Visible Fat Eaten",,6.00 rib,348.0,39.24,0.0,19.97,0.0,121.5,1,2024-01-05,2024-01-05,Needs verified grams per original serving
+01fddf53-5d13-4f14-9378-d6646d169cef,"La Molisana, Egg Nest Pasta",,2.00 x 2.0 nests,280.0,24.0,116.0,6.0,6.0,42.0,1,2023-04-11,2023-04-11,Needs verified grams per original serving
+baef4015-a3bb-4f17-9ad6-a24c203f26f0,"Lasagna, Homemade, Beef",,"2.50 square - approx 3"" x 3""",799.28,52.43,63.18,37.37,6.35,1599.67,1,2024-03-30,2024-03-30,Needs verified grams per original serving
+69534b8f-2a0d-4d49-b0be-9dcae35bc82c,"Lesley Stowe, Raincoast Crisps, Cranberry and Hazelnut Crackers",,1.00 x 4.0 crackers,80.0,3.0,12.0,2.5,1.0,130.0,1,2025-05-18,2025-05-18,Needs verified grams per original serving
+59c05abe-c1a1-4d94-9788-fe238020b017,"Lettuce, Red Leaf",,"1.00 cup, chopped",4.2,0.25,0.91,0.03,0.25,7.0,1,2023-06-28,2023-06-28,Needs verified grams per original serving
+6b69d5a1-2321-4192-9329-c526c71ec4d1,"Lindt, Gold Bunny, Dark Chocolate",,1.00 x 0.5 bunny,270.0,4.0,22.0,20.0,5.0,0.0,1,2025-05-09,2025-05-09,Needs verified grams per original serving
+be8da6f2-cea7-47e8-a2e9-dcb3b77e1039,"Lindt, Lindor, Latte",,0.50 Serving,306.5,2.35,22.0,23.0,,30.0,1,2023-04-14,2023-04-14,Needs verified grams per original serving
+7eb90504-d921-4d03-98db-4876d1490af0,"Magnum, Double Caramel",,1.00 bar,260.0,3.0,29.0,16.0,1.0,70.0,1,2025-07-29,2025-07-29,Needs verified grams per original serving
+4b428787-1a68-4cf2-afc5-4c504981c17b,"McDonald's, Chicken McNuggets",,1.00 nugget,42.7,2.38,2.47,2.54,0.12,82.51,1,2025-05-09,2025-05-09,Needs verified grams per original serving
+b07e533f-7d7f-4113-b230-7d03d03c6519,"Member's Selection, 1/3 Pound Angus Beef & Beef Patties",,1.00 Patty,370.0,26.0,0.0,30.0,0.0,100.0,1,2026-04-12,2026-04-12,Needs verified grams per original serving
+61f7df72-f24f-4f82-b360-a4977810f37f,"Mid-Day Squares, Functional Chocolate Bar, Fudge Yah",,6.00 square,960.0,36.0,78.0,66.0,24.0,510.0,1,2023-12-16,2023-12-16,Needs verified grams per original serving
+6955e982-e405-42b9-99af-ce8098d5e640,"Mini Donuts, Powdered & Cinnamon",,1.00 x 3.0 mini donuts,190.0,0.0,25.0,9.0,1.0,220.0,1,2025-04-05,2025-04-05,Needs verified grams per original serving
+7e9ec5c5-ac77-4054-b707-8cc945a78f96,"M&S, Sandwich, Beef & Onion with Peppercorn Mayo",,1.30 pack,607.1,31.2,77.61,20.67,7.67,1248.0,1,2026-01-03,2026-01-03,Needs verified grams per original serving
+8247104c-275c-4882-a330-8da9b3ec138a,"Nabisco, Chips Ahoy! Original Chocolate Chip Cookies",,1.00 each,54.5,0.6,7.41,2.7,0.29,36.62,1,2025-05-17,2025-05-17,Needs verified grams per original serving
+1c5e724b-5b18-4378-bc98-499a862365de,"Nachos, with Cheese",,5.00 each - 1 nacho,156.48,5.11,12.6,9.89,1.38,312.57,1,2025-06-25,2025-06-25,Needs verified grams per original serving
+635e5093-905c-4702-a823-decf61e16398,"Nature Valley, Granola Bars, Sweet & Salty Nut, Peanut",,1.00 Bar,170.0,4.0,20.0,8.0,1.0,140.0,1,2025-10-12,2025-10-12,Needs verified grams per original serving
+afe12355-e749-4940-b8a5-d3c52796ff29,"Oatmeal Cookies, Homemade",,"2.00 each - approx 2 5/8"" diameter",129.99,1.84,21.01,4.65,0.82,79.63,1,2026-01-03,2026-01-03,Needs verified grams per original serving
+4f86a313-850a-41ff-93a2-439a08ea10e0,"OMV, Smoky Hot Dogs",,1.00 Serving (grilled),242.43,8.9,20.7,15.0,2.7,560.0,1,2025-05-17,2025-05-17,Needs verified grams per original serving
+39e8ad60-5b07-439f-9de7-78d25a07f550,"Osmow's Shawarma, Lamb Shawarma Platter",,0.70 Serving,967.4,39.9,37.8,58.8,2.1,508.2,1,2025-05-15,2025-05-15,Needs verified grams per original serving
+92a148e2-18d9-4e03-9cf2-cc62a14209a0,"Osmow's Shawarma, Regular Beef Kofta Wrap",,1.00 Serving,550.0,30.0,21.0,23.0,3.0,614.0,1,2023-04-14,2023-04-14,Needs verified grams per original serving
+28e0ed16-cef4-4756-9db4-533076d0090c,"Pams, Raspberry Jam",,3.00 serving,80.97,0.0,19.5,0.0,,3.0,1,2025-09-09,2025-09-09,Needs verified grams per original serving
+134ef6af-b6fa-45b1-a1bb-43103ea2ebc7,"Peach, Fresh",,"1.00 medium - 2 2/3"" diameter",58.5,1.37,14.31,0.38,2.25,0.0,1,2023-08-02,2023-08-02,Needs verified grams per original serving
+3402056e-c490-40c0-a638-29b2819d4ab4,"Piccadilly, Shrimp Scampi and Fettuccini",,2.20 Serving,1474.0,48.4,140.8,72.6,6.6,2134.0,1,2025-07-11,2025-07-11,Needs verified grams per original serving
+064122fb-ee51-46c6-9c85-80ac7cee1c29,"Pizza, Homemade or Restaurant, Mixed Vegetables, Thin Crust",,"0.50 pizza 14"" diameter",964.51,45.37,108.78,39.34,7.53,2670.26,1,2025-03-16,2025-03-16,Needs verified grams per original serving
+9fe227f6-0f50-4463-bc27-ff8ab353f14d,"Pokerrito, Poke Bowl, White Rice Bowl, Large",,1.00 Serving,410.0,7.0,90.0,0.5,0.0,0.0,1,2026-05-06,2026-05-06,Needs verified grams per original serving
+af4a8182-8060-4f85-a210-1f71c96365f3,"Pokerrito, Protein, Albacore Tuna, Large",,1.00 Serving,180.0,23.0,2.0,8.0,0.0,50.0,1,2026-05-06,2026-05-06,Needs verified grams per original serving
+a44c5c1e-5089-4021-a270-07bbcead0571,"Pom, Hotdog bun",,1.00 bun,110.0,4.0,21.0,1.5,1.0,160.0,1,2023-09-24,2023-09-24,Needs verified grams per original serving
+636b18eb-d905-4637-9b63-9f47d010fdb8,"Pork or Ham Enchiladas, without Beans or Cheese",,"1.00 each - 6"" long, 6"" diameter tortilla rolled",141.19,9.6,15.39,4.6,1.8,1042.17,1,2023-07-31,2023-07-31,Needs verified grams per original serving
+3e8d4c59-fa4d-46c7-b592-9376aeb1f2f7,"PRE, 1/3 lb Burger Patties",,1.00 Patty,300.0,29.0,0.0,21.0,0.0,115.0,1,2026-04-10,2026-04-10,Needs verified grams per original serving
+8884c89c-5232-4d53-a5f4-0163b349652b,"President's Choice, Gigantico Burger Buns",,1.00 bun,190.0,7.0,34.0,2.5,2.0,280.0,1,2024-02-11,2024-02-11,Needs verified grams per original serving
+3fa29392-12c6-49ab-bfe8-766449286ed0,"President's Choice, Sliders, Mini Beef Burgers",,1.00 burger,110.0,7.5,0.0,9.0,0.0,160.0,1,2024-05-15,2024-05-15,Needs verified grams per original serving
+53251778-2022-4b58-9cd5-3ff7ad0424b1,"Pringles, Potato Crisps, Cheddar Cheese",,4.00 chip,38.65,0.3,3.96,2.46,0.18,53.17,1,2026-03-21,2026-03-21,Needs verified grams per original serving
+ee05d68c-70b4-45b1-9ab8-7ce030c53ce4,"Real Food, Blueberry Cobbler",,1.00 Scoop,100.0,1.0,20.0,1.0,1.7,96.0,1,2024-03-29,2024-03-29,Needs verified grams per original serving
+fe2eb4ef-b0c7-4de5-8de6-d596f6d457e8,"Rebel, Oat Bar, Peanut Butter Chocolate",,1.00 x 0.5 bar,190.0,4.0,24.0,9.0,3.0,130.0,1,2024-04-10,2024-04-10,Needs verified grams per original serving
+4b04e35e-3a1c-451e-8915-bc1e686634c2,"Red's, Burrito, Chicken Al Pastor",,3.00 burrito,930.0,48.0,108.0,33.0,6.0,2370.0,1,2025-05-14,2025-05-14,Needs verified grams per original serving
+a99a048b-fb87-4931-b939-c5ed48b9ef72,"Reese's, Peanut Butter Egg, Enrobed in Milk Chocolate",,1.00 Piece,170.0,4.0,18.0,10.0,1.0,135.0,1,2024-04-06,2024-04-06,Needs verified grams per original serving
+73064a93-e2a5-47d5-8cbe-6873c1b4fae8,"Reese's, Pieces Big Cup Candy",,0.50 PACKAGE,199.87,4.0,23.0,11.0,1.5,114.95,1,2023-09-23,2023-09-23,Needs verified grams per original serving
+23af0df4-4d16-4314-aeb7-f455f50bb6b7,"Samosa, without Meat",,1.00 regular,260.42,2.37,20.57,19.22,1.72,209.62,1,2023-06-09,2023-06-09,Needs verified grams per original serving
+a3ee8806-2210-4714-8115-9987b9e32159,"San Daniele, Prosciutto Ham",,1.00 x 3.0 slices,80.0,8.0,0.0,4.5,0.0,600.0,1,2023-05-09,2023-05-09,Needs verified grams per original serving
+e4caddaf-d208-4cfc-b628-bf8532dab353,"San Marcos, Whole Jalapeno Peppers",,2.00 serving,19.8,0.0,4.0,0.0,1.98,720.0,1,2024-03-07,2024-03-07,Needs verified grams per original serving
+30b4d3d8-64c1-4378-ac28-317302202209,"Shake Shack, Double Shackburger",,1.00 Serving,760.0,51.0,27.0,48.0,0.0,2280.0,1,2026-02-21,2026-02-21,Needs verified grams per original serving
+e0f32b2f-ba9e-4db7-b9eb-1e5f5db0c6e7,"Shake Shack, Regular Fries",,0.40 Serving,188.0,2.4,25.2,8.8,2.8,296.0,1,2026-02-21,2026-02-21,Needs verified grams per original serving
+9e4acf7a-3a65-43ed-885a-2b43b7bf9d83,"Shake Shack, Strawberry Shake",,0.15 Serving,103.5,2.85,14.7,5.25,0.0,87.0,1,2026-02-21,2026-02-21,Needs verified grams per original serving
+52fb2ecf-4ba7-4c9b-94bf-bf5f93ee5e83,"Siggi's, Icelandic Style Cream-Skyr, 4% Milkfat, Vanilla",,2.00 container,260.0,24.0,22.0,9.0,0.0,120.0,1,2023-07-17,2023-07-17,Needs verified grams per original serving
+3ca2fbd6-d97d-47ed-b625-9b84e9d04e22,"Signature Select, Gourmet Skillet Entree, Orange Peel Chicken",,1.00 serving,479.4,29.0,53.99,14.99,2.04,1101.6,1,2025-06-18,2025-06-18,Needs verified grams per original serving
+1a9b3071-ebec-4d5e-b437-0e40bc2c91d1,"Sour Patch, Candy, Strawberry",,0.55 x 11.0 pieces,77.0,0.0,19.25,0.0,0.0,16.5,1,2025-05-09,2025-05-09,Needs verified grams per original serving
+e3c9e401-98ef-474c-9a45-42618b9cb77d,"Spring Rolls, Egg Wrapper with Pork, Fried",,0.40 medium,62.69,2.96,7.26,2.29,0.34,92.68,1,2025-09-09,2025-09-09,Needs verified grams per original serving
+d771ee23-6854-4a0b-9847-2b1cc8587d48,"Subway, American Cheese",,"2.00 order - per 6"" sub",80.52,3.99,1.05,6.76,0.0,419.62,1,2026-02-05,2026-02-05,Needs verified grams per original serving
+83ed87ba-3de6-4eb1-b4cb-08c710f43dcd,"Subway, Turkey Breast (meat only), Canada",,2.00 Serving,140.0,18.0,8.0,4.0,0.0,1000.0,1,2026-02-05,2026-02-05,Needs verified grams per original serving
+582d0ad5-b7f3-439c-b1fc-0af6d2cfe7dd,"Subway, Turkey Breast Sandwich with Veggies, No Mayo",,"2.00 each - 6"" sub",607.58,39.14,77.9,15.54,7.9,2027.92,1,2026-02-05,2026-02-05,Needs verified grams per original serving
+0998bc26-e7d5-4344-b7f3-6c6000540f04,"Sunrise, White Pitas",,0.25 pita,42.5,1.5,9.0,0.1,0.25,32.5,1,2023-07-12,2023-07-12,Needs verified grams per original serving
+af2576f7-95ad-4ba9-958d-1dcc9cc552b0,"Sushi Do, Spicy Salmon Roll",,1.00 x 9.0 pieces,295.0,11.0,42.0,8.0,1.0,132.0,1,2024-07-20,2024-07-20,Needs verified grams per original serving
+0e9f0946-32ed-4865-8962-da35c429046a,"Tapatio, Salsa Picante Hot Sauce, Salsa Picante",,4.00 tsp,0.0,0.0,0.0,0.0,0.0,360.0,1,2023-10-18,2023-10-18,Needs verified grams per original serving
+b18aca5d-3a18-4bed-a547-c2edf27d376b,"The Keg, Garlic Cheese Toast",,0.50 Serving,370.0,14.0,37.5,16.0,1.5,990.0,1,2024-05-11,2024-05-11,Needs verified grams per original serving
+c9a66177-5c6c-4a17-85be-0f404545ded0,"The Keg, Side Mixed Vegetables",,1.00 Serving,80.0,4.0,17.0,0.0,6.0,600.0,1,2023-10-14,2023-10-14,Needs verified grams per original serving
+ae34fd8e-8719-4458-8e5c-8bb9003dd968,Tic Tacs,,1.00 piece,1.83,0.0,0.47,0.0,0.0,0.0,1,2023-12-05,2023-12-05,Needs verified grams per original serving
+9296c883-4f36-497a-903e-574572285c39,"Tim Horton's, 1, large cream",,1.00 large cream,90.0,1.0,3.0,7.0,,30.0,1,2026-03-21,2026-03-21,Needs verified grams per original serving
+66a7d692-06b5-43fc-b075-d5ab6bfc38d6,"Tim's, Potato Chips, Sea Salt & Vinegar",,0.70 bag,189.0,2.1,24.5,11.2,3.5,546.0,1,2025-08-30,2025-08-30,Needs verified grams per original serving
+5766f3af-a510-4331-9030-0b21aaa51325,Tiramisu,,"1.00 piece - 2 3/4"" x 3 1/2""",534.23,9.27,37.81,38.26,0.34,264.97,1,2025-05-31,2025-05-31,Needs verified grams per original serving
+060266f8-1156-45be-b87b-1dae3e143962,"Trader Joe's, Honeycrisp Apples",,1.00 medium apple,80.0,0.4,22.0,0.26,4.0,1.54,1,2023-05-01,2023-05-01,Needs verified grams per original serving
+560d5e30-4e83-4e7f-ab2d-c7124bbc72aa,"Trader Joe's, Raises the Bar, Chewy Granola Bar",,0.70 Bar,105.0,1.4,17.5,3.5,1.4,49.0,1,2024-07-27,2024-07-27,Needs verified grams per original serving
+795f37bb-ba52-47eb-b243-0b56ff41fc6a,"Twice Baked Potato, with Cheese, Skin Eaten",,1.00 small,247.9,6.72,30.58,11.99,3.04,419.04,1,2024-05-11,2024-05-11,Needs verified grams per original serving
+a9f48ffa-d744-4086-92a3-2d6f8f3990ce,"Unreal, Dark Chocolate Coconut Bars, Dark Chocolate",,1.00 serving,70.05,1.0,8.0,5.0,1.01,0.0,1,2026-05-01,2026-05-01,Needs verified grams per original serving
+9de45935-fc2f-4f72-9baa-a36ce81503b1,"Walmart, Tuxedo Cake",,1.00 serving,270.0,4.0,26.0,17.0,1.0,200.0,1,2023-11-30,2023-11-30,Needs verified grams per original serving
+f4147b3a-1ceb-4f85-8e67-73d413e60bf4,"Western Family, Hamburger Buns, Brioche Style",,1.00 bun,190.0,6.0,34.0,4.0,1.0,280.0,1,2025-12-27,2025-12-27,Needs verified grams per original serving
+949d722d-c056-40de-b11e-f1fda3f1d66d,"Western Family, Wraps, Original",,1.50 x 2.0 wraps,300.0,7.5,49.5,6.75,3.0,465.0,1,2024-07-01,2024-07-01,Needs verified grams per original serving
+3c5a8a23-7be9-46e9-aac3-a508b32b3d80,"Whistler Chocolate, Dark Chocolate With Sea Salt, 74% Cacao",,1.00 x 0.5 bar,220.0,4.0,17.0,18.0,5.0,150.0,1,2024-01-04,2024-01-04,Needs verified grams per original serving
+8b74ed36-b286-4cb1-a3f5-fcd048039c9a,"White Spot, Double Double",,1.00 Serving,1218.0,57.0,60.0,82.0,2.0,1720.0,1,2025-01-24,2025-01-24,Needs verified grams per original serving
+fa53cd9f-7b07-4def-ad9f-62b4bc8209dc,"Whittaker's, Creamy Milk Hazella, Smooth Hazelnut Filling",,1.00 portion,142.11,2.5,12.1,9.6,,16.0,1,2026-03-24,2026-03-24,Needs verified grams per original serving
+db8d7ae2-eb54-4c31-8981-bd69ba1e6859,"Whole Foods Bakery, Plain Bagel",,2.20 Bagel,616.0,19.8,121.0,4.4,4.4,1078.0,1,2024-10-31,2024-10-31,Needs verified grams per original serving
+3ddcec7b-af46-4cd5-b819-b2c3944d9449,"Whole Foods Market, Mild Italian Sausage",,1.80 Link,504.0,32.4,1.8,39.6,0.0,936.0,1,2023-05-02,2023-05-02,Needs verified grams per original serving
+5a215e6b-c8bf-46cf-bbe4-4789f2608707,"Whole Foods, Vanilla Pound Cake",,1.00 Slice (1/8 cake),210.0,3.0,27.0,10.0,0.0,50.0,1,2023-09-17,2023-09-17,Needs verified grams per original serving
+929f71a7-99ec-44f7-9c3d-ff000164ee1e,"Whole Wheat Bread, Store Bought",,2.00 medium slice,181.44,8.96,30.75,2.52,4.32,327.6,1,2023-06-25,2023-06-25,Needs verified grams per original serving
+18a8c1bd-cc4e-4e67-8b84-5c6e2be46963,"Wing Stop, Chicken Sandwich, Cajun",,1.00 sandwich,640.0,33.0,70.0,25.0,2.0,3940.0,1,2025-10-11,2025-10-11,Needs verified grams per original serving
+e17e8b57-17c6-44dc-9e82-19595ea55e14,"Woolworths, Beef Brisket, Smoky Chipotle",,2.00 Serving,411.77,41.6,16.0,20.0,,788.0,1,2024-12-28,2024-12-28,Needs verified grams per original serving
+ab5cdbc4-27dd-4995-80da-87c00069a8ac,Yogurt Covered Raisins,,5.00 piece,26.46,0.18,4.24,1.06,0.18,10.56,1,2024-04-14,2024-04-14,Needs verified grams per original serving
