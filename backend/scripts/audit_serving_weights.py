@@ -40,6 +40,14 @@ def option(name: str, default: int) -> int:
     return default
 
 
+def nonnegative_option(name: str, default: int) -> int:
+    prefix = f"{name}="
+    for arg in sys.argv[1:]:
+        if arg.startswith(prefix):
+            return max(0, int(arg[len(prefix):]))
+    return default
+
+
 def tokens(value: str) -> set[str]:
     words = re.findall(r"[a-z0-9]+", value.lower())
     return {
@@ -97,6 +105,7 @@ async def main() -> None:
         raise RuntimeError("USDA_API_KEY is required")
     apply = "--apply" in sys.argv
     limit = option("--limit", 25)
+    offset = nonnegative_option("--offset", 0)
     conn = await asyncpg.connect(os.environ["DATABASE_URL"])
     rows = await conn.fetch(
         """
@@ -110,8 +119,10 @@ async def main() -> None:
             WHERE history.ingredient_id = mt_ingredients.id
         ) DESC, name
         LIMIT $1
+        OFFSET $2
         """,
         limit,
+        offset,
     )
 
     approved: list[tuple[asyncpg.Record, dict, float, float]] = []
