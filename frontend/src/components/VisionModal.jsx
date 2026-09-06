@@ -9,7 +9,7 @@
  *  - Replaced fixed file1/file2 with a dynamic array (up to 5 photos) in estimate mode
  */
 import { useState, useRef } from "react";
-import { visionApi } from "../api/client";
+import { foodsApi, visionApi } from "../api/client";
 import { ModalShell } from "./AddFoodModal";
 import { Camera, Upload, Loader2, Check, Plus, X } from "lucide-react";
 
@@ -90,6 +90,7 @@ export default function VisionModal({ onClose, onSaved, mode = "label" }) {
 
   // ── Save ──────────────────────────────────────────────────────────────────
   const handleSave = async () => {
+    if (!extracted) return;
     setLoading(true);
     try {
       let res;
@@ -99,10 +100,18 @@ export default function VisionModal({ onClose, onSaved, mode = "label" }) {
         if (name) fd.append("name", name);
         res = await visionApi.estimateFromIngredients(fd);
       } else {
-        const fd = new FormData();
-        fd.append("file", file1);
-        if (name) fd.append("name", name);
-        res = await visionApi.extractAndSave(fd);
+        // Save the exact extraction the user has just reviewed. Re-running OCR
+        // here could return a different (or empty) result and overwrite the
+        // correct values displayed on the review screen.
+        const { confidence, raw_text, serving_size, name: extractedName, ...nutrients } = extracted;
+        const servingG = parseFloat(servingSizeG);
+        res = await foodsApi.create({
+          source: "custom",
+          name: name.trim() || extractedName || "Unnamed (Vision)",
+          serving_size_desc: servingSize.trim() || serving_size || null,
+          serving_size_g: Number.isFinite(servingG) && servingG > 0 ? servingG : null,
+          ...nutrients,
+        });
       }
       setStep("saved");
       // Pass the saved food object back so the caller can open the log screen
