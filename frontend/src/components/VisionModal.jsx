@@ -103,13 +103,18 @@ export default function VisionModal({ onClose, onSaved, mode = "label" }) {
         // Save the exact extraction the user has just reviewed. Re-running OCR
         // here could return a different (or empty) result and overwrite the
         // correct values displayed on the review screen.
-        const { confidence, raw_text, serving_size, name: extractedName, ...nutrients } = extracted;
+        const {
+          confidence, raw_text, serving_size, serving_size_g: extractedServingG,
+          name: extractedName, ...nutrients
+        } = extracted;
         const servingG = parseFloat(servingSizeG);
         res = await foodsApi.create({
           source: "custom",
           name: name.trim() || extractedName || "Unnamed (Vision)",
           serving_size_desc: servingSize.trim() || serving_size || null,
-          serving_size_g: Number.isFinite(servingG) && servingG > 0 ? servingG : null,
+          serving_size_g: Number.isFinite(servingG) && servingG > 0
+            ? servingG
+            : extractedServingG ?? null,
           ...nutrients,
         });
       }
