@@ -286,9 +286,13 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
     setSelected(food);
     setServingOpts(opts);
     setServingOpt(selectedOpt);
-    // Restore the last successful portion when possible. Otherwise default to
-    // one named serving or 100 g for foods without a named serving.
-    setAmount(lastOpt && lastPortion.amount > 0
+    // Remember gram quantities (they are usually deliberate), but always
+    // start a named serving at one. Yesterday's three servings should not
+    // silently become today's default.
+    const restoreGramAmount = selectedOpt.id === "g"
+      && lastOpt?.id === "g"
+      && lastPortion.amount > 0;
+    setAmount(restoreGramAmount
       ? String(lastPortion.amount)
       : selectedOpt.id === "g" ? "100" : "1");
     setShowPicker(false);

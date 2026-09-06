@@ -21,7 +21,9 @@ export default function LogFoodModal({ food, onClose, onLogged }) {
     && !/^per\s*100\s*g$/i.test(food.serving_size_desc.trim());
   const [qty,        setQty]        = useState(() => {
     const last = getLastFoodPortion(food);
-    if (servingOnly) return String((last?.quantity_g || 100) / 100);
+    // A named serving is intentionally always a fresh single serving. Gram
+    // quantities remain remembered below for foods that are logged by weight.
+    if (servingOnly) return "1";
     return String(last?.quantity_g || food.serving_size_g || 100);
   });
   const [time,       setTime]       = useState(nowTimeStr());
