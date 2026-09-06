@@ -8,9 +8,10 @@
 import { useState, useEffect, useRef } from "react";
 import { foodsApi, recipesApi } from "../api/client";
 import { ModalShell } from "./AddFoodModal";
+import BarcodeModal from "./BarcodeModal";
 import {
   Search, Loader2, Plus, Trash2, ChevronRight,
-  ChevronLeft, Check, X, Scale,
+  ChevronLeft, Check, X, Scale, ScanLine,
 } from "lucide-react";
 
 const SOURCE_BADGE = {
@@ -19,6 +20,7 @@ const SOURCE_BADGE = {
   usda:       { label: "USDA",       color: "bg-blue-100 text-blue-700" },
   custom:     { label: "Custom",     color: "bg-purple-100 text-purple-700" },
   usda_live:  { label: "USDA",       color: "bg-blue-100 text-blue-700" },
+  barcode_live: { label: "Barcode",  color: "bg-indigo-100 text-indigo-700" },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -83,6 +85,7 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
   const [searching, setSearching] = useState(false);
   const searchGen = useRef(0);
   const inputRef  = useRef();
+  const [showBarcode, setShowBarcode] = useState(false);
 
   // Save
   const [saving, setSaving]   = useState(false);
@@ -146,6 +149,11 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
     setQuery("");
     setResults([]);
     inputRef.current?.focus();
+  };
+
+  const addBarcodeFood = (food) => {
+    addToBasket(food);
+    setShowBarcode(false);
   };
 
   const updateQty = (key, qty) => setBasket(b => b.map(i => i.key === key ? { ...i, qty } : i));
@@ -215,6 +223,7 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
   const title = isEdit ? `Edit: ${recipe.name}` : "New Recipe";
 
   return (
+    <>
     <ModalShell onClose={onClose} title={title}>
 
       {/* ══════════════════════════════════════════════
@@ -237,21 +246,33 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
           </div>
 
           {/* Search */}
-          <div className="relative w-full min-w-0 box-border">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search ingredients to add…"
-              className="input pl-8"
-            />
-            {query && (
-              <button onClick={() => { setQuery(""); setResults([]); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground">
-                <X size={13} />
-              </button>
-            )}
+          <div className="flex gap-2">
+            <div className="relative min-w-0 flex-1 box-border">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Search ingredients to add…"
+                className="input pl-8"
+              />
+              {query && (
+                <button onClick={() => { setQuery(""); setResults([]); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground">
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowBarcode(true)}
+              className="btn-ghost shrink-0 px-3 flex items-center gap-1.5"
+              title="Scan barcode"
+              aria-label="Scan ingredient barcode"
+            >
+              <ScanLine size={17} />
+              <span className="text-xs">Scan</span>
+            </button>
           </div>
 
           {/* Search results */}
@@ -354,7 +375,7 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
 
           {basket.length === 0 && query.length < 2 && (
             <p className="text-center text-muted text-sm py-2">
-              Search for ingredients above to start building your recipe
+              Search or scan ingredients above to start building your recipe
             </p>
           )}
 
@@ -551,5 +572,12 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
         </div>
       )}
     </ModalShell>
+    {showBarcode && (
+      <BarcodeModal
+        onClose={() => setShowBarcode(false)}
+        onFoodScanned={addBarcodeFood}
+      />
+    )}
+    </>
   );
 }

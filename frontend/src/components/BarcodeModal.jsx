@@ -34,7 +34,7 @@ function buildServingOpts(food) {
   return opts;
 }
 
-export default function BarcodeModal({ dateStr, onClose, onLogged }) {
+export default function BarcodeModal({ dateStr, onClose, onLogged, onFoodScanned = null }) {
   const [step,          setStep]          = useState("scan");
   const [manualCode,    setManualCode]    = useState("");
   const [barcode,       setBarcode]       = useState("");
@@ -150,6 +150,14 @@ export default function BarcodeModal({ dateStr, onClose, onLogged }) {
     try {
       const res = await visionApi.lookupBarcode(code);
       const f   = res.data;
+      // Recipe Builder uses the scanner as an ingredient picker.  Return the
+      // reviewed barcode lookup result there instead of taking the user through
+      // the diary-specific meal and time fields below.
+      if (onFoodScanned) {
+        onFoodScanned({ ...f, source: "barcode_live", barcode: code });
+        onClose();
+        return;
+      }
       setFood(f);
       setName(f.name || "");
 
