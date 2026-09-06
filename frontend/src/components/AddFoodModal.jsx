@@ -381,7 +381,10 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
 
       {/* ── Results list ── */}
       {!selected && (
-        <div className="max-h-64 overflow-y-auto">
+        <div
+          className="max-h-64 overflow-y-scroll overscroll-contain"
+          style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
+        >
           {loading ? (
             <div className="flex justify-center py-10">
               <Loader2 size={20} className="animate-spin text-muted" />
@@ -670,15 +673,51 @@ function LiveMacro({ label, value, unit, color }) {
 }
 
 export function ModalShell({ onClose, title, children }) {
+  // iOS Safari's installed-app mode can leave position:fixed sheets anchored
+  // behind its on-screen keyboard. visualViewport tells us the actually
+  // visible space, so keep every ModalShell above the keyboard instead.
+  const [viewport, setViewport] = useState(null);
+
+  useEffect(() => {
+    const updateViewport = () => {
+      const vv = window.visualViewport;
+      const visibleHeight = Math.round(vv?.height || window.innerHeight);
+      const keyboardOffset = Math.max(
+        0,
+        Math.round(window.innerHeight - visibleHeight - (vv?.offsetTop || 0))
+      );
+      setViewport({ visibleHeight, keyboardOffset });
+    };
+
+    updateViewport();
+    window.visualViewport?.addEventListener("resize", updateViewport);
+    window.visualViewport?.addEventListener("scroll", updateViewport);
+    window.addEventListener("resize", updateViewport);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", updateViewport);
+      window.visualViewport?.removeEventListener("scroll", updateViewport);
+      window.removeEventListener("resize", updateViewport);
+    };
+  }, []);
+
+  const maxHeight = viewport
+    ? `${Math.max(280, Math.round(viewport.visibleHeight * 0.85))}px`
+    : "85dvh";
+
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto box-border z-50 overflow-hidden rounded-t-3xl shadow-2xl">
+      <div
+        className="fixed left-0 right-0 w-full max-w-md mx-auto box-border z-50 overflow-hidden rounded-t-3xl shadow-2xl"
+        style={{ bottom: `${viewport?.keyboardOffset || 0}px` }}
+      >
         <div
           className="bg-surface-1 w-full min-w-0 box-border flex flex-col gap-4 overflow-y-auto px-4 pt-5"
           style={{
-            maxHeight: "85dvh",
+            maxHeight,
             paddingBottom: "calc(90px + env(safe-area-inset-bottom, 0px))",
+            WebkitOverflowScrolling: "touch",
+            overscrollBehavior: "contain",
           }}
         >
           <div className="w-9 h-1 rounded-full bg-surface-3 mx-auto shrink-0" />
