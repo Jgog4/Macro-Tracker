@@ -70,20 +70,38 @@ async def search_local_foods(
     )
     log_count = func.coalesce(usage_sq.c.log_count, 0)
 
-    def _base_stmt():
-        return (
+    # Foods you actually eat come first (that's the point of usage ranking),
+    # but cap them so the reference databases always get slots — otherwise a
+    # common word like "milk" fills every result with previously-logged foods.
+    FAMILIAR_SLOTS = 8
+
+    def _ordered(where, familiar: bool, take: int):
+        stmt = (
             select(Ingredient)
             .outerjoin(usage_sq, usage_sq.c.ingredient_id == Ingredient.id)
+            .where(where)
+            .where(log_count > 0 if familiar else log_count == 0)
             .order_by(log_count.desc(), source_rank, Ingredient.name)
-            .limit(limit)
+            .limit(take)
         )
-
-    def _apply_filters(stmt):
         if source:
             stmt = stmt.where(Ingredient.source == source)
         if brand:
             stmt = stmt.where(func.lower(Ingredient.brand) == brand.lower())
         return stmt
+
+    async def _mixed(where):
+        """Familiar foods first (capped), then fill from everything else."""
+        familiar = (await db.execute(_ordered(where, True, min(limit, FAMILIAR_SLOTS)))).scalars().all()
+        rest_n = limit - len(familiar)
+        rest = (await db.execute(_ordered(where, False, rest_n))).scalars().all() if rest_n > 0 else []
+        combined = familiar + rest
+        # If there were few unlogged matches, top back up with more familiar ones.
+        if len(combined) < limit:
+            extra = (await db.execute(_ordered(where, True, limit))).scalars().all()
+            seen = {i.id for i in combined}
+            combined += [i for i in extra if i.id not in seen][: limit - len(combined)]
+        return combined
 
     # ── Try exact substring match (AND across all words) ─────────────────────
     words = [w for w in q.lower().split() if w]
@@ -94,21 +112,16 @@ async def search_local_foods(
         )
         for word in words
     ]
-    stmt = _apply_filters(_base_stmt().where(and_(*word_clauses)))
-    rows = (await db.execute(stmt)).scalars().all()
-
+    rows = await _mixed(and_(*word_clauses))
     if rows:
         return rows
 
     # ── Fuzzy fallback: trigram similarity on the full query string ───────────
-    # word_similarity checks if query words appear fuzzily within name tokens
     q_lower = q.lower().strip()
-    fuzzy_filter = or_(
+    return await _mixed(or_(
         func.word_similarity(q_lower, func.lower(Ingredient.name))  > 0.25,
         func.word_similarity(q_lower, func.lower(Ingredient.brand)) > 0.25,
-    )
-    stmt = _apply_filters(_base_stmt().where(fuzzy_filter))
-    return (await db.execute(stmt)).scalars().all()
+    ))
 
 
 # ── Restaurant database (your CSV brands) ────────────────────────────────────
