@@ -182,16 +182,50 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
   // ── Save ─────────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!name.trim() || basket.length === 0) return;
+    const invalid = basket.find(({ food, qty }) => {
+      const grams = parseFloat(qty);
+      return !food?.id && !food?.fdc_id && food?.source !== "barcode_live"
+        || !Number.isFinite(grams) || grams <= 0;
+    });
+    if (invalid) {
+      setSaveError(`Enter a gram weight greater than zero for ${invalid.food?.name || "every ingredient"}.`);
+      return;
+    }
     setSaving(true);
     setSaveError("");
     try {
-      // Import any live USDA items first
+      // Persist live-search foods before creating the recipe so every recipe
+      // ingredient has a real database ID.
       const ingredients = await Promise.all(
         basket.map(async ({ food, qty }) => {
           let ingredient_id = food.id;
           if (!ingredient_id && food.fdc_id) {
             const imported = await foodsApi.importUsda(food.fdc_id);
             ingredient_id = imported.data.id;
+          }
+          if (!ingredient_id && food.source === "barcode_live") {
+            const saved = await foodsApi.create({
+              source: "barcode",
+              name: food.name,
+              brand: food.brand ?? null,
+              serving_size_desc: food.serving_size_desc ?? null,
+              serving_size_g: food.serving_size_g ?? null,
+              calories: food.calories ?? 0,
+              protein_g: food.protein_g ?? 0,
+              fat_g: food.fat_g ?? 0,
+              carbs_g: food.carbs_g ?? 0,
+              sat_fat_g: food.sat_fat_g ?? null,
+              trans_fat_g: food.trans_fat_g ?? null,
+              fiber_g: food.fiber_g ?? null,
+              sugar_g: food.sugar_g ?? null,
+              sodium_mg: food.sodium_mg ?? null,
+              cholesterol_mg: food.cholesterol_mg ?? null,
+              potassium_mg: food.potassium_mg ?? null,
+            });
+            ingredient_id = saved.data.id;
+          }
+          if (!ingredient_id) {
+            throw new Error(`Couldn't save ${food.name} as a recipe ingredient.`);
           }
           return { ingredient_id, quantity_g: parseFloat(qty) };
         })
