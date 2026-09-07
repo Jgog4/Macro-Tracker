@@ -64,8 +64,9 @@ async def search_local_foods(
         (Ingredient.source == "custom",     1),
         (Ingredient.source == "restaurant", 2),
         (Ingredient.source == "cnf",        3),   # Canadian Nutrient File
-        (Ingredient.source == "usda",       4),
-        else_=5,
+        (Ingredient.source == "cofid",      4),   # UK CoFID
+        (Ingredient.source == "usda",       5),
+        else_=6,
     )
     log_count = func.coalesce(usage_sq.c.log_count, 0)
 
