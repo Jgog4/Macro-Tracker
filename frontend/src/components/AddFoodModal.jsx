@@ -19,6 +19,7 @@ const SOURCE_BADGE = {
   personal:   { label: "My Foods",   color: "bg-green-100 text-green-700" },
   restaurant: { label: "Restaurant", color: "bg-orange-100 text-orange-700" },
   usda:       { label: "USDA",       color: "bg-blue-100 text-blue-700" },
+  cnf:        { label: "Canadian",   color: "bg-red-100 text-red-700" },
   custom:     { label: "Custom",     color: "bg-purple-100 text-purple-700" },
   usda_live:  { label: "USDA",       color: "bg-blue-100 text-blue-700" },
   recipe:     { label: "Recipe",     color: "bg-emerald-100 text-emerald-700" },
