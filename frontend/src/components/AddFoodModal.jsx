@@ -710,9 +710,9 @@ export function ModalShell({ onClose, title, children }) {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
+      <div className="fixed inset-0 z-[90] bg-black/40" onClick={onClose} />
       <div
-        className="fixed left-0 right-0 w-full max-w-md mx-auto box-border z-50 overflow-hidden rounded-t-3xl shadow-2xl"
+        className="fixed left-0 right-0 w-full max-w-md mx-auto box-border z-[100] overflow-hidden rounded-t-3xl shadow-2xl"
         style={{ bottom: `${viewport?.keyboardOffset || 0}px` }}
       >
         <div
