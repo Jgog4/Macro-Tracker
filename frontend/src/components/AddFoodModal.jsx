@@ -26,6 +26,26 @@ const SOURCE_BADGE = {
   recipe:     { label: "Recipe",     color: "bg-emerald-100 text-emerald-700" },
 };
 
+/** How well a food name matches the query. Lower is better.
+ *  Mirrors the backend's ranking (word-start match beats a mid-word accident,
+ *  so "rice" ranks "White Rice" above "Liquorice"). */
+function relevance(name, query) {
+  const n = (name || "").toLowerCase();
+  const q = (query || "").toLowerCase().trim();
+  if (!q) return 5;
+  if (n === q) return 0;                       // exact name
+  // Deliberately NOT giving `startsWith` its own tier: "Rice Krispies" would
+  // then beat "White Rice, Steamed" for a search of "rice". Any word-start
+  // match is equally relevant; usage ordering from the API breaks the tie.
+  if (/^\w/.test(q)) {
+    const esc = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (new RegExp(`\\b${esc}`).test(n)) return 1;
+  } else if (n.startsWith(q)) {
+    return 1;
+  }
+  return n.includes(q) ? 2 : 3;                // mid-word only, e.g. "Liquorice"
+}
+
 function nowTimeStr() {
   const d = new Date();
   return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
@@ -221,11 +241,26 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
             })
           : [];
         const localFdcIds = new Set(localItems.map(i => i.usda_fdc_id).filter(Boolean));
-        setResults([
-          ...recipeItems,
+        // Merge by relevance rather than by source. Listing every recipe first
+        // meant a search for "rice" returned five rice *recipes* and no actual
+        // rice. Each source is already sensibly ordered internally, so sort on
+        // relevance alone and let a stable sort preserve that ordering within
+        // each band.
+        const merged = [
           ...localItems,
+          ...recipeItems,
           ...usdaItems.filter(i => !localFdcIds.has(i.fdc_id)),
-        ]);
+        ];
+        const typeRank = { recipe: 1, usda_live: 2 };
+        setResults(
+          merged
+            .map((item, i) => ({ item, i }))
+            .sort((a, b) =>
+              relevance(a.item.name, query) - relevance(b.item.name, query) ||
+              (typeRank[a.item.source] || 0) - (typeRank[b.item.source] || 0) ||
+              a.i - b.i)
+            .map(({ item }) => item)
+        );
       } catch { if (gen === searchGen.current) setResults([]); }
       finally  { if (gen === searchGen.current) setLoading(false); }
     }, 350);
