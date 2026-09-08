@@ -292,13 +292,17 @@ async def import_usda_food(fdc_id: int) -> Ingredient:
             serving_g = round(float(serving_size) * 28.3495, 1)
         elif u in ("ml", "milliliter", "milliliters", "millilitre"):
             serving_g = float(serving_size)   # water-like density approximation
-    # Store a clean human-readable description (avoid raw USDA codes like "22 GRM")
+    # USDA reports every nutrient PER 100 g; `servingSize` is separate label
+    # metadata, NOT the basis of the numbers. Storing it as serving_size_g made
+    # the app treat per-100g values as per-serving and inflate everything by
+    # 100/serving (a 39 g cake at 410 kcal/100g displayed as 1051 kcal/100g).
+    # So the basis is always 100 g; the label serving is kept for reference only.
     if serving_g is not None:
-        serving_desc = f"{serving_g:g}g"      # e.g. "22g", "28.3g"
+        serving_desc = f"per 100g (label serving {serving_g:g}g)"
     elif serving_size:
-        serving_desc = f"{serving_size} {serving_unit}"
+        serving_desc = f"per 100g (label serving {serving_size} {serving_unit})"
     else:
-        serving_desc = None
+        serving_desc = "per 100g"
 
     # Build kwargs — only pass fields that exist on Ingredient
     from app.models.models import Ingredient as IngredientModel
@@ -311,6 +315,7 @@ async def import_usda_food(fdc_id: int) -> Ingredient:
         name=food.get("description", "USDA Food"),
         brand=food.get("brandOwner") or food.get("brandName"),
         serving_size_desc=serving_desc,
-        serving_size_g=serving_g,
+        serving_size_g=100.0,   # nutrients are per 100 g — see note above
+
         **nutrient_kwargs,
     )

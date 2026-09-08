@@ -192,15 +192,13 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
               name: f.description, brand: f.brand_owner,
               calories: f.calories, protein_g: f.protein_g,
               fat_g: f.fat_g, carbs_g: f.carbs_g,
-              serving_size_desc: f.serving_unit ? `${f.serving_size} ${f.serving_unit}` : null,
-              serving_size_g: (() => {
-                if (!f.serving_size || !f.serving_unit) return null;
-                const u = f.serving_unit.toLowerCase().trim();
-                if (["g","grm","gram","grams","gr"].includes(u)) return f.serving_size;
-                if (["oz","ounce","ounces"].includes(u)) return Math.round(f.serving_size * 28.3495 * 10) / 10;
-                if (["ml","milliliter","milliliters"].includes(u)) return f.serving_size;
-                return null;
-              })(),
+              // USDA nutrients are always PER 100 g. `serving_size` is label
+              // metadata, not the basis — pairing the two inflated every food
+              // by 100/serving. Basis is 100 g; the label serving is reference.
+              serving_size_desc: f.serving_size && f.serving_unit
+                ? `per 100g (label serving ${f.serving_size} ${f.serving_unit})`
+                : "per 100g",
+              serving_size_g: 100,
             }))
           : [];
         const recipeItems = recipesRes.status === "fulfilled"
