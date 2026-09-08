@@ -1,10 +1,11 @@
 """
 /foods — ingredient CRUD + USDA search + restaurant database lookup.
 """
+import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import and_, case, select, or_, func, literal_column, text
+from sqlalchemy import and_, case, select, or_, func, literal_column, text, Numeric
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -14,6 +15,11 @@ from app.services.usda import search_usda, import_usda_food
 from app.services.nutrient_completion import complete_missing_micros
 
 router = APIRouter(prefix="/foods", tags=["Foods"])
+
+
+def _re_escape(term: str) -> str:
+    """Escape a user search term for use inside a POSIX regular expression."""
+    return re.sub(r"([.^$*+?()\[\]{}|\\])", r"\\\1", term)
 
 
 # ── List all ingredients by source ───────────────────────────────────────────
@@ -70,18 +76,43 @@ async def search_local_foods(
     )
     log_count = func.coalesce(usage_sq.c.log_count, 0)
 
+    # Relevance. Substring matching is kept for *retrieval* so partial typing
+    # still works ("ric" → rice), but a bare substring match also drags in
+    # nonsense: "rice" matches "Liquorice" and "Licorice" mid-word. So rank by
+    # whether the term begins a word (`\m` is a Postgres word-start anchor) —
+    # that keeps "White Rice" and prefix-typing, and sinks mid-word accidents.
+    q_re = _re_escape(q.lower().strip())
+    if q_re:
+        relevance = case(
+            (func.lower(Ingredient.name).op("~")(r"\m" + q_re), 0),
+            (func.lower(func.coalesce(Ingredient.brand, "")).op("~")(r"\m" + q_re), 1),
+            else_=2,          # matched only in the middle of a word
+        )
+    else:
+        relevance = literal_column("0")
+
     # Foods you actually eat come first (that's the point of usage ranking),
     # but cap them so the reference databases always get slots — otherwise a
     # common word like "milk" fills every result with previously-logged foods.
     FAMILIAR_SLOTS = 8
 
-    def _ordered(where, familiar: bool, take: int):
+    def _ordered(where, familiar: bool, take: int, first_order=None):
         stmt = (
             select(Ingredient)
             .outerjoin(usage_sq, usage_sq.c.ingredient_id == Ingredient.id)
             .where(where)
             .where(log_count > 0 if familiar else log_count == 0)
-            .order_by(log_count.desc(), source_rank, Ingredient.name)
+            # Recipes carry a proxy row in mt_ingredients (recipe_id set). The
+            # recipe itself is returned separately by /recipes/search, so
+            # including the proxy here just shows every recipe twice.
+            .where(Ingredient.recipe_id.is_(None))
+            # Relevance first so mid-word accidents never outrank real matches.
+            # Then usage, then source. `length(name)` is a mild tiebreaker that
+            # favours the plain staple ("Rice, white, raw") over the elaborate
+            # variant when neither has been logged.
+            .order_by(*([first_order] if first_order is not None else []),
+                      relevance, log_count.desc(), source_rank,
+                      func.length(Ingredient.name), Ingredient.name)
             .limit(take)
         )
         if source:
@@ -90,15 +121,15 @@ async def search_local_foods(
             stmt = stmt.where(func.lower(Ingredient.brand) == brand.lower())
         return stmt
 
-    async def _mixed(where):
+    async def _mixed(where, first_order=None):
         """Familiar foods first (capped), then fill from everything else."""
-        familiar = (await db.execute(_ordered(where, True, min(limit, FAMILIAR_SLOTS)))).scalars().all()
+        familiar = (await db.execute(_ordered(where, True, min(limit, FAMILIAR_SLOTS), first_order))).scalars().all()
         rest_n = limit - len(familiar)
-        rest = (await db.execute(_ordered(where, False, rest_n))).scalars().all() if rest_n > 0 else []
+        rest = (await db.execute(_ordered(where, False, rest_n, first_order))).scalars().all() if rest_n > 0 else []
         combined = familiar + rest
         # If there were few unlogged matches, top back up with more familiar ones.
         if len(combined) < limit:
-            extra = (await db.execute(_ordered(where, True, limit))).scalars().all()
+            extra = (await db.execute(_ordered(where, True, limit, first_order))).scalars().all()
             seen = {i.id for i in combined}
             combined += [i for i in extra if i.id not in seen][: limit - len(combined)]
         return combined
@@ -118,10 +149,21 @@ async def search_local_foods(
 
     # ── Fuzzy fallback: trigram similarity on the full query string ───────────
     q_lower = q.lower().strip()
-    return await _mixed(or_(
-        func.word_similarity(q_lower, func.lower(Ingredient.name))  > 0.25,
-        func.word_similarity(q_lower, func.lower(Ingredient.brand)) > 0.25,
-    ))
+    # On the typo path, closeness of the match matters more than how often the
+    # food is eaten — otherwise "chickn" returns your most-logged foods that
+    # happen to be vaguely similar, instead of chicken. Bucket the similarity
+    # so near-ties still fall through to the usage ordering below.
+    similarity = func.greatest(
+        func.word_similarity(q_lower, func.lower(Ingredient.name)),
+        func.word_similarity(q_lower, func.lower(func.coalesce(Ingredient.brand, ""))),
+    )
+    return await _mixed(
+        or_(
+            func.word_similarity(q_lower, func.lower(Ingredient.name))  > 0.25,
+            func.word_similarity(q_lower, func.lower(Ingredient.brand)) > 0.25,
+        ),
+        first_order=func.round((similarity * 10).cast(Numeric)).desc(),
+    )
 
 
 # ── Restaurant database (your CSV brands) ────────────────────────────────────
