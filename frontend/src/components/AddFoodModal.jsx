@@ -251,13 +251,17 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
           ...recipeItems,
           ...usdaItems.filter(i => !localFdcIds.has(i.fdc_id)),
         ];
+        // Source rank comes FIRST. Relevance alone put a USDA product called
+        // "RICE" (an exact match) above your own "Rice, White, Long-Grain".
+        // Your foods and recipes always outrank the live USDA lookup, which is
+        // only there to cover things you have never logged.
         const typeRank = { recipe: 1, usda_live: 2 };
         setResults(
           merged
             .map((item, i) => ({ item, i }))
             .sort((a, b) =>
-              relevance(a.item.name, query) - relevance(b.item.name, query) ||
               (typeRank[a.item.source] || 0) - (typeRank[b.item.source] || 0) ||
+              relevance(a.item.name, query) - relevance(b.item.name, query) ||
               a.i - b.i)
             .map(({ item }) => item)
         );
