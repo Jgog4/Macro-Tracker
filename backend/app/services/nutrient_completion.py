@@ -63,6 +63,17 @@ def _tokens(value: str) -> set[str]:
 _ERROR_FLOOR = {"calories": 20.0, "protein_g": 5.0, "fat_g": 5.0, "carbs_g": 5.0}
 
 
+def _search_query(text: str) -> str:
+    """Strip punctuation USDA's search endpoint rejects.
+
+    Its query parser treats brackets and similar characters as syntax, so a
+    name like "Ground Bison, Extra Lean [Copy]" returns HTTP 400 — which the
+    caller could only record as "lookup unavailable", making a malformed query
+    look like a transient outage.
+    """
+    return re.sub(r"\s+", " ", re.sub(r"[^0-9a-zA-Z\s]", " ", text)).strip()
+
+
 def _macro_error(ingredient: Ingredient, candidate_nutrients: dict) -> float:
     """Mean relative error for the four label macros, normalised to 100 g."""
     base_g = ingredient.serving_size_g or 100.0
@@ -175,7 +186,7 @@ async def complete_missing_micros(ingredient: Ingredient) -> bool:
                 f"{settings.USDA_BASE_URL}/foods/search",
                 params={"api_key": settings.USDA_API_KEY},
                 json={
-                    "query": query,
+                    "query": _search_query(query),
                     "pageSize": 12,
                     "dataType": ["Foundation", "SR Legacy"],
                 },
