@@ -180,6 +180,11 @@ class IngredientRead(IngredientBase):
     micronutrient_completed_at: Optional[datetime] = None
     created_at: datetime
 
+    # Usage signal, attached by /foods/search so the client can rank by how
+    # recently a food was eaten rather than only by how often.
+    last_logged: Optional[date] = None
+    log_count:   int = 0
+
     model_config = {"from_attributes": True}
 
 
@@ -235,6 +240,11 @@ class RecipeRead(BaseModel):
 
     ingredients: list[RecipeIngredientRead] = []
     created_at:  datetime
+
+    # Same usage signal as IngredientRead — recipes are logged via
+    # mt_meal_log_items.recipe_id, so their usage lives in a different column.
+    last_logged: Optional[date] = None
+    log_count:   int = 0
 
     model_config = {"from_attributes": True}
 

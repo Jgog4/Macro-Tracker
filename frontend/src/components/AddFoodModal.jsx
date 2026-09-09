@@ -53,6 +53,27 @@ export function selectAndReveal(e) {
   setTimeout(() => el.scrollIntoView({ block: "center", behavior: "smooth" }), 350);
 }
 
+/** How recently this was eaten, bucketed. Lower is better.
+ *  Mirrors the buckets used by /foods/search. Buckets rather than raw dates so
+ *  a one-off logged an hour ago cannot outrank a daily staple; frequency
+ *  settles the order inside a bucket. */
+export function recencyBucket(lastLogged) {
+  if (!lastLogged) return 5;
+  // Calendar-day difference, matching Postgres `current_date - log_date`.
+  // Elapsed hours would disagree with the server: a food logged yesterday
+  // evening is 1 day old to Postgres but ~0.8 here, landing in another bucket.
+  const now = new Date();
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const [y, m, d] = String(lastLogged).slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return 5;
+  const days = (today - Date.UTC(y, m - 1, d)) / 86400000;
+  if (days <= 1)  return 0;
+  if (days <= 7)  return 1;
+  if (days <= 30) return 2;
+  if (days <= 90) return 3;
+  return 4;
+}
+
 /** How well a food name matches the query. Lower is better.
  *  Mirrors the backend's ranking (word-start match beats a mid-word accident,
  *  so "rice" ranks "White Rice" above "Liquorice"). */
@@ -61,16 +82,19 @@ function relevance(name, query) {
   const q = (query || "").toLowerCase().trim();
   if (!q) return 5;
   if (n === q) return 0;                       // exact name
-  // Deliberately NOT giving `startsWith` its own tier: "Rice Krispies" would
-  // then beat "White Rice, Steamed" for a search of "rice". Any word-start
-  // match is equally relevant; usage ordering from the API breaks the tie.
   if (/^\w/.test(q)) {
     const esc = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    if (new RegExp(`\\b${esc}`).test(n)) return 1;
+    // A whole word beats a word merely starting with the term: searching
+    // "cream" should rank "Cream of rice" above "Peanut Butter, Creamy".
+    if (new RegExp(`\\b${esc}\\b`).test(n)) return 1;
+    // Still a word start — this is what keeps partial typing working ("cre").
+    // Deliberately NOT split further by `startsWith`, or "Rice Krispies" would
+    // beat "White Rice, Steamed" for a search of "rice".
+    if (new RegExp(`\\b${esc}`).test(n))      return 2;
   } else if (n.startsWith(q)) {
-    return 1;
+    return 2;
   }
-  return n.includes(q) ? 2 : 3;                // mid-word only, e.g. "Liquorice"
+  return n.includes(q) ? 3 : 4;                // mid-word only, e.g. "Liquorice"
 }
 
 function nowTimeStr() {
@@ -264,6 +288,7 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
                 serving_size_g: perServingG || null,
                 serving_size_desc: desc,
                 num_servings: ns,
+                last_logged: r.last_logged, log_count: r.log_count || 0,
               };
             })
           : [];
@@ -278,17 +303,19 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
           ...recipeItems,
           ...usdaItems.filter(i => !localFdcIds.has(i.fdc_id)),
         ];
-        // Source rank comes FIRST. Relevance alone put a USDA product called
-        // "RICE" (an exact match) above your own "Rice, White, Long-Grain".
-        // Your foods and recipes always outrank the live USDA lookup, which is
-        // only there to cover things you have never logged.
+        // Rank: relevance, then recency, then source. Sorting by source first
+        // buried recipes below every food — "Cream of rice", eaten daily, sat
+        // under foods that had never been logged. Live USDA results carry no
+        // usage at all, so they fall to the bottom naturally.
         const typeRank = { recipe: 1, usda_live: 2 };
         setResults(
           merged
             .map((item, i) => ({ item, i }))
             .sort((a, b) =>
-              (typeRank[a.item.source] || 0) - (typeRank[b.item.source] || 0) ||
               relevance(a.item.name, query) - relevance(b.item.name, query) ||
+              recencyBucket(a.item.last_logged) - recencyBucket(b.item.last_logged) ||
+              (typeRank[a.item.source] || 0) - (typeRank[b.item.source] || 0) ||
+              (b.item.log_count || 0) - (a.item.log_count || 0) ||
               a.i - b.i)
             .map(({ item }) => item)
         );

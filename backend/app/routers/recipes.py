@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models.models import Ingredient, Recipe, RecipeIngredient
+from app.models.models import Ingredient, MealLog, MealLogItem, Recipe, RecipeIngredient
 from app.schemas.schemas import RecipeCreate, RecipeRead, RecipeUpdate
 
 router = APIRouter(prefix="/recipes", tags=["Recipes"])
@@ -93,7 +93,29 @@ async def list_recipes(
             stmt = stmt.where(func.lower(Recipe.name).contains(word))
     stmt = stmt.order_by(Recipe.name)
     result = await db.execute(stmt)
-    return result.scalars().all()
+    rows = result.scalars().all()
+
+    # Recipes are logged through mt_meal_log_items.recipe_id, not ingredient_id,
+    # so their usage lives in a different column than a food's. Attach it here
+    # so the client can rank recipes and foods on the same recency scale —
+    # without it, a recipe eaten every morning sorts below foods never eaten.
+    if rows:
+        usage = await db.execute(
+            select(
+                MealLogItem.recipe_id,
+                func.count().label("log_count"),
+                func.max(MealLog.log_date).label("last_logged"),
+            )
+            .join(MealLog, MealLog.id == MealLogItem.meal_log_id)
+            .where(MealLogItem.recipe_id.in_([r.id for r in rows]))
+            .group_by(MealLogItem.recipe_id)
+        )
+        by_id = {u.recipe_id: u for u in usage}
+        for r in rows:
+            u = by_id.get(r.id)
+            r.last_logged = u.last_logged if u else None
+            r.log_count   = u.log_count if u else 0
+    return rows
 
 
 @router.get("/{recipe_id}", response_model=RecipeRead)

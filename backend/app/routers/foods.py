@@ -9,7 +9,7 @@ from sqlalchemy import and_, case, select, or_, func, literal_column, text, Nume
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models.models import Ingredient, MealLogItem
+from app.models.models import Ingredient, MealLog, MealLogItem
 from app.schemas.schemas import IngredientCreate, IngredientRead, IngredientUpdate, USDASearchResult
 from app.services.usda import search_usda, import_usda_food
 from app.services.nutrient_completion import complete_missing_micros
@@ -56,11 +56,18 @@ async def search_local_foods(
     """
     Search local ingredients by name/brand.
     - Exact substring match first; falls back to trigram fuzzy match for typos.
-    - Results sorted by: usage frequency (most logged first), then source rank, then name.
+    - Sorted by relevance, then how recently the food was eaten, then source.
+    - Each row carries `last_logged` / `log_count` so the client can apply the
+      same ranking when it merges these with recipes and live USDA results.
     """
     # Usage frequency subquery — count how many times each ingredient has been logged
     usage_sq = (
-        select(MealLogItem.ingredient_id, func.count().label("log_count"))
+        select(
+            MealLogItem.ingredient_id.label("ingredient_id"),
+            func.count().label("log_count"),
+            func.max(MealLog.log_date).label("last_logged"),
+        )
+        .join(MealLog, MealLog.id == MealLogItem.meal_log_id)
         .group_by(MealLogItem.ingredient_id)
         .subquery()
     )
@@ -76,6 +83,20 @@ async def search_local_foods(
     )
     log_count = func.coalesce(usage_sq.c.log_count, 0)
 
+    # Recency, bucketed. Raw "most recent first" would let a one-off logged an
+    # hour ago outrank a staple eaten every morning; bucketing means recency
+    # decides the broad tier and frequency settles it inside the tier.
+    _last = usage_sq.c.last_logged
+    _days = func.current_date() - _last
+    recency = case(
+        (_last.is_(None), 5),
+        (_days <= 1,  0),
+        (_days <= 7,  1),
+        (_days <= 30, 2),
+        (_days <= 90, 3),
+        else_=4,
+    )
+
     # Relevance. Substring matching is kept for *retrieval* so partial typing
     # still works ("ric" → rice), but a bare substring match also drags in
     # nonsense: "rice" matches "Liquorice" and "Licorice" mid-word. So rank by
@@ -83,10 +104,14 @@ async def search_local_foods(
     # that keeps "White Rice" and prefix-typing, and sinks mid-word accidents.
     q_re = _re_escape(q.lower().strip())
     if q_re:
+        name_l  = func.lower(Ingredient.name)
+        brand_l = func.lower(func.coalesce(Ingredient.brand, ""))
         relevance = case(
-            (func.lower(Ingredient.name).op("~")(r"\m" + q_re), 0),
-            (func.lower(func.coalesce(Ingredient.brand, "")).op("~")(r"\m" + q_re), 1),
-            else_=2,          # matched only in the middle of a word
+            (name_l == q.lower().strip(), 0),                     # exact name
+            (name_l.op("~")(r"\m" + q_re + r"\M"), 1),            # whole word
+            (name_l.op("~")(r"\m" + q_re), 2),                     # word start
+            (brand_l.op("~")(r"\m" + q_re), 3),                    # brand
+            else_=4,                                             # mid-word only
         )
     else:
         relevance = literal_column("0")
@@ -106,12 +131,11 @@ async def search_local_foods(
             # recipe itself is returned separately by /recipes/search, so
             # including the proxy here just shows every recipe twice.
             .where(Ingredient.recipe_id.is_(None))
-            # Relevance first so mid-word accidents never outrank real matches.
-            # Then usage, then source. `length(name)` is a mild tiebreaker that
-            # favours the plain staple ("Rice, white, raw") over the elaborate
-            # variant when neither has been logged.
+            # Relevance, then recency, then source. Frequency breaks ties
+            # inside a recency bucket; `length(name)` favours the plain staple
+            # ("Rice, white, raw") when nothing has been logged at all.
             .order_by(*([first_order] if first_order is not None else []),
-                      relevance, log_count.desc(), source_rank,
+                      relevance, recency, log_count.desc(), source_rank,
                       func.length(Ingredient.name), Ingredient.name)
             .limit(take)
         )
@@ -134,6 +158,22 @@ async def search_local_foods(
             combined += [i for i in extra if i.id not in seen][: limit - len(combined)]
         return combined
 
+
+    async def _with_usage(rows):
+        """Attach last_logged / log_count so the client can rank consistently."""
+        if not rows:
+            return rows
+        usage = await db.execute(
+            select(usage_sq.c.ingredient_id, usage_sq.c.log_count, usage_sq.c.last_logged)
+            .where(usage_sq.c.ingredient_id.in_([r.id for r in rows]))
+        )
+        by_id = {u.ingredient_id: u for u in usage}
+        for r in rows:
+            u = by_id.get(r.id)
+            r.last_logged = u.last_logged if u else None
+            r.log_count   = u.log_count if u else 0
+        return rows
+
     # ── Try exact substring match (AND across all words) ─────────────────────
     words = [w for w in q.lower().split() if w]
     word_clauses = [
@@ -145,7 +185,7 @@ async def search_local_foods(
     ]
     rows = await _mixed(and_(*word_clauses))
     if rows:
-        return rows
+        return await _with_usage(rows)
 
     # ── Fuzzy fallback: trigram similarity on the full query string ───────────
     q_lower = q.lower().strip()
@@ -157,13 +197,13 @@ async def search_local_foods(
         func.word_similarity(q_lower, func.lower(Ingredient.name)),
         func.word_similarity(q_lower, func.lower(func.coalesce(Ingredient.brand, ""))),
     )
-    return await _mixed(
+    return await _with_usage(await _mixed(
         or_(
             func.word_similarity(q_lower, func.lower(Ingredient.name))  > 0.25,
             func.word_similarity(q_lower, func.lower(Ingredient.brand)) > 0.25,
         ),
         first_order=func.round((similarity * 10).cast(Numeric)).desc(),
-    )
+    ))
 
 
 # ── Restaurant database (your CSV brands) ────────────────────────────────────
