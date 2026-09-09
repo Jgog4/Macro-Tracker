@@ -248,12 +248,22 @@ async def complete_missing_micros(ingredient: Ingredient) -> bool:
                 verified = True
 
             fdc_id = selected["fdcId"]
-            detail = await client.get(
-                f"{settings.USDA_BASE_URL}/food/{fdc_id}",
-                params={"api_key": settings.USDA_API_KEY},
-            )
-            detail.raise_for_status()
-            reference = detail.json()
+            try:
+                detail = await client.get(
+                    f"{settings.USDA_BASE_URL}/food/{fdc_id}",
+                    params={"api_key": settings.USDA_API_KEY},
+                )
+                detail.raise_for_status()
+                reference = detail.json()
+            except (httpx.HTTPError, ValueError):
+                # Some USDA search-index entries 404 on /food/{id} — the record
+                # is searchable but not individually retrievable. Losing an
+                # otherwise-good match to that was making the row look like a
+                # transient outage, so it retried forever. The search hit
+                # already carries foodNutrients (it is what the macro gate is
+                # scored against), so fall back to it. Fewer fields than the
+                # full record, but a correct match beats none.
+                reference = selected
     except (httpx.HTTPError, ValueError, KeyError):
         # Saving food must remain reliable if the optional completion lookup is
         # unavailable or the free USDA key is rate-limited.
