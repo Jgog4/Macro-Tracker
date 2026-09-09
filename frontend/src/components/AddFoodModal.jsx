@@ -26,6 +26,22 @@ const SOURCE_BADGE = {
   recipe:     { label: "Recipe",     color: "bg-emerald-100 text-emerald-700" },
 };
 
+/** Focus behaviour for the numeric fields inside a bottom sheet.
+ *  1. Selects the current value so typing replaces it — no backspacing first.
+ *  2. Scrolls the field back into view once iOS has finished animating the
+ *     keyboard in, which otherwise leaves it hidden behind the keypad. */
+export function selectAndReveal(e) {
+  const el = e.currentTarget;
+  // select() throws on number inputs in some engines; the caret is also
+  // re-placed by iOS right after the tap, so run it again next frame.
+  const selectAll = () => { try { el.select(); } catch { /* not selectable */ } };
+  selectAll();
+  requestAnimationFrame(selectAll);
+  // The keyboard animation (and the resulting visualViewport resize that
+  // ModalShell reacts to) needs to settle before scrolling means anything.
+  setTimeout(() => el.scrollIntoView({ block: "center", behavior: "smooth" }), 350);
+}
+
 /** How well a food name matches the query. Lower is better.
  *  Mirrors the backend's ranking (word-start match beats a mid-word accident,
  *  so "rice" ranks "White Rice" above "Liquorice"). */
@@ -521,6 +537,7 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
                 type="number"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
+                onFocus={selectAndReveal}
                 className="input font-mono w-28 shrink-0"
                 placeholder={servingOpt?.id === "g" ? "100" : "1"}
                 min="0.1"
@@ -604,6 +621,7 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
                   type="number"
                   value={itemWeightG}
                   onChange={e => setItemWeightG(e.target.value)}
+                  onFocus={selectAndReveal}
                   placeholder="e.g. 22"
                   min="0.1"
                   step="0.5"
@@ -630,6 +648,7 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
                             type="number"
                             value={val}
                             onChange={e => set(e.target.value)}
+                            onFocus={selectAndReveal}
                             placeholder="0"
                             min="0"
                             step="0.1"

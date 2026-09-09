@@ -7,7 +7,7 @@
  */
 import { useState, useEffect, useRef } from "react";
 import { foodsApi, recipesApi } from "../api/client";
-import { ModalShell } from "./AddFoodModal";
+import { ModalShell, selectAndReveal } from "./AddFoodModal";
 import BarcodeModal from "./BarcodeModal";
 import {
   Search, Loader2, Plus, Trash2, ChevronRight,
@@ -367,6 +367,7 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
                           type="number"
                           value={qty}
                           onChange={e => updateQty(key, e.target.value)}
+                          onFocus={selectAndReveal}
                           className="input w-16 font-mono py-1 px-2 text-right"
                           min="0.5" step="0.5"
                         />
@@ -456,6 +457,7 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
                 type="number"
                 value={cookedWeight}
                 onChange={e => setCookedWeight(e.target.value)}
+                onFocus={selectAndReveal}
                 placeholder={String(Math.round(totals.totalG))}
                 className="input flex-1 font-mono text-lg"
                 min="1" step="1"
@@ -477,6 +479,7 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
                 type="number"
                 value={numServings}
                 onChange={e => setNumServings(e.target.value)}
+                onFocus={selectAndReveal}
                 placeholder="1"
                 className="input w-28 font-mono text-lg"
                 min="1" step="1"

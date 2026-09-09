@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { mealsApi, recipesApi } from "../api/client";
 import CopyMealModal from "./CopyMealModal";
+import { selectAndReveal } from "./AddFoodModal";
 
 export default function MealSection({ meal, onAddToMeal, onRefresh }) {
   const [open, setOpen]             = useState(true);
@@ -168,6 +169,7 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
                       type="number"
                       value={editQty}
                       onChange={e => setEditQty(e.target.value)}
+                      onFocus={selectAndReveal}
                       className="input w-20 py-1 px-2"
                       autoFocus min="0.5" step="0.5"
                       onKeyDown={e => {
@@ -273,6 +275,7 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
                                 type="number"
                                 value={componentQty}
                                 onChange={e => setComponentQty(e.target.value)}
+                                onFocus={selectAndReveal}
                                 className="input w-16 py-0.5 px-1.5 text-xs"
                                 autoFocus min="0.1" step="0.1"
                                 onKeyDown={e => {

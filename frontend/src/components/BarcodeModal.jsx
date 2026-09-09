@@ -9,7 +9,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { format } from "date-fns";
 import { visionApi, foodsApi, mealsApi } from "../api/client";
-import { ModalShell } from "./AddFoodModal";
+import { ModalShell, selectAndReveal } from "./AddFoodModal";
 import {
   ScanLine, Loader2, Check, X, AlertCircle, ChevronDown,
 } from "lucide-react";
@@ -364,6 +364,7 @@ export default function BarcodeModal({ dateStr, onClose, onLogged, onFoodScanned
                 type="number"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
+                onFocus={selectAndReveal}
                 className="input font-mono w-28 shrink-0"
                 min="0.1"
                 step={servingOpt?.id === "g" ? "5" : "0.5"}
