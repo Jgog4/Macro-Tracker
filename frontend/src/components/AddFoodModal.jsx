@@ -11,7 +11,7 @@
  * Logged quantity_g = amount × selectedOption.gramsEach
  */
 import { useState, useEffect, useRef, useCallback } from "react";
-import { foodsApi, mealsApi, recipesApi } from "../api/client";
+import { foodsApi, mealsApi, recipesApi, visionApi } from "../api/client";
 import { X, Search, Loader2, ChevronRight, ChevronLeft, ChevronDown } from "lucide-react";
 import { getLastFoodPortion, saveLastFoodPortion } from "../utils/recentFoodPortions";
 
@@ -24,6 +24,7 @@ const SOURCE_BADGE = {
   custom:     { label: "Custom",     color: "bg-purple-100 text-purple-700" },
   usda_live:  { label: "USDA",       color: "bg-blue-100 text-blue-700" },
   recipe:     { label: "Recipe",     color: "bg-emerald-100 text-emerald-700" },
+  off_live:   { label: "Open Food Facts", color: "bg-slate-200 text-slate-700" },
 };
 
 /** Keeps a decimal field to digits and a single separator.
@@ -303,6 +304,35 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
           ...recipeItems,
           ...usdaItems.filter(i => !localFdcIds.has(i.fdc_id)),
         ];
+
+        // Open Food Facts is a genuine fallback: only queried when your own
+        // library and USDA between them turn up almost nothing. Searching
+        // "lays potato chips" used to return nothing at all even though
+        // scanning the packet worked, because OFF was wired up for barcodes
+        // only. It is a volunteer non-profit, so we neither hammer it on every
+        // keystroke nor let a slow response hold up the results above.
+        // Count results that actually match every word typed. A raw length
+        // check is useless here: the fuzzy fallback happily returns 20
+        // loosely-related foods, which would suppress this branch forever.
+        const norm = t => (t || "").toLowerCase().replace(/[^a-z0-9 ]/g, "");
+        const qWords = norm(query).split(/\s+/).filter(Boolean);
+        const strong = merged.filter(it => {
+          const hay = `${norm(it.name)} ${norm(it.brand)}`;
+          return qWords.every(w => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(hay));
+        }).length;
+        if (strong < 3) {
+          try {
+            const offRes = await foodsApi.offSearch(query, 8);
+            if (gen !== searchGen.current) return;
+            merged.push(...offRes.data.map(f => ({
+              id: null, off_code: f.code, source: "off_live",
+              name: f.name, brand: f.brand,
+              calories: f.calories, protein_g: f.protein_g,
+              fat_g: f.fat_g, carbs_g: f.carbs_g,
+              serving_size_g: f.serving_size_g, serving_size_desc: f.serving_size_desc,
+            })));
+          } catch { /* fallback only — never fail the search because of it */ }
+        }
         // The live USDA lookup is a FALLBACK for foods you do not already have,
         // so it always sorts last — never mixed in by relevance. Otherwise its
         // generic brand names beat your own library on the relevance key alone:
@@ -312,7 +342,11 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
         // Within your own data the order is relevance, then recency, then
         // source, with frequency breaking ties.
         const typeRank = { recipe: 1 };
-        const isFallback = it => (it.source === "usda_live" ? 1 : 0);
+        // Live lookups are fallbacks, below everything you already have:
+        // USDA first, then Open Food Facts, whose data is volunteer-entered
+        // and noticeably less reliable.
+        const FALLBACK = { usda_live: 1, off_live: 2 };
+        const isFallback = it => FALLBACK[it.source] || 0;
         setResults(
           merged
             .map((item, i) => ({ item, i }))
@@ -424,6 +458,32 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
         if (!ingredient_id && selected.fdc_id) {
           const imported = await foodsApi.importUsda(selected.fdc_id);
           ingredient_id = imported.data.id;
+        }
+        if (!ingredient_id && selected.off_code) {
+          // An Open Food Facts search hit is not in the database yet. Re-fetch
+          // it by barcode first: that endpoint returns the full product
+          // (sodium, fibre, sugars) through parsing the search index does not
+          // do, and falls back to the per-100 g macros already on screen.
+          let payload = {
+            source: "barcode", name: selected.name, brand: selected.brand ?? null,
+            serving_size_desc: selected.serving_size_desc ?? null,
+            serving_size_g:    selected.serving_size_g ?? 100,
+            calories:  selected.calories  ?? 0, protein_g: selected.protein_g ?? 0,
+            fat_g:     selected.fat_g     ?? 0, carbs_g:   selected.carbs_g   ?? 0,
+          };
+          try {
+            const { data: full } = await visionApi.lookupBarcode(selected.off_code);
+            // Only adopt it if it carries its own gram basis. That endpoint
+            // returns PER-SERVING values (150 kcal per 28 g, not 536 per 100 g),
+            // so taking its macros without its serving_size_g would understate
+            // the food ~3.5x — the same per-serving/per-100g confusion that
+            // inflated the USDA imports.
+            if (full && full.serving_size_g > 0) {
+              payload = { ...payload, ...full, source: "barcode", name: selected.name };
+            }
+          } catch { /* keep the per-100 g values from the search result */ }
+          const saved = await foodsApi.create(payload);
+          ingredient_id = saved.data.id;
         }
 
         // Save item weight (and nutrition) back to the food if requested

@@ -50,6 +50,7 @@ export const foodsApi = {
   getRestaurant:  (brand)              => api.get("/foods/restaurant",     { params: { brand } }),
   usdaSearch:     (q, limit = 10)      => api.get("/foods/usda/search",   { params: { q, limit } }),
   importUsda:     (fdc_id)             => api.post(`/foods/usda/${fdc_id}/import`),
+  offSearch:      (q, limit = 8)       => api.get("/foods/off/search",    { params: { q, limit } }),
   create:         (data)               => api.post("/foods/", data),
   get:            (id)                 => api.get(`/foods/${id}`),
   update:         (id, data)           => api.patch(`/foods/${id}`, data),

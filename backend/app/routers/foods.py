@@ -4,17 +4,36 @@
 import re
 from typing import Optional
 
+import httpx
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, case, select, or_, func, literal_column, text, Numeric
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.models import Ingredient, MealLog, MealLogItem
-from app.schemas.schemas import IngredientCreate, IngredientRead, IngredientUpdate, USDASearchResult
+from app.schemas.schemas import (IngredientCreate, IngredientRead, IngredientUpdate,
+                                 OFFSearchResult, USDASearchResult)
 from app.services.usda import search_usda, import_usda_food
 from app.services.nutrient_completion import complete_missing_micros
 
 router = APIRouter(prefix="/foods", tags=["Foods"])
+
+
+def _depunct(column):
+    """SQL: strip punctuation from a column, keeping words separated.
+
+    Typing "lays" could not match "Lay's" — the apostrophe broke the substring
+    test, the whole AND-clause failed, and the query fell through to fuzzy
+    matching, which returned loosely-related foods instead of the exact one
+    already in the library.
+    """
+    return func.regexp_replace(func.lower(func.coalesce(column, "")), r"[^a-z0-9 ]", "", "g")
+
+
+def _depunct_text(term: str) -> str:
+    """The same normalisation, applied to the user's search term."""
+    return re.sub(r"[^a-z0-9 ]", "", term.lower())
 
 
 def _re_escape(term: str) -> str:
@@ -102,12 +121,12 @@ async def search_local_foods(
     # nonsense: "rice" matches "Liquorice" and "Licorice" mid-word. So rank by
     # whether the term begins a word (`\m` is a Postgres word-start anchor) —
     # that keeps "White Rice" and prefix-typing, and sinks mid-word accidents.
-    q_re = _re_escape(q.lower().strip())
+    q_re = _re_escape(_depunct_text(q).strip())
     if q_re:
-        name_l  = func.lower(Ingredient.name)
-        brand_l = func.lower(func.coalesce(Ingredient.brand, ""))
+        name_l  = _depunct(Ingredient.name)
+        brand_l = _depunct(Ingredient.brand)
         relevance = case(
-            (name_l == q.lower().strip(), 0),                     # exact name
+            (name_l == _depunct_text(q).strip(), 0),              # exact name
             (name_l.op("~")(r"\m" + q_re + r"\M"), 1),            # whole word
             (name_l.op("~")(r"\m" + q_re), 2),                     # word start
             (brand_l.op("~")(r"\m" + q_re), 3),                    # brand
@@ -175,11 +194,11 @@ async def search_local_foods(
         return rows
 
     # ── Try exact substring match (AND across all words) ─────────────────────
-    words = [w for w in q.lower().split() if w]
+    words = [w for w in _depunct_text(q).split() if w]
     word_clauses = [
         or_(
-            func.lower(Ingredient.name).contains(word),
-            func.lower(Ingredient.brand).contains(word),
+            _depunct(Ingredient.name).contains(word),
+            _depunct(Ingredient.brand).contains(word),
         )
         for word in words
     ]
@@ -301,3 +320,81 @@ async def delete_ingredient(ingredient_id: str, db: AsyncSession = Depends(get_d
     if not row:
         raise HTTPException(status_code=404, detail="Ingredient not found")
     await db.delete(row)
+
+
+# ── Open Food Facts (packaged / regional products USDA does not carry) ───────
+
+@router.get("/off/search", response_model=list[OFFSearchResult])
+async def off_search(
+    q:     str = Query(..., min_length=2),
+    limit: int = Query(8, le=25),
+):
+    """
+    Search Open Food Facts by name — a fallback for packaged goods that are in
+    neither your library nor USDA (searching "lays potato chips" found nothing
+    before this, even though scanning the packet worked).
+
+    Uses search.openfoodfacts.org: the main site's /api/v2/search is heavily
+    throttled and frequently answers 503, while the dedicated search service
+    stays up. Open Food Facts is a volunteer non-profit, so this endpoint
+    returns [] on any failure rather than breaking the search that called it.
+    """
+    params = {
+        "q": q,
+        "page_size": min(limit * 2, 25),   # over-fetch; many hits carry no nutrition
+        "fields": "product_name,brands,code,nutriments,serving_size,serving_quantity",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            resp = await client.get(
+                "https://search.openfoodfacts.org/search",
+                params=params,
+                headers={"User-Agent": "MacroTrackerApp/1.0"},
+            )
+            resp.raise_for_status()
+            hits = resp.json().get("hits", [])
+    except (httpx.HTTPError, ValueError, KeyError):
+        return []
+
+    results: list[OFFSearchResult] = []
+    for hit in hits:
+        nutriments = hit.get("nutriments") or {}
+        calories = nutriments.get("energy-kcal_100g")
+        # A hit with no per-100 g energy cannot be logged meaningfully.
+        if calories is None or not hit.get("code"):
+            continue
+        # Volunteer-entered data contains impossible densities (pure fat is
+        # 884 kcal/100 g). This cannot catch a product whose per-serving values
+        # were filed as per-100 g — those stay self-consistent — but it removes
+        # the grossest errors before they reach the picker.
+        if calories > 950:
+            continue
+        brand = hit.get("brands")
+        if isinstance(brand, list):
+            brand = brand[0] if brand else None
+
+        serving_g = hit.get("serving_quantity")
+        try:
+            serving_g = float(serving_g) if serving_g else None
+        except (TypeError, ValueError):
+            serving_g = None
+
+        results.append(OFFSearchResult(
+            code=str(hit["code"]),
+            name=(hit.get("product_name") or "Unknown product").strip(),
+            brand=(str(brand).strip() or None) if brand else None,
+            calories=calories,
+            protein_g=nutriments.get("proteins_100g"),
+            fat_g=nutriments.get("fat_100g"),
+            carbs_g=nutriments.get("carbohydrates_100g"),
+            # Nutrition above is per 100 g, so that is the basis. The pack
+            # serving is kept only as a label for reference — the same trap
+            # that inflated every USDA food by 100/serving.
+            serving_size_g=100.0,
+            serving_size_desc=(
+                f"per 100g (pack serving {serving_g:g}g)" if serving_g else "per 100g"
+            ),
+        ))
+        if len(results) >= limit:
+            break
+    return results

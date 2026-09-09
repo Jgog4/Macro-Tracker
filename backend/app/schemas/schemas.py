@@ -121,6 +121,19 @@ class IngredientBase(BaseModel):
     beta_hydroxybutyrate_g: Optional[float] = None
 
 
+class OFFSearchResult(BaseModel):
+    """A live Open Food Facts search hit. Nutrition is per 100 g."""
+    code:              str
+    name:              str
+    brand:             Optional[str]   = None
+    calories:          Optional[float] = None
+    protein_g:         Optional[float] = None
+    fat_g:             Optional[float] = None
+    carbs_g:           Optional[float] = None
+    serving_size_g:    Optional[float] = None
+    serving_size_desc: Optional[str]   = None
+
+
 class IngredientCreate(IngredientBase):
     source:      str           = "custom"
     usda_fdc_id: Optional[int] = None
