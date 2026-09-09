@@ -7,6 +7,7 @@ name and per-100 g macro profile match closely.  Ambiguous or branded matches
 are deliberately left incomplete rather than guessed.
 """
 from datetime import datetime, timezone
+from typing import Optional
 import re
 
 import httpx
@@ -14,6 +15,7 @@ import httpx
 from app.config import get_settings
 from app.models.models import Ingredient
 from app.services.usda import NUTRIENT_MAP, _extract_nutrients
+from app.services.vision_ocr import _response_text
 
 
 settings = get_settings()
@@ -84,6 +86,71 @@ def _has_missing_micros(ingredient: Ingredient) -> bool:
     )
 
 
+# ── Semantic confirmation ────────────────────────────────────────────────────
+# Token overlap cannot tell a chocolate bar from a granola bar, and matching on
+# macros alone is worse: four macros agreeing within 15% is common between
+# entirely different foods. When the name heuristic is not confident enough on
+# its own, ask the model whether the candidate is genuinely the same food.
+
+_VERIFY_SYSTEM = """You match a retail food product to a generic USDA reference food. The reference's micronutrient values will be copied onto the product, so a wrong match silently corrupts nutrition data.
+
+Answer with the number of a candidate ONLY if it is the same food.
+
+Same food (accept): brand vs generic naming, packaging or marketing words, minor wording, an equivalent cut/variety.
+Different food (reject): a different food type or base ingredient; a different preparation (raw vs cooked, dried vs fresh); a different form (bar vs cereal, powder vs liquid); a fortified or enriched version when the product is not, or a version with added nutrients the product does not have.
+
+Similar calories and macros are NOT evidence of a match — unrelated foods often share a macro profile. Judge only by food identity.
+
+Pay particular attention to form and base ingredient. A confectionery bar is not a granola or cereal bar. A cracker is not a bread. A drink is not a powder. If several candidates are close, choose the one matching the product's form and base ingredient, not the one sharing the most words.
+
+If no candidate is clearly the same food, answer NONE. Prefer NONE when unsure.
+
+Think briefly, then end your reply with a line of exactly this form:
+ANSWER: <number>
+or
+ANSWER: NONE"""
+
+
+async def _confirm_reference(ingredient: Ingredient, candidates: list[dict]) -> Optional[dict]:
+    """Ask the model which candidate, if any, is genuinely the same food."""
+    if not settings.ANTHROPIC_API_KEY or not candidates:
+        return None
+
+    label = ingredient.name if not ingredient.brand else f"{ingredient.brand} {ingredient.name}"
+    listing = "\n".join(
+        f"{i}. {c.get('description', '')}" for i, c in enumerate(candidates, 1)
+    )
+    payload = {
+        "model":      settings.ANTHROPIC_VISION_MODEL,
+        "max_tokens": 400,
+        "system":     _VERIFY_SYSTEM,
+        "messages":   [{"role": "user", "content": f"Product: {label}\n\nCandidates:\n{listing}"}],
+    }
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key":         settings.ANTHROPIC_API_KEY,
+                    "anthropic-version": "2023-06-01",
+                    "content-type":      "application/json",
+                },
+                json=payload,
+            )
+            resp.raise_for_status()
+            answer = _response_text(resp.json())
+    except (httpx.HTTPError, ValueError, KeyError):
+        return None
+
+    # Treat the reply as data: read only the final ANSWER line, so digits that
+    # appear in the model's reasoning cannot be mistaken for its choice.
+    match = re.search(r"ANSWER:\s*(\d+|NONE)\s*$", (answer or "").strip(), re.I | re.M)
+    if not match or match.group(1).upper() == "NONE":
+        return None
+    index = int(match.group(1)) - 1
+    return candidates[index] if 0 <= index < len(candidates) else None
+
+
 async def complete_missing_micros(ingredient: Ingredient) -> bool:
     """Persist a high-confidence USDA reference profile; never raises on lookup failure."""
     # A direct USDA import already has the exact source record. Restaurant and
@@ -118,6 +185,7 @@ async def complete_missing_micros(ingredient: Ingredient) -> bool:
 
             input_tokens = _tokens(query)
             ranked = []
+            plausible = []
             for candidate in candidates:
                 description = candidate.get("description", "")
                 candidate_tokens = _tokens(description)
@@ -134,24 +202,40 @@ async def complete_missing_micros(ingredient: Ingredient) -> bool:
                 jaccard  = len(shared) / max(len(input_tokens | candidate_tokens), 1)
                 coverage = len(shared) / len(candidate_tokens)
                 overlap  = max(jaccard, coverage)
-                # A multi-word generic must share at least two words, so we
-                # never latch on via a single common token.
-                if len(shared) < min(2, len(candidate_tokens)):
+                # The heuristic tier needs at least two shared words so it can
+                # never latch on via a single common token. A lone *distinctive*
+                # word ("marinara") is real evidence though, so such candidates
+                # still go forward for the model to judge.
+                distinctive = {t for t in shared if len(t) >= 5}
+                if not shared or (len(shared) < min(2, len(candidate_tokens)) and not distinctive):
                     continue
+                heuristic_ok = len(shared) >= min(2, len(candidate_tokens))
                 nutrients = _extract_nutrients(candidate)
                 error = _macro_error(ingredient, nutrients)
                 # Deliberately strict. Macro agreement does NOT identify a
                 # food — a chocolate bar and a granola bar match on all four
                 # macros — so the name has to carry the identification, and a
                 # near miss must be left unfilled rather than guessed.
-                if overlap >= 0.70 and error <= 0.15:
+                if error > 0.15:
+                    continue
+                if overlap >= 0.70 and heuristic_ok:
                     ranked.append((overlap, error, candidate))
+                else:
+                    # Name evidence is too weak to accept on its own, but the
+                    # macros are consistent — worth putting to the model.
+                    plausible.append((len(shared), error, candidate))
 
-            if not ranked:
-                ingredient.micronutrient_completion_status = "no_safe_reference"
-                return False
+            verified = False
+            if ranked:
+                _, _, selected = sorted(ranked, key=lambda row: (-row[0], row[1]))[0]
+            else:
+                shortlist = [c for _, _, c in sorted(plausible, key=lambda row: (-row[0], row[1]))[:8]]
+                selected = await _confirm_reference(ingredient, shortlist)
+                if selected is None:
+                    ingredient.micronutrient_completion_status = "no_safe_reference"
+                    return False
+                verified = True
 
-            _, _, selected = sorted(ranked, key=lambda row: (-row[0], row[1]))[0]
             fdc_id = selected["fdcId"]
             detail = await client.get(
                 f"{settings.USDA_BASE_URL}/food/{fdc_id}",
@@ -177,5 +261,11 @@ async def complete_missing_micros(ingredient: Ingredient) -> bool:
     ingredient.micronutrient_reference_fdc_id = fdc_id
     ingredient.micronutrient_reference_name = reference.get("description")
     ingredient.micronutrient_completed_at = datetime.now(timezone.utc)
-    ingredient.micronutrient_completion_status = "reference_completed" if additions else "reference_no_new_fields"
+    if not additions:
+        ingredient.micronutrient_completion_status = "reference_no_new_fields"
+    else:
+        # Record HOW the match was made, so an AI-confirmed fill stays auditable.
+        ingredient.micronutrient_completion_status = (
+            "reference_completed_ai" if verified else "reference_completed"
+        )
     return additions > 0
