@@ -303,15 +303,21 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
           ...recipeItems,
           ...usdaItems.filter(i => !localFdcIds.has(i.fdc_id)),
         ];
-        // Rank: relevance, then recency, then source. Sorting by source first
-        // buried recipes below every food — "Cream of rice", eaten daily, sat
-        // under foods that had never been logged. Live USDA results carry no
-        // usage at all, so they fall to the bottom naturally.
-        const typeRank = { recipe: 1, usda_live: 2 };
+        // The live USDA lookup is a FALLBACK for foods you do not already have,
+        // so it always sorts last — never mixed in by relevance. Otherwise its
+        // generic brand names beat your own library on the relevance key alone:
+        // a search for "mango" returned five USDA products literally named
+        // "MANGO", each an exact-name match, above your own "Mango, Fresh".
+        //
+        // Within your own data the order is relevance, then recency, then
+        // source, with frequency breaking ties.
+        const typeRank = { recipe: 1 };
+        const isFallback = it => (it.source === "usda_live" ? 1 : 0);
         setResults(
           merged
             .map((item, i) => ({ item, i }))
             .sort((a, b) =>
+              isFallback(a.item) - isFallback(b.item) ||
               relevance(a.item.name, query) - relevance(b.item.name, query) ||
               recencyBucket(a.item.last_logged) - recencyBucket(b.item.last_logged) ||
               (typeRank[a.item.source] || 0) - (typeRank[b.item.source] || 0) ||
