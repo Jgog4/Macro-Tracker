@@ -743,64 +743,81 @@ function LiveMacro({ label, value, unit, color }) {
 }
 
 export function ModalShell({ onClose, title, children }) {
-  // iOS Safari's installed-app mode can leave position:fixed sheets anchored
-  // behind its on-screen keyboard. visualViewport tells us the actually
-  // visible space, so keep every ModalShell above the keyboard instead.
-  const [viewport, setViewport] = useState(null);
+  // Pin the sheet to the VISUAL viewport, not the layout viewport.
+  //
+  // A position:fixed element on iOS is anchored to the layout viewport, which
+  // does not shrink when the keyboard opens. Worse, iOS scrolls the document to
+  // reveal the focused input, which drags the "fixed" sheet down with it — the
+  // sheet ends up taller than the space above the keypad and the field you just
+  // tapped is hidden behind it.
+  //
+  // visualViewport reports exactly the region the user can see: `offsetTop` is
+  // how far the document has been scrolled up, `height` is what is left after
+  // the keyboard. Positioning an occupying box at those coordinates and laying
+  // the sheet out at its bottom edge keeps the sheet inside the visible area in
+  // every state, with no offset arithmetic to get the sign wrong.
+  const [vv, setVv] = useState(null);
 
   useEffect(() => {
-    const updateViewport = () => {
-      const vv = window.visualViewport;
-      const visibleHeight = Math.round(vv?.height || window.innerHeight);
-      const keyboardOffset = Math.max(
-        0,
-        Math.round(window.innerHeight - visibleHeight - (vv?.offsetTop || 0))
-      );
-      setViewport({ visibleHeight, keyboardOffset });
+    const read = () => {
+      const v = window.visualViewport;
+      setVv({
+        top:    Math.round(v?.offsetTop || 0),
+        height: Math.round(v?.height || window.innerHeight),
+        // Treat a meaningful shortfall as "keyboard is up".
+        keyboardOpen: !!v && window.innerHeight - v.height > 120,
+      });
     };
-
-    updateViewport();
-    window.visualViewport?.addEventListener("resize", updateViewport);
-    window.visualViewport?.addEventListener("scroll", updateViewport);
-    window.addEventListener("resize", updateViewport);
+    read();
+    window.visualViewport?.addEventListener("resize", read);
+    window.visualViewport?.addEventListener("scroll", read);
+    window.addEventListener("resize", read);
     return () => {
-      window.visualViewport?.removeEventListener("resize", updateViewport);
-      window.visualViewport?.removeEventListener("scroll", updateViewport);
-      window.removeEventListener("resize", updateViewport);
+      window.visualViewport?.removeEventListener("resize", read);
+      window.visualViewport?.removeEventListener("scroll", read);
+      window.removeEventListener("resize", read);
     };
   }, []);
-
-  const maxHeight = viewport
-    ? `${Math.max(280, Math.round(viewport.visibleHeight * 0.85))}px`
-    : "85dvh";
 
   return (
     <>
       <div className="fixed inset-0 z-[90] bg-black/40" onClick={onClose} />
+      {/* Occupies exactly the visible region; the sheet sits at its bottom. */}
       <div
-        className="fixed left-0 right-0 w-full max-w-md mx-auto box-border z-[100] overflow-hidden rounded-t-3xl shadow-2xl"
-        style={{ bottom: `${viewport?.keyboardOffset || 0}px` }}
+        className="fixed left-0 right-0 z-[100] flex items-end justify-center pointer-events-none"
+        style={{
+          top:    `${vv?.top ?? 0}px`,
+          height: vv ? `${vv.height}px` : "100dvh",
+        }}
       >
         <div
-          className="bg-surface-1 w-full min-w-0 box-border flex flex-col gap-4 overflow-y-auto px-4 pt-5"
-          style={{
-            maxHeight,
-            paddingBottom: "calc(90px + env(safe-area-inset-bottom, 0px))",
-            WebkitOverflowScrolling: "touch",
-            overscrollBehavior: "contain",
-          }}
+          className="w-full max-w-md pointer-events-auto flex flex-col overflow-hidden rounded-t-3xl shadow-2xl"
+          style={{ maxHeight: "100%" }}
         >
-          <div className="w-9 h-1 rounded-full bg-surface-3 mx-auto shrink-0" />
-          <div className="flex items-center justify-between gap-2 shrink-0 min-w-0">
-            <h2 className="text-lg font-bold text-foreground min-w-0 truncate">{title}</h2>
-            <button
-              onClick={onClose}
-              className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full bg-surface-2 text-muted hover:bg-surface-3 transition-colors"
-            >
-              <X size={16} />
-            </button>
+          <div
+            className="bg-surface-1 w-full min-w-0 box-border flex flex-col gap-4 overflow-y-auto px-4 pt-5"
+            style={{
+              // The bottom nav only needs clearing when the keyboard is down;
+              // while it is up that padding would eat the little space we have.
+              paddingBottom: vv?.keyboardOpen
+                ? "16px"
+                : "calc(90px + env(safe-area-inset-bottom, 0px))",
+              WebkitOverflowScrolling: "touch",
+              overscrollBehavior: "contain",
+            }}
+          >
+            <div className="w-9 h-1 rounded-full bg-surface-3 mx-auto shrink-0" />
+            <div className="flex items-center justify-between gap-2 shrink-0 min-w-0">
+              <h2 className="text-lg font-bold text-foreground min-w-0 truncate">{title}</h2>
+              <button
+                onClick={onClose}
+                className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full bg-surface-2 text-muted hover:bg-surface-3 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            {children}
           </div>
-          {children}
         </div>
       </div>
     </>
