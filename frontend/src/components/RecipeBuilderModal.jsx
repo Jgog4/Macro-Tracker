@@ -364,12 +364,12 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
                           value={qty}
-                          onChange={e => updateQty(key, e.target.value)}
+                          onChange={e => updateQty(key, decimalOnly(e.target.value))}
                           onFocus={selectAndReveal}
                           className="input w-16 font-mono py-1 px-2 text-right"
-                          min="0.5" step="0.5"
                         />
                         <span className="text-[11px] text-muted">g</span>
                         <span className="text-[11px] font-mono text-muted w-14 text-right">{kcal} kcal</span>
@@ -454,13 +454,13 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
             </label>
             <div className="flex items-center gap-2">
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={cookedWeight}
-                onChange={e => setCookedWeight(e.target.value)}
+                onChange={e => setCookedWeight(decimalOnly(e.target.value))}
                 onFocus={selectAndReveal}
                 placeholder={String(Math.round(totals.totalG))}
                 className="input flex-1 font-mono text-lg"
-                min="1" step="1"
               />
               <span className="text-muted font-medium">g</span>
             </div>
@@ -476,13 +476,13 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
             </label>
             <div className="flex items-center gap-2">
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 value={numServings}
-                onChange={e => setNumServings(e.target.value)}
+                onChange={e => setNumServings(decimalOnly(e.target.value))}
                 onFocus={selectAndReveal}
                 placeholder="1"
                 className="input w-28 font-mono text-lg"
-                min="1" step="1"
               />
               <span className="text-sm text-muted">
                 {numServingsN > 1

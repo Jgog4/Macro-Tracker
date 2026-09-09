@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { format, addDays, subDays } from "date-fns";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { mealsApi } from "../api/client";
-import { ModalShell, selectAndReveal } from "./AddFoodModal";
+import { ModalShell, selectAndReveal, decimalOnly } from "./AddFoodModal";
 import { getLastFoodPortion, saveLastFoodPortion } from "../utils/recentFoodPortions";
 
 function nowTimeStr() {
@@ -163,14 +163,13 @@ export default function LogFoodModal({ food, onClose, onLogged }) {
               Quantity ({servingOnly ? "servings" : "g"})
             </label>
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={qty}
-              onChange={e => setQty(e.target.value)}
+              onChange={e => setQty(decimalOnly(e.target.value))}
               onFocus={selectAndReveal}
               className="input font-mono"
               placeholder={servingOnly ? "1" : "100"}
-              min={servingOnly ? "0.1" : "1"}
-              step={servingOnly ? "0.25" : "0.5"}
               autoFocus
             />
           </div>

@@ -26,14 +26,25 @@ const SOURCE_BADGE = {
   recipe:     { label: "Recipe",     color: "bg-emerald-100 text-emerald-700" },
 };
 
+/** Keeps a decimal field to digits and a single separator.
+ *  These fields are type="text" + inputMode="decimal" rather than
+ *  type="number", because iOS Safari's select() is a no-op on number inputs —
+ *  so tapping in to edit a weight meant backspacing the old value. Text inputs
+ *  select properly, but no longer reject stray characters, hence this. */
+export function decimalOnly(raw) {
+  const cleaned = String(raw ?? "").replace(",", ".").replace(/[^\d.]/g, "");
+  const [head, ...rest] = cleaned.split(".");
+  return rest.length ? `${head}.${rest.join("")}` : head;
+}
+
 /** Focus behaviour for the numeric fields inside a bottom sheet.
  *  1. Selects the current value so typing replaces it — no backspacing first.
  *  2. Scrolls the field back into view once iOS has finished animating the
  *     keyboard in, which otherwise leaves it hidden behind the keypad. */
 export function selectAndReveal(e) {
   const el = e.currentTarget;
-  // select() throws on number inputs in some engines; the caret is also
-  // re-placed by iOS right after the tap, so run it again next frame.
+  // iOS re-places the caret right after the tap, so run the selection again on
+  // the next frame or it gets undone.
   const selectAll = () => { try { el.select(); } catch { /* not selectable */ } };
   selectAll();
   requestAnimationFrame(selectAll);
@@ -534,14 +545,13 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
               {/* Amount number */}
               <input
                 ref={amountRef}
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={amount}
-                onChange={e => setAmount(e.target.value)}
+                onChange={e => setAmount(decimalOnly(e.target.value))}
                 onFocus={selectAndReveal}
                 className="input font-mono w-28 shrink-0"
                 placeholder={servingOpt?.id === "g" ? "100" : "1"}
-                min="0.1"
-                step={servingOpt?.id === "g" ? "5" : "0.5"}
               />
 
               {/* Serving unit selector */}
@@ -618,13 +628,12 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
 
               <div className="flex items-center gap-2">
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={itemWeightG}
-                  onChange={e => setItemWeightG(e.target.value)}
+                  onChange={e => setItemWeightG(decimalOnly(e.target.value))}
                   onFocus={selectAndReveal}
                   placeholder="e.g. 22"
-                  min="0.1"
-                  step="0.5"
                   className="input font-mono w-24 shrink-0 text-sm"
                 />
                 <span className="text-sm text-amber-800 font-medium">g per item</span>
@@ -645,13 +654,12 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
                         <label className="text-[10px] font-semibold mb-0.5 block" style={{ color }}>{label}</label>
                         <div className="flex items-center gap-1">
                           <input
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
                             value={val}
-                            onChange={e => set(e.target.value)}
+                            onChange={e => set(decimalOnly(e.target.value))}
                             onFocus={selectAndReveal}
                             placeholder="0"
-                            min="0"
-                            step="0.1"
                             className="input font-mono text-sm flex-1"
                           />
                           <span className="text-[11px] text-muted">{unit}</span>

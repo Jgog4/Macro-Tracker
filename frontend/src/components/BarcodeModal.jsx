@@ -9,7 +9,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { format } from "date-fns";
 import { visionApi, foodsApi, mealsApi } from "../api/client";
-import { ModalShell, selectAndReveal } from "./AddFoodModal";
+import { ModalShell, selectAndReveal, decimalOnly } from "./AddFoodModal";
 import {
   ScanLine, Loader2, Check, X, AlertCircle, ChevronDown,
 } from "lucide-react";
@@ -361,13 +361,12 @@ export default function BarcodeModal({ dateStr, onClose, onLogged, onFoodScanned
             <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-2 block">Amount</label>
             <div className="flex gap-2 items-stretch">
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={amount}
-                onChange={e => setAmount(e.target.value)}
+                onChange={e => setAmount(decimalOnly(e.target.value))}
                 onFocus={selectAndReveal}
                 className="input font-mono w-28 shrink-0"
-                min="0.1"
-                step={servingOpt?.id === "g" ? "5" : "0.5"}
               />
               <button
                 onClick={() => setShowPicker(p => !p)}

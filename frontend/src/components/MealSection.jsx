@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { mealsApi, recipesApi } from "../api/client";
 import CopyMealModal from "./CopyMealModal";
-import { selectAndReveal } from "./AddFoodModal";
+import { selectAndReveal, decimalOnly } from "./AddFoodModal";
 
 export default function MealSection({ meal, onAddToMeal, onRefresh }) {
   const [open, setOpen]             = useState(true);
@@ -166,12 +166,13 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
                   <div className="flex items-center gap-2">
                     {/* Quantity */}
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       value={editQty}
-                      onChange={e => setEditQty(e.target.value)}
+                      onChange={e => setEditQty(decimalOnly(e.target.value))}
                       onFocus={selectAndReveal}
                       className="input w-20 py-1 px-2"
-                      autoFocus min="0.5" step="0.5"
+                      autoFocus
                       onKeyDown={e => {
                         if (e.key === "Enter") handleSaveEdit(item.id);
                         if (e.key === "Escape") cancelEdit();
@@ -272,12 +273,13 @@ export default function MealSection({ meal, onAddToMeal, onRefresh }) {
                           {editingComponent?.componentId === comp.id ? (
                             <div className="flex items-center gap-1 shrink-0">
                               <input
-                                type="number"
+                                type="text"
+                                inputMode="decimal"
                                 value={componentQty}
-                                onChange={e => setComponentQty(e.target.value)}
+                                onChange={e => setComponentQty(decimalOnly(e.target.value))}
                                 onFocus={selectAndReveal}
                                 className="input w-16 py-0.5 px-1.5 text-xs"
-                                autoFocus min="0.1" step="0.1"
+                                autoFocus
                                 onKeyDown={e => {
                                   if (e.key === "Enter") handleSaveComponent(item.id, comp.id);
                                   if (e.key === "Escape") cancelComponentEdit();
