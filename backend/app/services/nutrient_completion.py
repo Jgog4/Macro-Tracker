@@ -22,15 +22,43 @@ CORE_FIELDS = {"calories", "protein_g", "fat_g", "carbs_g"}
 STOP_WORDS = {
     "raw", "fresh", "cooked", "dry", "with", "without", "and", "or", "the",
     "of", "in", "from", "food", "foods", "organic", "frozen", "unsweetened",
+    # "unsweetened" was already ignored but "sweetened" was not, so
+    # "Dried Mangoes" could never match USDA's "Mangos, dried, sweetened".
+    # Sweetening changes the macros, and _macro_error is what screens that.
+    "sweetened", "natural", "style", "brand", "signature", "value", "select",
 }
+
+# Marketing words that appear in retail names but never in a USDA generic.
+# Left out of STOP_WORDS because they are meaningful inside a *candidate*.
+_NOISE = {"mini", "bites", "pieces", "chunks", "slices", "snack", "pack"}
+
+
+def _stem(word: str) -> str:
+    """Crude plural stem, applied identically to both sides of a comparison.
+
+    The previous rule only stripped a trailing "s", so "mangoes" became
+    "mangoe" while USDA's "mangos" became "mango" — the two could never match.
+    """
+    if len(word) > 4:
+        if word.endswith("ies"):
+            return word[:-3] + "y"          # berries -> berry
+        if word.endswith("es") and not word.endswith(("ses", "ces")):
+            return word[:-2]                # mangoes -> mango, tomatoes -> tomato
+        if word.endswith("s"):
+            return word[:-1]                # mangos -> mango
+    return word
 
 
 def _tokens(value: str) -> set[str]:
     words = re.findall(r"[a-z0-9]+", value.lower())
-    return {
-        word[:-1] if word.endswith("s") and len(word) > 4 else word
-        for word in words if word not in STOP_WORDS
-    }
+    return {_stem(w) for w in words if w not in STOP_WORDS and w not in _NOISE}
+
+
+# Below these magnitudes (per 100 g) a difference is label rounding, not a
+# mismatch: a label declaring "0 g fat" against a reference's 1.18 g is the
+# same food. Dividing by the raw value turned that into 100% error and sank
+# otherwise-perfect matches.
+_ERROR_FLOOR = {"calories": 20.0, "protein_g": 5.0, "fat_g": 5.0, "carbs_g": 5.0}
 
 
 def _macro_error(ingredient: Ingredient, candidate_nutrients: dict) -> float:
@@ -44,7 +72,8 @@ def _macro_error(ingredient: Ingredient, candidate_nutrients: dict) -> float:
             return 999.0
         if max(expected, actual) < 1.0:
             continue
-        errors.append(abs(expected - actual) / max(expected, actual, 1.0))
+        floor = _ERROR_FLOOR.get(field, 1.0)
+        errors.append(abs(expected - actual) / max(expected, actual, floor))
     return sum(errors) / len(errors) if errors else 999.0
 
 
@@ -92,9 +121,29 @@ async def complete_missing_micros(ingredient: Ingredient) -> bool:
             for candidate in candidates:
                 description = candidate.get("description", "")
                 candidate_tokens = _tokens(description)
-                overlap = len(input_tokens & candidate_tokens) / max(len(input_tokens | candidate_tokens), 1)
+                if not candidate_tokens:
+                    continue
+                shared = input_tokens & candidate_tokens
+                # Neither containment direction works alone. A retail name
+                # carries brand words the generic lacks ("Kirkland Signature,
+                # Organic Dried Mangoes"); a USDA generic carries taxonomy the
+                # retail name lacks ("Salad dressing, mayonnaise, regular").
+                # Jaccard sinks the first, candidate-coverage sinks the second,
+                # so accept either: the query saying everything the generic
+                # says, OR the two agreeing overall.
+                jaccard  = len(shared) / max(len(input_tokens | candidate_tokens), 1)
+                coverage = len(shared) / len(candidate_tokens)
+                overlap  = max(jaccard, coverage)
+                # A multi-word generic must share at least two words, so we
+                # never latch on via a single common token.
+                if len(shared) < min(2, len(candidate_tokens)):
+                    continue
                 nutrients = _extract_nutrients(candidate)
                 error = _macro_error(ingredient, nutrients)
+                # Deliberately strict. Macro agreement does NOT identify a
+                # food — a chocolate bar and a granola bar match on all four
+                # macros — so the name has to carry the identification, and a
+                # near miss must be left unfilled rather than guessed.
                 if overlap >= 0.70 and error <= 0.15:
                     ranked.append((overlap, error, candidate))
 
