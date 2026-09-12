@@ -369,6 +369,7 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
                           value={qty}
                           onChange={e => updateQty(key, decimalOnly(e.target.value))}
                           onFocus={selectAndReveal}
+                          onPointerDown={e => e.currentTarget.focus()}
                           className="input w-16 font-mono py-1 px-2 text-right"
                         />
                         <span className="text-[11px] text-muted">g</span>

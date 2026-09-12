@@ -877,14 +877,15 @@ export function ModalShell({ onClose, title, children }) {
       <div className="fixed inset-0 z-[90] bg-black/40" onClick={onClose} />
       {/* Occupies exactly the visible region; the sheet sits at its bottom. */}
       <div
-        className="fixed left-0 right-0 z-[100] flex items-end justify-center pointer-events-none"
+        className="fixed left-0 right-0 z-[100] flex items-end justify-center"
         style={{
           top:    `${vv?.top ?? 0}px`,
           height: vv ? `${vv.height}px` : "100dvh",
         }}
+        onClick={e => { if (e.target === e.currentTarget) onClose(); }}
       >
         <div
-          className="w-full max-w-md pointer-events-auto flex flex-col overflow-hidden rounded-t-3xl shadow-2xl"
+          className="w-full max-w-md flex flex-col overflow-hidden rounded-t-3xl shadow-2xl"
           style={{ maxHeight: "100%" }}
         >
           <div
