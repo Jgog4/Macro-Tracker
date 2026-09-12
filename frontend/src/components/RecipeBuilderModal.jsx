@@ -368,8 +368,11 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
                           inputMode="decimal"
                           value={qty}
                           onChange={e => updateQty(key, decimalOnly(e.target.value))}
-                          onFocus={selectAndReveal}
-                          onPointerDown={e => e.currentTarget.focus()}
+                          // Keep this a normal editable text field. The full
+                          // select-and-scroll helper is useful for long forms,
+                          // but on iPhone it can steal the selection back just
+                          // as the first keypad character arrives.
+                          onFocus={e => e.currentTarget.select()}
                           className="input w-16 font-mono py-1 px-2 text-right"
                         />
                         <span className="text-[11px] text-muted">g</span>
