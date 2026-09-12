@@ -365,8 +365,12 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
                       <div className="flex items-center gap-1.5 shrink-0">
                         <input
                           type="number"
-                          value={qty}
-                          onChange={e => updateQty(key, decimalOnly(e.target.value))}
+                          // Keep the native field uncontrolled while it is
+                          // being edited. iOS can otherwise restore the React
+                          // value between keypad presses in a moving sheet,
+                          // leaving a visible caret but refusing every edit.
+                          defaultValue={qty}
+                          onInput={e => updateQty(key, decimalOnly(e.currentTarget.value))}
                           className="input w-16 font-mono py-1 px-2 text-right"
                           min="0.1"
                           step="0.1"
