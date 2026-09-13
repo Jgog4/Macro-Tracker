@@ -7,7 +7,7 @@
  */
 import { useState, useEffect, useRef } from "react";
 import { foodsApi, recipesApi } from "../api/client";
-import { ModalShell, selectAndReveal } from "./AddFoodModal";
+import { ModalShell, selectAndReveal, decimalOnly } from "./AddFoodModal";
 import BarcodeModal from "./BarcodeModal";
 import {
   Search, Loader2, Plus, Trash2, ChevronRight,

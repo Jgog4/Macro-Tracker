@@ -23,6 +23,23 @@ else
   echo "  ! python3.12+ not found — skipping import check"
 fi
 
+# ── Pre-flight: frontend must lint ───────────────────────────────────────────
+# A clean build is NOT proof the code runs. Vite bundles an identifier that was
+# never imported without complaint; the failure only appears at runtime inside
+# an event handler, where nothing surfaces it. That is how a recipe
+# ingredient's weight silently stopped recalculating for days — `decimalOnly`
+# had been dropped from RecipeBuilderModal's import line while three calls to it
+# remained. `no-undef` catches that class in under a second.
+if [ -d frontend/node_modules ]; then
+  echo "→ Linting frontend…"
+  if ! (cd frontend && npm run lint >/tmp/mt_lint.log 2>&1); then
+    echo "✗ FRONTEND LINT FAILED — not deploying:"
+    tail -20 /tmp/mt_lint.log
+    exit 1
+  fi
+  echo "  ✓ frontend lints OK"
+fi
+
 # ── Pre-flight: frontend must build ──────────────────────────────────────────
 if [ -d frontend/node_modules ]; then
   echo "→ Building frontend…"
