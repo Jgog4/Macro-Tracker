@@ -109,11 +109,6 @@ export const exportApi = {
   zip: ()     => api.get("/export/all.zip",     { responseType: "blob", timeout: 120000 }),
 };
 
-// ── Suggest ──────────────────────────────────────────────────────────────────
-export const suggestApi = {
-  suggest:        (params = {})        => api.get("/suggest/", { params }),
-};
-
 // ── API Keys ─────────────────────────────────────────────────────────────────
 export const apiKeysApi = {
   list:           ()                   => api.get("/api-keys/"),

@@ -8,17 +8,13 @@ import MacroSummaryCards from "../components/MacroSummaryCards";
 import MealSection from "../components/MealSection";
 import MicronutrientPanel from "../components/MicronutrientPanel";
 import AddFoodModal from "../components/AddFoodModal";
-import SuggestModal from "../components/SuggestModal";
-import CustomMealModal from "../components/CustomMealModal";
-import { Plus, Sparkles, RefreshCw, ChefHat, Loader2 } from "lucide-react";
+import { Plus, RefreshCw, Loader2 } from "lucide-react";
 
 export default function Dashboard({ currentDate, onOpenAdd, onOpenVision, onEditTargets }) {
   const [summary, setSummary]         = useState(null);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(null);
   const [showAdd, setShowAdd]         = useState(false);
-  const [showSuggest, setShowSuggest] = useState(false);
-  const [showCustom, setShowCustom]   = useState(false);
   const [newMealNumber, setNewMealNumber] = useState(null);
 
   const dateStr = format(currentDate, "yyyy-MM-dd");
@@ -70,20 +66,6 @@ export default function Dashboard({ currentDate, onOpenAdd, onOpenVision, onEdit
         onEditTargets={onEditTargets}
       />
 
-      {/* ── Quick actions ── */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setShowCustom(true)}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-surface-1 rounded-xl shadow-card text-sm font-medium text-accent-blue">
-          <ChefHat size={15} /> Build Meal
-        </button>
-        <button
-          onClick={() => setShowSuggest(true)}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-surface-1 rounded-xl shadow-card text-sm font-medium text-accent-purple">
-          <Sparkles size={15} /> Suggest
-        </button>
-      </div>
-
       {/* ── Meal list ── */}
       {loading ? (
         <div className="flex justify-center py-12">
@@ -114,24 +96,6 @@ export default function Dashboard({ currentDate, onOpenAdd, onOpenVision, onEdit
           defaultMealNumber={newMealNumber}
           onClose={() => setShowAdd(false)}
           onLogged={handleFoodLogged}
-        />
-      )}
-      {showCustom && (
-        <CustomMealModal
-          dateStr={dateStr}
-          defaultMealNumber={(summary?.meals?.length ?? 0) + 1}
-          onClose={() => setShowCustom(false)}
-          onLogged={() => { setShowCustom(false); fetchSummary(); }}
-        />
-      )}
-      {showSuggest && (
-        <SuggestModal
-          dateStr={dateStr}
-          remaining={summary ? {
-            protein_g: summary.protein.remaining,
-            fat_g:     summary.fat.remaining,
-          } : {}}
-          onClose={() => setShowSuggest(false)}
         />
       )}
     </div>
