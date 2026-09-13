@@ -63,7 +63,7 @@ Macro Tracker App/
 
 ### Frontend
 - **Single-page app** — two main tabs ("Today" / "Library") in `App.jsx`, plus modals
-- **Bottom nav**: Today | Library | [+] | Estimate
+- **Bottom nav**: Today | Library | [+] | Estimate | Barcode
 - **[+] action sheet**: Search Foods, Scan Barcode, Scan Label (camera),
   Estimate a Meal, From Recipes
 - The "Build Meal" and "Suggest" dashboard quick-actions were removed in Sep 2026

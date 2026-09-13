@@ -207,6 +207,11 @@ export default function App() {
           <Camera size={22} />
         </NavItem>
 
+        {/* Scan a barcode — also available from the [+] sheet */}
+        <NavItem label="Barcode" active={false} onClick={() => setShowBarcode(true)}>
+          <ScanLine size={22} />
+        </NavItem>
+
       </nav>
 
       {/* ── Add Food action sheet ── */}
