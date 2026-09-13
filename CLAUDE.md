@@ -35,9 +35,7 @@ Macro Tracker App/
 │   │       ├── MealSection.jsx        # Single meal card in Dashboard
 │   │       ├── MacroSummaryCards.jsx  # Calorie/P/C/F summary
 │   │       ├── MicronutrientPanel.jsx # Vitamin/mineral panel
-│   │       ├── SuggestModal.jsx       # AI meal suggestions
-│   │       ├── CopyMealModal.jsx      # Copy a meal to another date
-│   │       ├── CustomMealModal.jsx    # Create a custom meal name
+│   │   │       ├── CopyMealModal.jsx      # Copy a meal to another date
 │   │       └── UrlFoodModal.jsx       # Add food from URL (AI estimates nutrition)
 │   ├── tailwind.config.js     # Custom tokens: surface, accent-blue, muted, etc.
 │   └── package.json
@@ -54,7 +52,6 @@ Macro Tracker App/
             ├── meals.py       # Log food, get day/today, update/delete items, copy meal, targets, micronutrients
             ├── recipes.py     # CRUD recipes
             ├── vision.py      # AI label scan, barcode lookup (Open Food Facts), URL/text nutrition
-            ├── suggest.py     # AI meal suggestions
             ├── auth.py        # /auth/status, /login, /password  (NOT gated)
             ├── export.py      # CSV + ZIP export of everything
             └── api_keys.py    # API key management (legacy, unused by the app)
@@ -66,9 +63,11 @@ Macro Tracker App/
 
 ### Frontend
 - **Single-page app** — two main tabs ("Today" / "Library") in `App.jsx`, plus modals
-- **Bottom nav**: Today | Library | [+] | Estimate | Suggest
+- **Bottom nav**: Today | Library | [+] | Estimate
 - **[+] action sheet**: Search Foods, Scan Barcode, Scan Label (camera),
   Estimate a Meal, From Recipes
+- The "Build Meal" and "Suggest" dashboard quick-actions were removed in Sep 2026
+  along with their modals and the `/suggest` router.
 - **Hamburger (top right)**: Reports, Settings (macro targets), My Account
   (password), Export data
 - **API calls** all go through `src/api/client.js` — never raw fetch/axios in components
@@ -299,7 +298,7 @@ Each page/modal manages its own local state. There is no Context, Redux, or Zust
 
 ## Environment Variables (Railway)
 - `DATABASE_URL` — PostgreSQL connection string
-- `ANTHROPIC_API_KEY` — all AI features (vision, meal estimation, suggestions)
+- `ANTHROPIC_API_KEY` — all AI features (label scan, meal estimation)
 - `ANTHROPIC_VISION_MODEL` — defaults to `claude-sonnet-5`. **Every** AI feature
   in this app uses Sonnet.
 - `SECRET_KEY` — signs the auth token. Changing it invalidates every issued

@@ -42,8 +42,6 @@ Macro Tracker App/
 │       ├── CopyMealModal.jsx            # Copy a meal to another date/meal number
 │       ├── RecipeBuilderModal.jsx       # 3-step recipe create/edit modal
 │       ├── VisionModal.jsx              # Camera scan → nutrition OCR → save/log
-│       ├── CustomMealModal.jsx          # Bulk add multiple foods to a meal
-│       ├── SuggestModal.jsx             # "What should I eat?" suggestion engine
 │       ├── MacroSummaryCards.jsx        # Calorie/macro ring cards on Dashboard
 │       ├── IngredientEditModal.jsx      # Edit a custom food's name/macros
 │       └── LogFoodModal.jsx             # Log a library food to a meal (date + meal# + qty + time)
@@ -58,7 +56,6 @@ Macro Tracker App/
 │   │   ├── meals.py                     # /meals — log food, get day, edit items, copy meal
 │   │   ├── recipes.py                   # /recipes — CRUD + search
 │   │   ├── vision.py                    # /vision — OCR extract + save
-│   │   ├── suggest.py                   # /suggest — macro-budget recommendation engine
 │   │   └── api_keys.py                  # /api-keys — key management
 │   └── services/
 │       ├── vision_ocr.py                # Claude API call for nutrition label OCR
@@ -119,7 +116,6 @@ DELETE /api/v1/recipes/{id}
 POST   /api/v1/vision/extract            # OCR only (multipart/form-data, 1-2 images)
 POST   /api/v1/vision/extract-and-save   # OCR + save as custom ingredient
 
-GET    /api/v1/suggest/                  # Macro-budget food suggestions
 ```
 
 ---
@@ -216,7 +212,6 @@ html, body { overflow-x: hidden; width: 100%; }
 ## Known Issues / Pending
 
 - `RecipesPage.jsx` is legacy (superseded by LibraryPage) — safe to delete
-- The "Suggest" nav item currently just switches to Today tab instead of opening SuggestModal — could be wired up
 - Vision OCR `confidence` field is parsed but not displayed to the user
 - No authentication — single-user app
 

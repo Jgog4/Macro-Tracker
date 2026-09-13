@@ -207,10 +207,6 @@ export default function App() {
           <Camera size={22} />
         </NavItem>
 
-        {/* Suggest — opens modal from dashboard */}
-        <NavItem label="Suggest" active={false} onClick={() => { setTab("today"); }}>
-          <Sparkles size={22} />
-        </NavItem>
       </nav>
 
       {/* ── Add Food action sheet ── */}

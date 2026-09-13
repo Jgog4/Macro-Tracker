@@ -11,7 +11,7 @@ Macro Tracker App/
 │   │   ├── database.py       ← Async SQLAlchemy engine
 │   │   ├── models/models.py  ← 8 ORM tables
 │   │   ├── schemas/          ← Pydantic v2 request/response shapes
-│   │   ├── routers/          ← foods, meals, recipes, vision, suggest, api_keys
+│   │   ├── routers/          ← foods, meals, recipes, vision, api_keys, export, auth
 │   │   └── services/         ← usda.py, vision_ocr.py
 │   ├── alembic/              ← Database migrations
 │   ├── scripts/
@@ -23,7 +23,7 @@ Macro Tracker App/
 │   └── src/
 │       ├── pages/Dashboard.jsx
 │       ├── components/       ← MacroSummaryCards, MealSection, AddFoodModal,
-│       │                        VisionModal, SuggestModal
+│       │                        VisionModal
 │       └── api/client.js     ← Typed API layer
 ├── railway.toml              ← One-click Railway deploy config
 └── SETUP.md                  ← This file
@@ -125,7 +125,6 @@ curl http://localhost:8000/api/v1/meals/today \
 | POST | `/api/v1/foods/usda/{fdc_id}/import` | Import USDA item to local DB |
 | POST | `/api/v1/recipes/` | Create recipe blend (Turkey & Rice, etc.) |
 | POST | `/api/v1/vision/extract` | Upload photo → extract macros (GPT-4o-mini) |
-| GET | `/api/v1/suggest/?log_date=2026-04-16` | "What should I eat?" top 3 |
 
 ---
 
