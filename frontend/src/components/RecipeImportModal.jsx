@@ -28,6 +28,20 @@ const FLAG_TEXT = {
 
 const num = (v, d = 0) => (v == null ? "—" : Number(v).toFixed(d));
 
+/** How a line's gram weight was arrived at, in plain words. */
+const WEIGHT_SOURCE = {
+  mass:           null,                       // stated outright, nothing to say
+  density:        "Converted from volume.",
+  usda:           "From a USDA household measure.",
+  count:          "Standard weight for one item.",
+  count_default:  "No size given — assumed medium. Adjust if yours differ.",
+  to_taste:       null,
+  "item:user":    "Your saved weight for one of these.",
+  "item:cache":   "Looked up once and remembered — check it the first time.",
+  "item:curated": "Standard weight for one item. Adjust if yours differ.",
+  "item:usda":    "Estimated from USDA item weights — worth a glance.",
+};
+
 export default function RecipeImportModal({ onClose, onSaved }) {
   const [step, setStep]       = useState("input");   // input | review
   const [url, setUrl]         = useState("");
@@ -101,6 +115,9 @@ export default function RecipeImportModal({ onClose, onSaved }) {
         lines: lines.map(l => ({
           name: l.name, ingredient_id: l.match?.id || null,
           grams: l.grams, include: l.include, raw: l.raw, alias_learn: !!l.alias_learn,
+          // Sent so a hand-typed weight for a counted item can be remembered.
+          quantity: l.quantity, unit: l.unit,
+          unit_is_mass: ["mass", "density", "usda"].includes(l.gram_method),
         })),
       });
       onSaved?.(data);
@@ -271,6 +288,11 @@ export default function RecipeImportModal({ onClose, onSaved }) {
                         {FLAG_TEXT[f]}
                       </p>
                     ))}
+                    {WEIGHT_SOURCE[l.gram_method] && (
+                      <p className="text-[11px] text-muted bg-surface-2 rounded-lg px-2 py-1.5">
+                        {WEIGHT_SOURCE[l.gram_method]}
+                      </p>
+                    )}
                     {l.adjustment_note && (
                       <p className="text-[11px] text-accent-blue bg-blue-50 rounded-lg px-2 py-1.5">
                         {l.adjustment_note}

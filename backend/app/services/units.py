@@ -87,6 +87,9 @@ _UNKNOWN_DENSITY = None   # deliberately None → ask the user
 _COUNT_WEIGHTS: dict[str, dict[str, float]] = {
     "egg":          {"jumbo": 63, "extra large": 56, "large": 50, "medium": 44, "small": 38, "": 50},
     "onion":        {"large": 150, "medium": 110, "small": 70, "": 110},
+    "spring onion": {"": 15},
+    "green onion":  {"": 15},
+    "scallion":     {"": 15},
     "shallot":      {"": 25},
     "garlic clove": {"": 3},
     "clove":        {"": 3},
@@ -115,9 +118,14 @@ def count_weight(name: str, size: Optional[str]) -> Optional[tuple[float, bool]]
     A missing size adjective defaults to medium and is reported so the caller
     can flag it, per the spec.
     """
-    n = (name or "").lower()
+    hay = (name or "").lower()
+    # "3 cloves garlic" parses to name="garlic", unit="cloves" — the countable
+    # thing is named by the unit, so search both.
+    with_unit = f"{(size or '').lower()} {hay}".strip()
     for key in _COUNT_KEYS:
-        if key in n:
+        # Allow a plural suffix: keys are singular but recipes say "2 carrots".
+        pat = rf"\b{re.escape(key)}(?:e?s)?\b"
+        if re.search(pat, hay) or re.search(pat, with_unit):
             table = _COUNT_WEIGHTS[key]
             s = (size or "").strip().lower()
             if s in table:

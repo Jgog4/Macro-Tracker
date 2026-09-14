@@ -373,3 +373,24 @@ class RecipeImportLog(Base):
     payload:     Mapped[dict | None] = mapped_column(JSON)         # parse output + corrections
     recipe_id:   Mapped[str | None] = mapped_column(UUID(as_uuid=False))
     created_at:  Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PortionWeight(Base):
+    """
+    What one of something weighs — cached and learned.
+
+    Count-based lines ("2 apples", "1 courgette") are the long tail of recipe
+    import. A hand-maintained table cannot cover it, so weights are resolved
+    from USDA household measures on first use and cached here, and any weight
+    the user types by hand is stored too and wins on every later import.
+    """
+    __tablename__ = "mt_portion_weights"
+
+    id:         Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    alias:      Mapped[str] = mapped_column(String(200), nullable=False, index=True)   # normalised food name
+    size:       Mapped[str] = mapped_column(String(40), nullable=False, server_default="")  # "large" | "" = default
+    grams:      Mapped[float] = mapped_column(Float, nullable=False)
+    source:     Mapped[str | None] = mapped_column(String(20))   # usda | user | curated
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("alias", "size", name="uq_portion_alias_size"),)

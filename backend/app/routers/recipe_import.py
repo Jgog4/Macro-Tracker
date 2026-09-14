@@ -37,6 +37,7 @@ from app.database import get_db
 from app.models.models import Ingredient, IngredientAlias, Recipe, RecipeImportLog, User
 from app.routers.foods import search_local_foods
 from app.services import units
+from app.services.portions import remember_weight, resolve_item_weight, split_size
 from app.services.recipe_import import ExtractionFailed, extract_recipe, parse_ingredient_lines
 from app.services.usda import import_usda_food, search_usda
 
@@ -391,6 +392,9 @@ class PreviewRequest(BaseModel):
 
 class SaveLine(BaseModel):
     name:          str
+    quantity:      Optional[float] = None
+    unit:          Optional[str] = None
+    unit_is_mass:  bool = False
     ingredient_id: Optional[str] = None
     grams:         Optional[float] = None
     include:       bool = True
@@ -469,6 +473,18 @@ async def preview_import(body: PreviewRequest, db: AsyncSession = Depends(get_db
             p.get("quantity"), p.get("unit"), p.get("name") or "",
             usda_portions=portions, locale=body.locale,
         )
+        # Count-based lines ("2 apples") rarely resolve from the matched food:
+        # CNF and CoFID rows carry no USDA id and so no household measures.
+        # Fall back to the shared resolver, which caches and learns.
+        if grams is None and p.get("quantity"):
+            per_item, src = await resolve_item_weight(
+                db, _expand_synonyms(p.get("name") or ""), p.get("unit"))
+            if per_item:
+                grams = p["quantity"] * per_item
+                # Namespaced so the review screen can tell a *stated* weight
+                # from an *inferred* one. Only a weight you taught it yourself
+                # is trusted without a second look.
+                method = f"item:{src}"
 
         nutrition = None
         if food is not None and grams:
@@ -487,6 +503,11 @@ async def preview_import(body: PreviewRequest, db: AsyncSession = Depends(get_db
             # worse than no match, because it looks resolved.
             or nutrition is None or not nutrition.get("calories")
             or p.get("confidence", 0) < _CONFIDENCE_FLOOR
+            # An inferred per-item weight is a guess, however well sourced.
+            # "1 peach" resolved to 35 g in testing — plausible-looking and
+            # wrong. Surface it once; teaching it a weight settles it for good.
+            or (method.startswith("item:") and method != "item:user")
+            or method == "count_default"
             or bool(set(flags) & {"optional", "garnish", "to_taste", "partial_use",
                                   "sub_recipe", "range"})
         )
@@ -584,6 +605,11 @@ async def save_import(body: SaveRequest, db: AsyncSession = Depends(get_db)) -> 
         if food is None:
             continue
         pairs.append((food, float(ln.grams)))
+        # If the user typed the weight for a counted item, remember it so the
+        # same ingredient resolves itself on every future import.
+        if ln.quantity and ln.quantity > 0 and not ln.unit_is_mass:
+            await remember_weight(db, ln.name, split_size(ln.unit),
+                                  float(ln.grams) / ln.quantity, source="user")
         if ln.alias_learn:
             alias = _normalise(ln.name)
             if alias:

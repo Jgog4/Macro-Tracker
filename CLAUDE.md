@@ -184,6 +184,11 @@ One row per food logged: `id`, `meal_log_id`, `ingredient_id`, `quantity_g`, `se
   against verified generics → grams via USDA household measures or a density
   table → cooking adjustments → totals.
 
+  **Per-item weights** ("2 apples") resolve through `services/portions.py`:
+  the `mt_portion_weights` cache first (a weight you typed wins forever), then
+  a small curated table, then USDA household measures — which are then cached.
+  Anything inferred is flagged for review rather than used silently.
+
   **The model parses text and never produces nutrition.** Every number comes
   from a matched database row. `services/units.py` does volume→weight with a
   locale setting (a tbsp is 15 ml UK, 20 ml AU). `mt_ingredient_aliases`
