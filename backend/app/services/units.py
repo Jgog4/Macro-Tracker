@@ -78,6 +78,56 @@ _DENSITY_KEYS = sorted(_DENSITY, key=len, reverse=True)
 # Fallback density when the food is unknown but clearly a liquid measure.
 _UNKNOWN_DENSITY = None   # deliberately None → ask the user
 
+# ── Count-based weights (g per item) ─────────────────────────────────────────
+# USDA publishes per-item gram weights, but only for its own foods. Most
+# matches in this app land on Canadian Nutrient File or CoFID rows, which carry
+# no FDC id and therefore no household measures — so "2 large eggs" had nothing
+# to resolve against and fell through to "weight needed" every time. These are
+# the standard USDA item weights for the things recipes actually count.
+_COUNT_WEIGHTS: dict[str, dict[str, float]] = {
+    "egg":          {"jumbo": 63, "extra large": 56, "large": 50, "medium": 44, "small": 38, "": 50},
+    "onion":        {"large": 150, "medium": 110, "small": 70, "": 110},
+    "shallot":      {"": 25},
+    "garlic clove": {"": 3},
+    "clove":        {"": 3},
+    "carrot":       {"large": 72, "medium": 61, "small": 50, "": 61},
+    "celery":       {"large": 64, "medium": 40, "small": 17, "": 40},
+    "tomato":       {"large": 182, "medium": 123, "small": 91, "": 123},
+    "potato":       {"large": 369, "medium": 213, "small": 170, "": 213},
+    "banana":       {"large": 136, "medium": 118, "small": 101, "": 118},
+    "apple":        {"large": 223, "medium": 182, "small": 149, "": 182},
+    "lemon":        {"": 58},
+    "lime":         {"": 67},
+    "bell pepper":  {"large": 164, "medium": 119, "small": 74, "": 119},
+    "courgette":    {"medium": 196, "": 196},
+    "zucchini":     {"medium": 196, "": 196},
+    "mushroom":     {"": 18},
+    "rasher":       {"": 25},
+    "slice bread":  {"": 28},
+}
+_COUNT_KEYS = sorted(_COUNT_WEIGHTS, key=len, reverse=True)
+
+
+def count_weight(name: str, size: Optional[str]) -> Optional[tuple[float, bool]]:
+    """
+    Grams for one countable item. Returns (grams, size_was_given).
+
+    A missing size adjective defaults to medium and is reported so the caller
+    can flag it, per the spec.
+    """
+    n = (name or "").lower()
+    for key in _COUNT_KEYS:
+        if key in n:
+            table = _COUNT_WEIGHTS[key]
+            s = (size or "").strip().lower()
+            if s in table:
+                return table[s], bool(s)
+            for k, v in table.items():
+                if k and k in s:
+                    return v, True
+            return table.get("", next(iter(table.values()))), False
+    return None
+
 
 def canonical_unit(unit: Optional[str]) -> Optional[str]:
     """Normalise a unit string to a canonical token, or None if not a unit."""
@@ -150,7 +200,13 @@ def to_grams(
             return ml * d, "density"
         return None, "unknown"          # a real volume we cannot weigh — ask
 
-    # 4. Count-based ("2 large eggs") with no USDA portion to lean on.
+    # 4. Count-based ("2 large eggs") with no USDA portion to lean on — fall
+    #    back to standard per-item weights.
+    hit = count_weight(name, unit)
+    if hit is not None:
+        grams, size_given = hit
+        return quantity * grams, "count" if size_given else "count_default"
+
     return None, "unknown"
 
 

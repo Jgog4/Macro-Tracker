@@ -81,9 +81,52 @@ _PREPARATION_WORDS = {
     "extract", "dehydrated", "syrup", "snack", "bar", "pie", "cake", "roll",
     "juice", "drink", "flavoured", "flavored", "substitute", "imitation",
     "baby", "babyfood", "infant",
+    # Dish names. A recipe asking for "eggs" means the ingredient, not
+    # "Egg Benedict" or "Egg nog" — both of which lead with the right word.
+    "benedict", "nog", "eggnog", "salad", "casserole", "stew", "curry",
+    "sandwich", "burger", "wrap", "quiche", "omelette", "omelet", "scrambled",
+    "poached", "boiled", "pickled", "smoothie", "yung", "custard", "bagel",
+    "cracker", "bread", "muffin", "pudding", "pancake",
+    # Parts of a food are different products from the whole thing. "eggs"
+    # must not land on "Eggs, chicken, yolk, raw". These only count when the
+    # query did NOT ask for them, so "white rice" is unaffected.
+    "yolk", "white", "albumen", "shell", "skin", "peel", "rind", "core", "stalk",
 }
 
 _PY_SOURCE_RANK = {"cnf": 0, "cofid": 0, "usda": 0, "personal": 1, "custom": 2, "restaurant": 3}
+
+# When a recipe says "eggs" it means hen's eggs, but the database lists duck,
+# quail, goose and turkey alongside — and those names are shorter, so they win
+# any tie broken on length. These are the implied varieties for generics whose
+# databases enumerate species.
+_IMPLIED_VARIETY = {
+    "egg": "chicken", "eggs": "chicken",
+    "milk": "cow", "flour": "wheat", "rice": "white",
+}
+
+
+def _word_variants(word: str) -> list[str]:
+    """
+    A word plus its singular/plural twin.
+
+    Databases disagree on number: CNF writes "Egg, chicken, whole, raw" while
+    CoFID writes "Eggs, duck, whole, raw". Matching "eggs" literally could only
+    ever reach the plural rows, so a recipe calling for eggs matched "Scotch
+    eggs, retail" and the correct entry was never even a candidate.
+    """
+    w = word.lower()
+    out = {w}
+    if w.endswith("ies") and len(w) > 4:
+        out.add(w[:-3] + "y")
+    elif w.endswith("es") and len(w) > 3:
+        out.add(w[:-2]); out.add(w[:-1])
+    elif w.endswith("s") and len(w) > 3:
+        out.add(w[:-1])
+    else:
+        out.add(w + "s")
+        if w.endswith("y") and len(w) > 3:
+            out.add(w[:-1] + "ies")
+    return sorted(out, key=len, reverse=True)
 
 
 def _fold(text: str) -> str:
@@ -181,7 +224,8 @@ def _prep_score(food_name: str, prep_state: Optional[str]) -> int:
 _EXCLUDED_SOURCES = ("estimated_component", "barcode")
 
 
-async def _search_candidates(db: AsyncSession, query: str, limit: int = 6) -> list[Ingredient]:
+async def _search_candidates(db: AsyncSession, query: str, prep: Optional[str] = None,
+                             limit: int = 6) -> list[Ingredient]:
     """
     Ingredient matching for recipe import.
 
@@ -198,11 +242,14 @@ async def _search_candidates(db: AsyncSession, query: str, limit: int = 6) -> li
     words = content or words          # never search on nothing
     if not words:
         return []
-    clauses = [
-        or_(func.lower(func.unaccent(Ingredient.name)).contains(w),
-            func.lower(func.unaccent(func.coalesce(Ingredient.brand, ""))).contains(w))
-        for w in words
-    ]
+    clauses = []
+    for w in words:
+        variants = _word_variants(w)
+        clauses.append(or_(*[
+            or_(func.lower(func.unaccent(Ingredient.name)).contains(v),
+                func.lower(func.unaccent(func.coalesce(Ingredient.brand, ""))).contains(v))
+            for v in variants
+        ]))
     source_rank = case(
         (Ingredient.source == "cnf",        0),   # lab-analysed generics first
         (Ingredient.source == "cofid",      0),
@@ -219,11 +266,11 @@ async def _search_candidates(db: AsyncSession, query: str, limit: int = 6) -> li
         .where(Ingredient.source.notin_(_EXCLUDED_SOURCES))
         .where(Ingredient.calories.is_not(None))
         .order_by(source_rank, func.length(Ingredient.name), Ingredient.name)
-        .limit(limit * 4)
+        .limit(limit * 12)
     )
     rows = list((await db.execute(stmt)).scalars().all())
     if rows:
-        return _rank(rows, words)[:limit]
+        return _rank(rows, words, prep)[:limit]
     # Fall back to the whole phrase if the AND across words was too strict.
     phrase = query.lower().strip()
     stmt = (
@@ -238,7 +285,7 @@ async def _search_candidates(db: AsyncSession, query: str, limit: int = 6) -> li
     return list((await db.execute(stmt)).scalars().all())
 
 
-def _rank(rows: list[Ingredient], words: list[str]) -> list[Ingredient]:
+def _rank(rows: list[Ingredient], words: list[str], prep: Optional[str] = None) -> list[Ingredient]:
     """
     Prefer the candidate that says the least beyond what was asked for.
 
@@ -247,13 +294,29 @@ def _rank(rows: list[Ingredient], words: list[str]) -> list[Ingredient]:
     food's head noun matching. Sorting by raw string length alone put "Creamy
     Parmesan Dip" above "Cheese, parmesan, hard".
     """
+    # Compare on variants so "egg" in a candidate satisfies a query for "eggs".
+    wanted = {v for w in words for v in _word_variants(w)}
+    implied = next((_IMPLIED_VARIETY[w] for w in words if w in _IMPLIED_VARIETY), None)
+    if implied:
+        wanted.add(implied)      # so naming it is not counted as an extra word
+
     def key(food: Ingredient) -> tuple:
         toks = [t for t in re.split(r"[^a-z0-9]+", _fold(food.name)) if t]
-        unmatched = [t for t in toks if t not in words]
+        unmatched = [t for t in toks if t not in wanted]
         prep_noise = sum(1 for t in unmatched if t in _PREPARATION_WORDS)
-        head_hit = 0 if toks and toks[0] in words else 1
-        return (_PY_SOURCE_RANK.get(food.source, 4), prep_noise,
-                len(unmatched), head_hit, len(food.name or ""))
+        # The head noun is what the food IS. "Egg, chicken, whole, raw" leads
+        # with the thing asked for; "Scotch eggs, retail" leads with something
+        # else and merely mentions it. That outranks having fewer extra words,
+        # or the longer-but-correct generic always loses to a short wrong one.
+        head_hit = 0 if toks and toks[0] in wanted else 1
+        # The parsed line knows the state the ingredient is used in. Preferring
+        # a candidate that says so is what separates "Egg, chicken, whole, raw"
+        # from "Egg Benedict" when both lead with "egg".
+        prep_hit = 0 if (prep and any(w in toks for w in _PREP_WORDS.get(prep, ()))) else 1
+        # Prefer the implied default variety over an enumerated exotic one.
+        implied_hit = 0 if (implied is None or implied in toks) else 1
+        return (_PY_SOURCE_RANK.get(food.source, 4), prep_noise, head_hit,
+                prep_hit, implied_hit, len(unmatched), len(food.name or ""))
     return sorted(rows, key=key)
 
 
@@ -281,7 +344,7 @@ async def _match_ingredient(db: AsyncSession, user: User, line: dict) -> tuple[O
     for q in (terms, query):
         if not q.strip():
             continue
-        cands = await _search_candidates(db, q)
+        cands = await _search_candidates(db, q, prep)
         if cands:
             break
 
