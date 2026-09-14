@@ -27,6 +27,7 @@ from typing import Optional
 
 import httpx
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -62,8 +63,15 @@ _WRONG_FOOD = {
 }
 
 
+# Must match mt_portion_weights.alias. A verbose recipe line ("organic
+# free-range chicken breast, cut into 1-inch cubes") overflowed the column,
+# which failed the flush and poisoned the whole request with
+# PendingRollbackError — the import died on an incidental cache write.
+_ALIAS_MAX = 200
+
+
 def _norm(text: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
+    return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()[:_ALIAS_MAX]
 
 
 def split_size(unit: Optional[str]) -> str:
@@ -217,15 +225,29 @@ async def resolve_item_weight(
 async def remember_weight(
     db: AsyncSession, name: str, size: str, grams: float, source: str = "user",
 ) -> None:
-    """Store a resolved or user-supplied item weight. User entries overwrite."""
+    """
+    Store a resolved or user-supplied item weight. User entries overwrite.
+
+    Runs inside a SAVEPOINT. Caching a weight is incidental to the import, so a
+    failure here must never take the request down with it — before this, one
+    over-long name rolled back the whole transaction and every later query in
+    the request failed with PendingRollbackError.
+    """
     alias = _norm(name)
     if not alias or not grams or grams <= 0:
         return
-    row = (await db.execute(
-        select(PortionWeight).where(PortionWeight.alias == alias, PortionWeight.size == (size or ""))
-    )).scalar_one_or_none()
-    if row:
-        if source == "user" or row.source != "user":
-            row.grams, row.source = float(grams), source
-    else:
-        db.add(PortionWeight(alias=alias, size=size or "", grams=float(grams), source=source))
+    size = (size or "")[:40]
+    try:
+        async with db.begin_nested():
+            row = (await db.execute(
+                select(PortionWeight).where(
+                    PortionWeight.alias == alias, PortionWeight.size == size)
+            )).scalar_one_or_none()
+            if row:
+                if source == "user" or row.source != "user":
+                    row.grams, row.source = float(grams), source
+            else:
+                db.add(PortionWeight(alias=alias, size=size,
+                                     grams=float(grams), source=source))
+    except SQLAlchemyError:
+        pass          # the import continues without the cache entry

@@ -158,7 +158,8 @@ _portion_cache: dict[int, list[dict]] = {}
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 def _normalise(text: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
+    # Capped to mt_ingredient_aliases.alias; see portions._norm for why.
+    return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()[:300]
 
 
 def _expand_synonyms(name: str) -> str:
@@ -570,7 +571,7 @@ async def preview_import(body: PreviewRequest, db: AsyncSession = Depends(get_db
 
     log = RecipeImportLog(
         user_id=user.id, source_url=extracted.get("source_url"), method=extracted.get("method"),
-        title=extracted.get("title"), line_count=len(lines),
+        title=(extracted.get("title") or "")[:500], line_count=len(lines),
         payload={"yield": extracted.get("yield"), "lines": lines},
     )
     db.add(log)
@@ -637,7 +638,7 @@ async def save_import(body: SaveRequest, db: AsyncSession = Depends(get_db)) -> 
     finished = body.cooked_weight_g or totals["total_weight_g"]
 
     recipe = Recipe(
-        name=body.title.strip() or "Imported recipe",
+        name=(body.title.strip() or "Imported recipe")[:500],
         source_url=body.source_url,
         num_servings=servings,
         total_weight_g=totals["total_weight_g"],
