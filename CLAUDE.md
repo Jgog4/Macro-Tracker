@@ -291,21 +291,27 @@ Each page/modal manages its own local state. There is no Context, Redux, or Zust
    metadata, *not* the basis of the numbers. Storing it in `serving_size_g`
    inflates everything by `100/serving` (a 39 g cake at 410 kcal/100g displayed
    as 1051). USDA foods must always be stored with `serving_size_g = 100`.
-10. **Claude Sonnet returns `[thinking, text]` content blocks.** Never read
+10. **Never send `temperature` to `claude-sonnet-5`** — it is deprecated for
+    that model and the API returns **400 Bad Request** if the key is present at
+    all. Omit it. Watch out when testing: `backend/.env` can override
+    `ANTHROPIC_VISION_MODEL` locally, and an older model still accepts the
+    parameter, so this fails **only in production** if local dev points
+    somewhere else. Keep `.env` on the same model Railway uses.
+11. **Claude Sonnet returns `[thinking, text]` content blocks.** Never read
     `content[0]["text"]` — find the block whose `type == "text"`. `vision.py`
     has a `_response_text(data)` helper; use it for every call.
-11. **CSS variables are RGB channels, not colors** (`--surface-1: 255 255 255`)
+12. **CSS variables are RGB channels, not colors** (`--surface-1: 255 255 255`)
     so Tailwind alpha modifiers work. In inline styles you must write
     `rgb(var(--surface-1))` — a bare `var(--surface-1)` renders transparent.
-12. **Dark mode** toggles by clicking the "M" logo; it swaps the `:root`
+13. **Dark mode** toggles by clicking the "M" logo; it swaps the `:root`
     variables in `index.css`.
-13. **Macro targets are entered as % of total calories** in `SettingsModal`
+14. **Macro targets are entered as % of total calories** in `SettingsModal`
     (must sum to 100) but are **stored as grams** in `mt_daily_targets`.
-14. **Recipes have proxy ingredients** — `mt_ingredients` rows with `recipe_id`
+15. **Recipes have proxy ingredients** — `mt_ingredients` rows with `recipe_id`
     set. They appear in food search alongside the real food, which is why the
     library shows apparent duplicates. Deleting a recipe orphans its proxy
     (`recipe_id` → NULL).
-15. **`deploy.sh` runs pre-flight checks** (backend imports, frontend build) and
+16. **`deploy.sh` runs pre-flight checks** (backend imports, frontend build) and
     refuses to push if either fails. A green "✓ Deployed" means the *push*
     succeeded — check Railway for the build result.
 

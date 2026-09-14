@@ -133,7 +133,10 @@ async def extract_with_llm(page_text: str) -> Optional[dict]:
     payload = {
         "model": settings.ANTHROPIC_VISION_MODEL,
         "max_tokens": 2000,
-        "temperature": 0,
+        # No `temperature`: it is deprecated for claude-sonnet-5 and passing it
+        # at all returns 400. The spec asks for temperature 0; the model does
+        # not accept the parameter, so determinism rests on its default plus the
+        # strict JSON contract and the hallucination check below.
         "system": _EXTRACT_SYSTEM,
         "messages": [{"role": "user", "content": page_text[:18000]}],
     }
@@ -301,8 +304,8 @@ async def parse_ingredient_lines(lines: list[str], instructions: str = "") -> li
     payload = {
         "model": settings.ANTHROPIC_VISION_MODEL,
         "max_tokens": 4000,
-        "temperature": 0,
-        "system": _PARSE_SYSTEM,
+        "system": _PARSE_SYSTEM,   # no `temperature` — deprecated for sonnet-5
+        
         "messages": [{"role": "user", "content": user}],
     }
     async with httpx.AsyncClient(timeout=60.0) as client:
