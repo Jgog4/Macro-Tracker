@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { format, addDays, subDays } from "date-fns";
-import { CalendarDays, BookOpen, Plus, Camera, Search, Utensils, Sparkles, Menu, BarChart2, Sliders, Download, LogOut, UserCircle, X, ScanLine } from "lucide-react";
+import { CalendarDays, BookOpen, Plus, Camera, Link2, Search, Utensils, Sparkles, Menu, BarChart2, Sliders, Download, LogOut, UserCircle, X, ScanLine } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import LibraryPage from "./pages/LibraryPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -10,6 +10,7 @@ import BarcodeModal from "./components/BarcodeModal";
 import CalendarPicker from "./components/CalendarPicker";
 import SettingsModal from "./components/SettingsModal";
 import EstimateMealModal from "./components/EstimateMealModal";
+import RecipeImportModal from "./components/RecipeImportModal";
 import ExportModal from "./components/ExportModal";
 import AccountModal from "./components/AccountModal";
 import LoginScreen from "./components/LoginScreen";
@@ -35,6 +36,7 @@ export default function App() {
   const [showReports, setShowReports] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showEstimate, setShowEstimate] = useState(false);
+  const [showImport, setShowImport]     = useState(false);
   const [showExport, setShowExport]     = useState(false);
   const [showAccount, setShowAccount]   = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
@@ -202,9 +204,9 @@ export default function App() {
           </button>
         </div>
 
-        {/* Estimate a meal from a photo */}
-        <NavItem label="Estimate" active={false} onClick={() => setShowEstimate(true)}>
-          <Camera size={22} />
+        {/* Import a recipe from a URL. Photo estimation moved to the [+] sheet. */}
+        <NavItem label="Import" active={false} onClick={() => setShowImport(true)}>
+          <Link2 size={22} />
         </NavItem>
 
         {/* Scan a barcode — also available from the [+] sheet */}
@@ -323,6 +325,13 @@ export default function App() {
       )}
 
       {/* Barcode scanner — Open Food Facts lookup → saves to My Foods → opens log screen */}
+      {showImport && (
+        <RecipeImportModal
+          onClose={() => setShowImport(false)}
+          onSaved={() => { setShowImport(false); setDashboardKey(k => k + 1); }}
+        />
+      )}
+
       {showBarcode && (
         <BarcodeModal
           dateStr={dateStr}

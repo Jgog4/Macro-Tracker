@@ -44,6 +44,12 @@ export const authApi = {
 };
 
 // ── Foods ────────────────────────────────────────────────────────────────────
+// ── Recipe import (URL / pasted text → verified-database recipe) ─────────────
+export const recipeImportApi = {
+  preview:        (body)               => api.post("/recipes/import/preview", body),
+  save:           (body)               => api.post("/recipes/import/save", body),
+};
+
 export const foodsApi = {
   list:           (source)             => api.get("/foods/",               { params: source ? { source } : {} }),
   search:         (q, params = {})     => api.get("/foods/search",        { params: { q, ...params } }),

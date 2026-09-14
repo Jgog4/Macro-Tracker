@@ -63,7 +63,8 @@ Macro Tracker App/
 
 ### Frontend
 - **Single-page app** — two main tabs ("Today" / "Library") in `App.jsx`, plus modals
-- **Bottom nav**: Today | Library | [+] | Estimate | Barcode
+- **Bottom nav**: Today | Library | [+] | Import | Barcode
+  (Estimate moved into the [+] sheet when Recipe Import took its nav slot.)
 - **[+] action sheet**: Search Foods, Scan Barcode, Scan Label (camera),
   Estimate a Meal, From Recipes
 - The "Build Meal" and "Suggest" dashboard quick-actions were removed in Sep 2026
@@ -173,6 +174,20 @@ One row per food logged: `id`, `meal_log_id`, `ingredient_id`, `quantity_g`, `se
 
 ### Recipes `/api/v1/recipes/`
 - `GET /`, `POST /`, `GET /{id}`, `PATCH /{id}`, `DELETE /{id}`
+
+### Recipe import `/api/v1/recipes/import/`
+- `POST /preview` — `{url | text, locale}` → parsed draft for the review screen
+- `POST /save` — persist the reviewed draft as a normal recipe
+
+  Pipeline: schema.org JSON-LD extraction (LLM fallback, then paste box) →
+  one batched Sonnet call to parse ingredient lines into structure → match
+  against verified generics → grams via USDA household measures or a density
+  table → cooking adjustments → totals.
+
+  **The model parses text and never produces nutrition.** Every number comes
+  from a matched database row. `services/units.py` does volume→weight with a
+  locale setting (a tbsp is 15 ml UK, 20 ml AU). `mt_ingredient_aliases`
+  remembers match corrections so the importer improves with use.
 
 ### Auth `/api/v1/auth/` — **not gated**
 - `GET /status` — `{ auth_required, authenticated, password_is_set }`

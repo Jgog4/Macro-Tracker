@@ -19,7 +19,7 @@ from sqlalchemy import text
 
 from app.config import get_settings
 from app.database import Base, engine
-from app.routers import foods, meals, recipes, vision, api_keys, export, auth as auth_router
+from app.routers import foods, meals, recipes, recipe_import, vision, api_keys, export, auth as auth_router
 from app.auth import require_auth
 
 settings = get_settings()
@@ -42,6 +42,9 @@ async def lifespan(app: FastAPI):
             # Safe to run on every deploy — IF NOT EXISTS is a no-op.
             new_cols = [
                 # ── Legacy columns (may already exist) ──
+                # unaccent lets recipe import match "crème fraîche" against "creme fraiche"
+                "CREATE EXTENSION IF NOT EXISTS unaccent",
+                "ALTER TABLE mt_recipes     ADD COLUMN IF NOT EXISTS source_url        TEXT",
                 "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS added_sugar_g     FLOAT",
                 "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS potassium_mg      FLOAT",
                 "ALTER TABLE mt_ingredients ADD COLUMN IF NOT EXISTS vitamin_d_mcg     FLOAT",
@@ -206,6 +209,7 @@ _gated = [Depends(require_auth)]
 app.include_router(foods.router,    prefix="/api/v1", dependencies=_gated)
 app.include_router(meals.router,    prefix="/api/v1", dependencies=_gated)
 app.include_router(recipes.router,  prefix="/api/v1", dependencies=_gated)
+app.include_router(recipe_import.router, prefix="/api/v1", dependencies=_gated)
 app.include_router(vision.router,   prefix="/api/v1", dependencies=_gated)
 app.include_router(api_keys.router, prefix="/api/v1", dependencies=_gated)
 app.include_router(export.router,   prefix="/api/v1", dependencies=_gated)
