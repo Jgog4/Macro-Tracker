@@ -31,6 +31,11 @@ _VOLUME_ML = {
 }
 DEFAULT_LOCALE = "us"
 
+# Imprecise seasoning amounts. These are not countable items, so they must not
+# reach the per-item resolver — "1 pinch salt" came back as 35 g from a USDA
+# portion lookup, which is roughly a hundred pinches.
+IMPRECISE_G = {"pinch": 0.36, "dash": 0.6, "smidgen": 0.2, "drop": 0.05, "sprinkle": 0.5}
+
 # Fixed-weight units need no density.
 _MASS_G = {"g": 1.0, "kg": 1000.0, "mg": 0.001, "oz": 28.3495, "lb": 453.592}
 
@@ -72,6 +77,11 @@ _DENSITY = {
     "mayonnaise": 0.91, "peanut butter": 1.08, "tahini": 1.05,
     "rice": 0.85, "oats": 0.41, "rolled oats": 0.41, "breadcrumbs": 0.43,
     "salt": 1.22, "kosher salt": 0.69, "baking powder": 0.90, "baking soda": 1.10,
+    # Small-volume flavourings. Without these a "2 tsp vanilla extract" line
+    # has no way to become grams and stalls the review screen for ~10 kcal.
+    "vanilla extract": 0.88, "almond extract": 0.88, "extract": 0.88,
+    "worcestershire": 1.10, "mustard": 1.05, "hot sauce": 1.01, "sriracha": 1.10,
+    "maple": 1.32, "syrup": 1.33, "jam": 1.33, "treacle": 1.42,
 }
 _DENSITY_KEYS = sorted(_DENSITY, key=len, reverse=True)
 
@@ -106,6 +116,9 @@ _COUNT_WEIGHTS: dict[str, dict[str, float]] = {
     "zucchini":     {"medium": 196, "": 196},
     "mushroom":     {"": 18},
     "rasher":       {"": 25},
+    # US butter is sold in sticks; "1 stick" is half a cup, 113 g. Keyed with
+    # the food name so "1 stick celery" is not caught by it.
+    "stick butter": {"": 113},
     "slice bread":  {"": 28},
 }
 _COUNT_KEYS = sorted(_COUNT_WEIGHTS, key=len, reverse=True)
@@ -188,6 +201,12 @@ def to_grams(
         return None, "unknown"
 
     canon = canonical_unit(unit)
+
+    # 0. Imprecise seasoning units resolve to a token amount, never a lookup.
+    bare = (unit or "").strip().lower().rstrip("es").rstrip("s") if unit else ""
+    for word, grams in IMPRECISE_G.items():
+        if unit and word in (unit or "").strip().lower():
+            return quantity * grams, "imprecise"
 
     # 1. Already a mass.
     if canon in _MASS_G:

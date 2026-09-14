@@ -304,8 +304,14 @@ export default function RecipeImportModal({ onClose, onSaved }) {
                       <input
                         type="text" inputMode="decimal"
                         defaultValue={l.grams ?? ""}
-                        onInput={e => setLines(ls => ls.map((x, j) =>
-                          j === i ? reprice(x, Number(decimalOnly(e.currentTarget.value)) || null, null) : x))}
+                        onInput={e => {
+                          // Read the value NOW. React invokes a state updater
+                          // after the event finishes dispatching, and
+                          // `currentTarget` is null by then — reading it inside
+                          // the updater threw on every keystroke.
+                          const grams = Number(decimalOnly(e.currentTarget.value)) || null;
+                          setLines(ls => ls.map((x, j) => (j === i ? reprice(x, grams, null) : x)));
+                        }}
                         onFocus={selectAndReveal}
                         placeholder="grams"
                         className="input w-24 font-mono py-1 px-2 text-sm"

@@ -245,12 +245,14 @@ async def _search_candidates(db: AsyncSession, query: str, prep: Optional[str] =
         return []
     clauses = []
     for w in words:
-        variants = _word_variants(w)
-        clauses.append(or_(*[
-            or_(func.lower(func.unaccent(Ingredient.name)).contains(v),
-                func.lower(func.unaccent(func.coalesce(Ingredient.brand, ""))).contains(v))
-            for v in variants
-        ]))
+        # Word-boundary regex, not substring: `contains("salt")` matched
+        # "Butter, unsalted", so a pinch of salt offered butter as its top
+        # alternatives. \y is Postgres's word boundary.
+        pattern = r"\y(" + "|".join(re.escape(v) for v in _word_variants(w)) + r")\y"
+        clauses.append(or_(
+            func.lower(func.unaccent(Ingredient.name)).op("~")(pattern),
+            func.lower(func.unaccent(func.coalesce(Ingredient.brand, ""))).op("~")(pattern),
+        ))
     source_rank = case(
         (Ingredient.source == "cnf",        0),   # lab-analysed generics first
         (Ingredient.source == "cofid",      0),
@@ -476,7 +478,7 @@ async def preview_import(body: PreviewRequest, db: AsyncSession = Depends(get_db
         # Count-based lines ("2 apples") rarely resolve from the matched food:
         # CNF and CoFID rows carry no USDA id and so no household measures.
         # Fall back to the shared resolver, which caches and learns.
-        if grams is None and p.get("quantity"):
+        if grams is None and p.get("quantity") and method != "imprecise":
             per_item, src = await resolve_item_weight(
                 db, _expand_synonyms(p.get("name") or ""), p.get("unit"))
             if per_item:
