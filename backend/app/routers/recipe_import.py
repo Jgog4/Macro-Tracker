@@ -632,9 +632,11 @@ async def save_import(body: SaveRequest, db: AsyncSession = Depends(get_db)) -> 
 
     totals = _compute_recipe_totals(pairs)
     servings = max(1, body.num_servings or 1)
-    # Store the finished weight when the user weighed the pot; otherwise the sum
-    # of ingredient grams. Recipes are nutrition-per-gram underneath, so logging
-    # "312 g of this" works either way and servings stay a display convenience.
+    # `serving_size_g` on a recipe is the finished weight of the WHOLE recipe,
+    # not one serving — RecipeBuilderModal stores the cooked weight there and
+    # the client divides by num_servings itself. Writing a per-serving value
+    # here made the client divide twice, so a 12-serving pudding reported
+    # 2,942 kcal/100 g instead of 247.
     finished = body.cooked_weight_g or totals["total_weight_g"]
 
     recipe = Recipe(
@@ -642,7 +644,7 @@ async def save_import(body: SaveRequest, db: AsyncSession = Depends(get_db)) -> 
         source_url=body.source_url,
         num_servings=servings,
         total_weight_g=totals["total_weight_g"],
-        serving_size_g=round(finished / servings, 2) if finished else None,
+        serving_size_g=round(finished, 2) if finished else None,
         calories=totals["calories"], protein_g=totals["protein_g"],
         fat_g=totals["fat_g"], carbs_g=totals["carbs_g"],
         sodium_mg=totals["sodium_mg"], cholesterol_mg=totals["cholesterol_mg"],
