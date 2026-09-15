@@ -36,7 +36,9 @@ from app.database import get_db
 from app.models.models import Ingredient, IngredientAlias, Recipe, RecipeImportLog, User
 from app.schemas.recipe_import import PreviewRequest, SaveRequest
 from app.services import units
-from app.services.portions import remember_weight, resolve_item_weight, split_size
+from app.services.portions import (
+    remember_weight, resolve_item_weight, resolve_volume_weight, split_size,
+)
 from app.services.recipe_import import ExtractionFailed, extract_recipe, parse_ingredient_lines
 
 settings = get_settings()
@@ -466,10 +468,22 @@ async def preview_import(body: PreviewRequest, db: AsyncSession = Depends(get_db
             p.get("quantity"), p.get("unit"), p.get("name") or "",
             usda_portions=portions, locale=body.locale,
         )
+        # CNF/CoFID foods do not carry an FDC id and therefore lack household
+        # portions. For an unfamiliar cup/spoon measure, ask USDA for a
+        # representative generic portion before asking the user. A volume must
+        # never be sent through the whole-item resolver below.
+        is_volume = units.is_volume_unit(p.get("unit"))
+        if grams is None and is_volume and p.get("quantity"):
+            grams = await resolve_volume_weight(
+                _expand_synonyms(p.get("name") or ""), p["quantity"],
+                p.get("unit") or "", body.locale,
+            )
+            if grams is not None:
+                method = "usda_volume"
         # Count-based lines ("2 apples") rarely resolve from the matched food:
         # CNF and CoFID rows carry no USDA id and so no household measures.
         # Fall back to the shared resolver, which caches and learns.
-        if grams is None and p.get("quantity") and method != "imprecise":
+        if grams is None and not is_volume and p.get("quantity") and method != "imprecise":
             per_item, src = await resolve_item_weight(
                 db, _expand_synonyms(p.get("name") or ""), p.get("unit"))
             if per_item:

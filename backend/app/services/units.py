@@ -38,6 +38,7 @@ IMPRECISE_G = {"pinch": 0.36, "dash": 0.6, "smidgen": 0.2, "drop": 0.05, "sprink
 
 # Fixed-weight units need no density.
 _MASS_G = {"g": 1.0, "kg": 1000.0, "mg": 0.001, "oz": 28.3495, "lb": 453.592}
+_VOLUME_UNITS = {"tsp", "tbsp", "cup", "floz", "ml", "l"}
 
 # Unit spelling → canonical token.
 _UNIT_ALIASES = {
@@ -85,6 +86,11 @@ _DENSITY = {
     "vanilla extract": 0.88, "almond extract": 0.88, "extract": 0.88,
     "worcestershire": 1.10, "mustard": 1.05, "hot sauce": 1.01, "sriracha": 1.10,
     "maple": 1.32, "syrup": 1.33, "jam": 1.33, "treacle": 1.42,
+    # Cheese is usually stated by a preparation-specific household measure.
+    # One US cup of finely grated Parmesan is about 100 g, so 1/2 cup is 50 g.
+    "grated parmesan": 0.423, "parmesan cheese": 0.423, "parmesan": 0.423,
+    "shredded cheese": 0.48, "grated cheese": 0.42, "cream cheese": 0.96,
+    "ricotta": 0.99, "cottage cheese": 0.95,
     # Dried herbs and ground spices are extremely light by volume.  Treating
     # them as countable foods makes "2 tsp dried oregano" fall through to an
     # unrelated remembered per-item weight (e.g. 70 g), which is wildly wrong.
@@ -192,6 +198,11 @@ def volume_ml(quantity: float, unit: str, locale: str = DEFAULT_LOCALE) -> Optio
     return None
 
 
+def is_volume_unit(unit: Optional[str]) -> bool:
+    """Whether a stated unit is a household volume needing gram conversion."""
+    return canonical_unit(unit) in _VOLUME_UNITS
+
+
 def to_grams(
     quantity: Optional[float],
     unit: Optional[str],
@@ -232,7 +243,7 @@ def to_grams(
             return quantity * grams, "usda" if canon else "count"
 
     # 3. Volume via the density table.
-    if canon in ("tsp", "tbsp", "cup", "floz", "ml", "l"):
+    if canon in _VOLUME_UNITS:
         ml = volume_ml(quantity, canon, locale)
         d  = density_for(name)
         if ml is not None and d is not None:

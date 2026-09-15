@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.models.models import PortionWeight
+from app.services import units
 from app.services.units import count_weight
 
 settings = get_settings()
@@ -180,6 +181,96 @@ async def _usda_item_weight(name: str, size: str) -> Optional[float]:
     except (httpx.HTTPError, ValueError, KeyError):
         return None
     return None
+
+
+_volume_cache: dict[tuple[str, str, str], Optional[float]] = {}
+
+
+def _pick_volume_portion(portions: list[dict], unit: str, locale: str) -> Optional[float]:
+    """Grams for one requested household-volume unit from USDA portions."""
+    wanted = units.canonical_unit(unit)
+    if wanted not in {"tsp", "tbsp", "cup", "floz", "ml", "l"}:
+        return None
+    candidates: list[float] = []
+    for portion in portions:
+        gram_weight = portion.get("gramWeight")
+        amount = portion.get("amount") or 1
+        if not gram_weight or amount <= 0:
+            continue
+        measure = ((portion.get("measureUnit") or {}).get("name") or "").lower()
+        modifier = (portion.get("modifier") or "").lower()
+        measure_unit = units.canonical_unit(measure)
+        if measure_unit == wanted or wanted in f"{measure} {modifier}":
+            candidates.append(float(gram_weight) / float(amount))
+    if not candidates:
+        return None
+    # USDA household portions use US measures. Scale when the recipe expressly
+    # uses metric, UK, or Australian household measures.
+    scale = 1.0
+    us_ml = units.volume_ml(1, wanted, "us")
+    local_ml = units.volume_ml(1, wanted, locale)
+    if us_ml and local_ml:
+        scale = local_ml / us_ml
+    return candidates[0] * scale
+
+
+async def resolve_volume_weight(
+    name: str, quantity: float, unit: str, locale: str = "us",
+) -> Optional[float]:
+    """Use a representative USDA household measure when the local food lacks one.
+
+    This handles the long tail of "1/2 cup grated Parmesan"-style lines. It
+    deliberately returns None on uncertainty rather than treating a volume as
+    a countable object; callers can then request a manual weight.
+    """
+    if not settings.USDA_API_KEY or not quantity or quantity <= 0 or not units.is_volume_unit(unit):
+        return None
+    query = _norm(name)
+    key = (query, units.canonical_unit(unit) or "", locale)
+    if not query:
+        return None
+    if key in _volume_cache:
+        per_unit = _volume_cache[key]
+        return quantity * per_unit if per_unit else None
+
+    want = {word.rstrip("s") for word in query.split()}
+
+    def food_rank(food: dict) -> tuple:
+        tokens = [word for word in re.split(r"[^a-z0-9]+", (food.get("description") or "").lower()) if word]
+        wrong = sum(word in _WRONG_FOOD and word not in want for word in tokens)
+        missing = sum(word not in {token.rstrip("s") for token in tokens} for word in want)
+        head = 0 if tokens and tokens[0].rstrip("s") in want else 1
+        return (wrong, missing, head, len(tokens))
+
+    per_unit = None
+    try:
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            response = await client.get(
+                f"{settings.USDA_BASE_URL}/foods/search",
+                params={
+                    "api_key": settings.USDA_API_KEY, "query": query,
+                    "dataType": "SR Legacy,Foundation", "pageSize": 8,
+                },
+            )
+            response.raise_for_status()
+            foods = sorted(response.json().get("foods") or [], key=food_rank)
+            for food in foods[:3]:
+                if food_rank(food)[0] or food_rank(food)[1]:
+                    continue
+                detail = await client.get(
+                    f"{settings.USDA_BASE_URL}/food/{food['fdcId']}",
+                    params={"api_key": settings.USDA_API_KEY},
+                )
+                detail.raise_for_status()
+                per_unit = _pick_volume_portion(
+                    detail.json().get("foodPortions") or [], unit, locale
+                )
+                if per_unit:
+                    break
+    except (httpx.HTTPError, ValueError, KeyError, TypeError):
+        per_unit = None
+    _volume_cache[key] = per_unit
+    return quantity * per_unit if per_unit else None
 
 
 async def resolve_item_weight(

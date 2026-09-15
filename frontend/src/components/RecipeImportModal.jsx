@@ -173,6 +173,7 @@ const WEIGHT_SOURCE = {
   mass:           null,                       // stated outright, nothing to say
   density:        "Converted from volume.",
   usda:           "From a USDA household measure.",
+  usda_volume:    "Estimated from a USDA household measure for this ingredient.",
   count:          "Standard weight for one item.",
   count_default:  "No size given — assumed medium. Adjust if yours differ.",
   to_taste:       null,

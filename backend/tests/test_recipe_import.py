@@ -119,6 +119,11 @@ class RecipeUnitRecoveryTests(unittest.TestCase):
         self.assertEqual(method, "density")
         self.assertAlmostEqual(grams, 2.0, places=1)
 
+    def test_grated_parmesan_cup_converts_without_manual_weight(self):
+        grams, method = to_grams(0.5, "cup", "parmesan cheese, grated")
+        self.assertEqual(method, "density")
+        self.assertAlmostEqual(grams, 50.0, places=1)
+
 
 class RecipeChoiceTests(unittest.TestCase):
     def test_chooses_primary_and_preserves_meat_alternative(self):
