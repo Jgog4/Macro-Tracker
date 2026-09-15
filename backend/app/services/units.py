@@ -113,6 +113,9 @@ _UNKNOWN_DENSITY = None   # deliberately None → ask the user
 # to resolve against and fell through to "weight needed" every time. These are
 # the standard USDA item weights for the things recipes actually count.
 _COUNT_WEIGHTS: dict[str, dict[str, float]] = {
+    # One dried bay leaf is roughly 0.2 g. USDA portion lists sometimes expose
+    # a 24 g package/household amount that must never be treated as one leaf.
+    "bay leaf":     {"": 0.2},
     "egg":          {"jumbo": 63, "extra large": 56, "large": 50, "medium": 44, "small": 38, "": 50},
     "onion":        {"large": 150, "medium": 110, "small": 70, "": 110},
     "spring onion": {"": 15},
@@ -120,7 +123,6 @@ _COUNT_WEIGHTS: dict[str, dict[str, float]] = {
     "scallion":     {"": 15},
     "shallot":      {"": 25},
     "garlic clove": {"": 3},
-    "clove":        {"": 3},
     "carrot":       {"large": 72, "medium": 61, "small": 50, "": 61},
     "celery":       {"large": 64, "medium": 40, "small": 17, "": 40},
     "tomato":       {"large": 182, "medium": 123, "small": 91, "": 123},
@@ -150,22 +152,59 @@ def count_weight(name: str, size: Optional[str]) -> Optional[tuple[float, bool]]
     can flag it, per the spec.
     """
     hay = (name or "").lower()
+    raw_unit = (size or "").lower()
+    # "3 cloves garlic" is commonly parsed as name=garlic, unit=cloves. Keep
+    # that convention without treating the spice called clove as garlic.
+    if "garlic" in hay and re.search(r"\bcloves?\b", raw_unit):
+        return 3.0, True
+    if "bay" in hay and re.search(r"\blea(?:f|ves)\b", raw_unit):
+        return 0.2, True
     # "3 cloves garlic" parses to name="garlic", unit="cloves" — the countable
     # thing is named by the unit, so search both.
     with_unit = f"{(size or '').lower()} {hay}".strip()
     for key in _COUNT_KEYS:
-        # Allow a plural suffix: keys are singular but recipes say "2 carrots".
-        pat = rf"\b{re.escape(key)}(?:e?s)?\b"
+        # Include regular and common irregular plurals. A naïve `key + s`
+        # misses tomatoes/potatoes; the old permissive suffix also failed on
+        # leaf/leaves and could match unrelated words.
+        plurals = {f"{key}s"}
+        if key.endswith("leaf"):
+            plurals.add(f"{key[:-4]}leaves")
+        if key.endswith("o"):
+            plurals.add(f"{key}es")
+        forms = "|".join(re.escape(form) for form in (key, *sorted(plurals)))
+        pat = rf"\b(?:{forms})\b"
         if re.search(pat, hay) or re.search(pat, with_unit):
             table = _COUNT_WEIGHTS[key]
             s = (size or "").strip().lower()
             if s in table:
-                return table[s], bool(s)
+                return table[s], bool(s) or set(table) == {""}
             for k, v in table.items():
                 if k and k in s:
                     return v, True
-            return table.get("", next(iter(table.values()))), False
+            return table.get("", next(iter(table.values()))), set(table) == {""}
     return None
+
+
+def item_weight_is_plausible(name: str, unit: Optional[str], grams: float) -> bool:
+    """Reject clearly non-item USDA/cache portions before they become defaults.
+
+    This is intentionally conservative. It does not try to decide whether a
+    170 g versus 220 g potato is correct; it catches category errors such as a
+    24 g package being interpreted as one dried leaf.
+    """
+    if not grams or grams <= 0 or grams > 5000:
+        return False
+    text = f"{name or ''} {unit or ''}".lower()
+    bounds = (
+        (r"\bbay\s+lea(?:f|ves)\b", 0.02, 2.0),
+        (r"\bpeppercorns?\b", 0.01, 1.0),
+        (r"\bgarlic\s+cloves?\b|\bcloves?\s+garlic\b", 0.3, 15.0),
+        (r"\b(?:herb\s+)?sprigs?\b", 0.05, 20.0),
+    )
+    for pattern, minimum, maximum in bounds:
+        if re.search(pattern, text):
+            return minimum <= grams <= maximum
+    return True
 
 
 def canonical_unit(unit: Optional[str]) -> Optional[str]:
@@ -235,14 +274,23 @@ def to_grams(
     if canon in _MASS_G:
         return quantity * _MASS_G[canon], "mass"
 
-    # 2. A USDA household measure for this exact food always wins — it is
-    #    measured for the food's real packing density, not inferred from a class.
+    # 2. For count-based ingredients, trusted culinary item weights win before
+    # USDA portions. USDA can publish a package/household amount that looks
+    # like one item (the source of "2 bay leaves = 48 g").
+    if canon is None:
+        hit = count_weight(name, unit)
+        if hit is not None:
+            grams, size_given = hit
+            return quantity * grams, "count" if size_given else "count_default"
+
+    # 3. A USDA household measure for this exact food wins for real volume
+    # units. For a still-unresolved count, accept it only after validation.
     if usda_portions:
         grams = _match_usda_portion(unit, name, usda_portions)
-        if grams is not None:
+        if grams is not None and (canon is not None or item_weight_is_plausible(name, unit, grams)):
             return quantity * grams, "usda" if canon else "count"
 
-    # 3. Volume via the density table.
+    # 4. Volume via the density table.
     if canon in _VOLUME_UNITS:
         ml = volume_ml(quantity, canon, locale)
         d  = density_for(name)
@@ -250,8 +298,8 @@ def to_grams(
             return ml * d, "density"
         return None, "unknown"          # a real volume we cannot weigh — ask
 
-    # 4. Count-based ("2 large eggs") with no USDA portion to lean on — fall
-    #    back to standard per-item weights.
+    # 5. Count-based fallback (normally handled before USDA above; retained for
+    # future unit aliases that canonicalise differently).
     hit = count_weight(name, unit)
     if hit is not None:
         grams, size_given = hit

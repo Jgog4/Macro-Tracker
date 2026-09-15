@@ -33,7 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.models.models import PortionWeight
 from app.services import units
-from app.services.units import count_weight
+from app.services.units import count_weight, item_weight_is_plausible
 
 settings = get_settings()
 
@@ -288,7 +288,8 @@ async def resolve_item_weight(
     if not alias:
         return None, "unknown"
 
-    # 1. Cached or user-taught.
+    # 1. Read any cached/user-taught value, but do not trust it yet. Older
+    # versions cached some USDA package weights as though they were one item.
     row = (await db.execute(
         select(PortionWeight).where(PortionWeight.alias == alias, PortionWeight.size == size)
     )).scalar_one_or_none()
@@ -296,17 +297,22 @@ async def resolve_item_weight(
         row = (await db.execute(
             select(PortionWeight).where(PortionWeight.alias == alias, PortionWeight.size == "")
         )).scalar_one_or_none()
-    if row:
+    if row and row.source == "user" and item_weight_is_plausible(name, unit, row.grams):
         return row.grams, ("user" if row.source == "user" else "cache")
 
-    # 2. Curated table.
+    # 2. Curated item weights outrank third-party caches. These represent known
+    # culinary units such as one egg, garlic clove, or dried bay leaf.
     hit = count_weight(name, unit)
     if hit is not None:
         return hit[0], "curated"
 
-    # 3. USDA, then remember it.
+    # 3. A plausible non-user cache can now be reused.
+    if row and item_weight_is_plausible(name, unit, row.grams):
+        return row.grams, "cache"
+
+    # 4. USDA, then remember it only if it is plausible for one item.
     grams = await _usda_item_weight(name, size)
-    if grams:
+    if grams and item_weight_is_plausible(name, unit, grams):
         await remember_weight(db, name, size, grams, source="usda")
         return grams, "usda"
 

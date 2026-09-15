@@ -9,7 +9,7 @@ from app.services.recipe_import import (
     _apply_culinary_default, _fallback_parse_item, _ingredient_choices, _recover_stated_unit,
 )
 from app.services.recipe_math import compute_recipe_totals
-from app.services.units import to_grams
+from app.services.units import item_weight_is_plausible, to_grams
 from app.services.recipe_import import ExtractionFailed, _validate_public_url
 from app.services.ingredient_identity import form_penalty, is_unsafe_automatic_match
 
@@ -109,6 +109,32 @@ class RecipeCookingAdjustmentTests(unittest.TestCase):
 
 
 class RecipeUnitRecoveryTests(unittest.TestCase):
+    def test_two_bay_leaves_are_not_a_usda_package_weight(self):
+        misleading_usda_portion = [{
+            "gramWeight": 24,
+            "amount": 1,
+            "measureUnit": {"name": "undetermined"},
+            "modifier": "medium bay leaf",
+        }]
+        grams, method = to_grams(
+            2, None, "bay leaves", usda_portions=misleading_usda_portion,
+        )
+        self.assertEqual(method, "count")
+        self.assertAlmostEqual(grams, 0.4, places=1)
+        self.assertFalse(item_weight_is_plausible("bay leaf", None, 24.0))
+
+    def test_count_plural_forms_still_resolve(self):
+        tomatoes_g, tomatoes_method = to_grams(2, None, "tomatoes")
+        potatoes_g, potatoes_method = to_grams(2, None, "potatoes")
+        self.assertEqual((tomatoes_g, tomatoes_method), (246, "count_default"))
+        self.assertEqual((potatoes_g, potatoes_method), (426, "count_default"))
+
+    def test_garlic_cloves_do_not_confuse_the_clove_spice(self):
+        garlic_g, garlic_method = to_grams(2, "cloves", "garlic")
+        spice_g, spice_method = to_grams(2, None, "clove")
+        self.assertEqual((garlic_g, garlic_method), (6.0, "count"))
+        self.assertEqual((spice_g, spice_method), (None, "unknown"))
+
     def test_recovers_tablespoon_omitted_by_parser(self):
         self.assertEqual(_recover_stated_unit("3 tbsp tomato paste", None), "tbsp")
 
