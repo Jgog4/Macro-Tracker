@@ -395,10 +395,14 @@ export default function RecipeImportModal({ onClose, onSaved }) {
         )}
 
         {(draft?.warnings?.length > 0 || reviewCount > 0) && (
-          <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 flex flex-col gap-1">
+          <div className={`rounded-xl px-3 py-2.5 flex flex-col gap-1 border-2 ${
+            reviewCount > 0
+              ? "bg-red-50 border-accent-red"
+              : "bg-amber-50 border-amber-200"
+          }`}>
             {reviewCount > 0 && (
-              <p className="text-xs text-amber-900 font-medium">
-                {reviewCount} line{reviewCount === 1 ? "" : "s"} need a quick look.
+              <p className="text-xs text-accent-red font-semibold">
+                {reviewCount} ingredient{reviewCount === 1 ? "" : "s"} need attention. Look for the red boxes below.
               </p>
             )}
             {draft?.warnings?.map((w, i) => (
@@ -408,22 +412,36 @@ export default function RecipeImportModal({ onClose, onSaved }) {
         )}
 
         {/* Ingredient rows */}
-        <div className="flex flex-col divide-y divide-surface-3 rounded-xl bg-surface-1 overflow-hidden">
+        <div className="flex flex-col gap-2">
           {lines.map((l, i) => {
             const kcal = l.nutrition?.calories;
             const flagged = l.needs_review;
             return (
-              <div key={i} className={l.include ? "" : "opacity-50"}>
+              <div
+                key={i}
+                className={`rounded-xl overflow-hidden border-2 ${
+                  flagged
+                    ? "border-accent-red bg-red-50"
+                    : "border-surface-3 bg-surface-1"
+                } ${l.include ? "" : "opacity-50"}`}
+              >
                 <button
                   onClick={() => setOpen(o => ({ ...o, [i]: !o[i] }))}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-left">
                   <span className="shrink-0">
                     {flagged
-                      ? <AlertTriangle size={14} className="text-amber-500" />
+                      ? <AlertTriangle size={15} className="text-accent-red" />
                       : <Check size={14} className="text-accent-green" />}
                   </span>
                   <span className="flex-1 min-w-0">
-                    <span className="block text-sm text-foreground truncate">{l.name}</span>
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-sm text-foreground truncate">{l.name}</span>
+                      {flagged && (
+                        <span className="text-[9px] uppercase tracking-wide font-bold text-white bg-accent-red rounded px-1.5 py-0.5 shrink-0">
+                          Needs attention
+                        </span>
+                      )}
+                    </span>
                     <span className="block text-[11px] text-muted truncate">
                       {l.grams ? `${num(l.grams)} g` : "weight needed"}
                       {l.match ? ` · ${l.match.name}` : " · no match"}
@@ -437,7 +455,9 @@ export default function RecipeImportModal({ onClose, onSaved }) {
                 </button>
 
                 {open[i] && (
-                  <div className="px-3 pb-3 flex flex-col gap-2 bg-surface-2/40">
+                  <div className={`px-3 pb-3 flex flex-col gap-2 ${
+                    flagged ? "bg-red-50" : "bg-surface-2/40"
+                  }`}>
                     <p className="text-[11px] text-muted font-mono">{l.raw}</p>
 
                     {l.flags?.map(f => FLAG_TEXT[f] && (

@@ -11,7 +11,9 @@ from app.services.recipe_import import (
 from app.services.recipe_math import compute_recipe_totals
 from app.services.units import item_weight_is_plausible, to_grams
 from app.services.recipe_import import ExtractionFailed, _validate_public_url
-from app.services.ingredient_identity import form_penalty, is_unsafe_automatic_match
+from app.services.ingredient_identity import (
+    form_penalty, has_identity_head, is_unsafe_automatic_match,
+)
 
 
 class RecipeURLSafetyTests(unittest.IsolatedAsyncioTestCase):
@@ -167,6 +169,13 @@ class RecipeChoiceTests(unittest.TestCase):
 
 
 class IngredientIdentityTests(unittest.TestCase):
+    def test_plain_cinnamon_prefers_verified_spice_over_finished_foods(self):
+        spice = "Spices, cinnamon, ground"
+        bun = "Cinnamon bun, with icing"
+        self.assertTrue(has_identity_head(["cinnamon"], spice))
+        self.assertGreater(form_penalty(["cinnamon"], bun), 0)
+        self.assertEqual(form_penalty(["cinnamon"], spice), 0)
+
     def test_bare_recipe_pepper_means_black_pepper(self):
         self.assertEqual(_apply_culinary_default("pepper"), "black pepper")
         grams, method = to_grams(0.25, "tsp", "black pepper")

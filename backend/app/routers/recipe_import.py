@@ -35,7 +35,9 @@ from app.config import get_settings
 from app.database import get_db
 from app.models.models import Ingredient, IngredientAlias, Recipe, RecipeImportLog, User
 from app.schemas.recipe_import import PreviewRequest, SaveRequest
-from app.services.ingredient_identity import form_penalty, is_unsafe_automatic_match
+from app.services.ingredient_identity import (
+    form_penalty, has_identity_head, is_unsafe_automatic_match,
+)
 from app.services import units
 from app.services.portions import (
     remember_weight, resolve_item_weight, resolve_volume_weight, split_size,
@@ -316,7 +318,7 @@ def _rank(rows: list[Ingredient], words: list[str], prep: Optional[str] = None) 
         # with the thing asked for; "Scotch eggs, retail" leads with something
         # else and merely mentions it. That outranks having fewer extra words,
         # or the longer-but-correct generic always loses to a short wrong one.
-        head_hit = 0 if toks and toks[0] in wanted else 1
+        head_hit = 0 if has_identity_head(wanted, food.name or "") else 1
         # The parsed line knows the state the ingredient is used in. Preferring
         # a candidate that says so is what separates "Egg, chicken, whole, raw"
         # from "Egg Benedict" when both lead with "egg".
