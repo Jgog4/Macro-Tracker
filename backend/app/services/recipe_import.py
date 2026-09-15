@@ -313,6 +313,7 @@ You are a parser. You never produce nutrition information of any kind.
 
 Return ONLY a JSON array, one object per input line, in the same order:
 {"raw": str, "quantity": number|null, "unit": str|null, "name": str,
+ "alternatives": [str],
  "prep_state": "raw"|"cooked"|"dry"|"drained"|"canned"|null,
  "flags": [str], "confidence": number}
 
@@ -326,6 +327,11 @@ or null if none given.
 puffery and prep verbs that do not change the food's identity ("finely \
 chopped" → drop), but KEEP words that change its nutrition ("cooked", "dry", \
 "canned", "drained", "skinless", "low-fat").
+- For an either/or ingredient ("ground beef or lamb", "red or yellow onion"),
+  make `name` the first complete, sensible option and put the other complete
+  option(s) in `alternatives`. Do not make both active ingredients. For example,
+  "red or yellow onion" becomes name "red onion", alternatives ["yellow onion"].
+  Use [] when the line is not an ingredient choice.
 - `prep_state` captures how the food is when measured. "2 cups cooked rice" is \
 cooked; "1 cup rice" is dry. This matters more than anything else you decide: \
 cooked and dry rice differ about threefold per cup.
@@ -389,6 +395,47 @@ def _json_from(raw: str) -> Optional[Any]:
 
 def _normalise(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
+
+
+_CHOICE_SPLIT = re.compile(r"\s+(?:or|and/or)\s+", re.IGNORECASE)
+_NON_FOOD_OPTIONS = {"to taste", "as needed", "if desired", "optional"}
+
+
+def _ingredient_choices(name: str, parsed_alternatives: Any = None) -> tuple[str, list[str]]:
+    """Return a primary ingredient and any genuine either/or substitutions.
+
+    The model is asked to preserve complete alternatives, but this small
+    deterministic fallback covers a missed "ground beef or lamb" without ever
+    making both foods part of the recipe total.
+    """
+    primary = re.sub(r"\s+", " ", (name or "").strip(" ,;"))
+    alternatives = []
+    if isinstance(parsed_alternatives, list):
+        alternatives = [
+            re.sub(r"\s+", " ", str(value)).strip(" ,;")
+            for value in parsed_alternatives
+            if str(value).strip()
+        ]
+    if alternatives:
+        return primary, alternatives[:3]
+
+    parts = _CHOICE_SPLIT.split(primary)
+    if len(parts) != 2:
+        return primary, []
+    first, second = (part.strip(" ,;") for part in parts)
+    # Strip recipe notes such as "(mince)" or "((Note 1))" from the fallback
+    # choices. They are useful instructions but not part of a food search.
+    first = re.sub(r"\s*\(.*$", "", first).strip()
+    second = re.sub(r"\s*\(.*$", "", second).strip()
+    if not first or not second or first.lower() in _NON_FOOD_OPTIONS or second.lower() in _NON_FOOD_OPTIONS:
+        return primary, []
+    # "red or yellow onion" shares its head noun with the second option. Make
+    # both search-ready; otherwise preserve standalone options like beef/lamb.
+    second_words = second.split()
+    if len(first.split()) == 1 and len(second_words) > 1:
+        primary = f"{first} {second_words[-1]}"
+        return primary, [second]
+    return first, [second]
 
 
 def _is_hallucinated(parsed_raw: str, sources: list[str]) -> bool:
@@ -466,11 +513,15 @@ async def parse_ingredient_lines(lines: list[str], instructions: str = "") -> li
         except (TypeError, ValueError):
             conf = 0.5
         unit = _recover_stated_unit(raw, str(item["unit"]).strip() if item.get("unit") else None)
+        name, alternatives = _ingredient_choices(
+            str(item.get("name") or raw), item.get("alternatives")
+        )
         out.append({
             "raw":        raw,
             "quantity":   qty,
             "unit":       unit,
-            "name":       str(item.get("name") or raw).strip(),
+            "name":       name,
+            "alternatives": alternatives,
             "prep_state": (str(item["prep_state"]).strip().lower() if item.get("prep_state") else None),
             "flags":      flags,
             "confidence": conf,

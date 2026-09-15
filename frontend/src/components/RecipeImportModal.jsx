@@ -241,8 +241,11 @@ export default function RecipeImportModal({ onClose, onSaved }) {
   /** Re-price a line locally when its grams or matched food changes. */
   const reprice = (line, grams, match) => {
     const g = grams == null ? line.grams : grams;
-    const m = match || line.match;
-    if (!m || !g || !m.per_gram) return { ...line, grams: g, match: m };
+    // Omitting the third parameter preserves the match. Passing null is an
+    // intentional unmatched choice, which must clear its old nutrition rather
+    // than silently retaining the prior food's macros.
+    const m = match === undefined ? line.match : match;
+    if (!m || !g || !m.per_gram) return { ...line, grams: g, match: m, nutrition: null };
     const n = Object.fromEntries(Object.entries(m.per_gram).map(([k, v]) => [k, v * g]));
     const retention = line.fat_retention ?? 1;
     if (retention < 1 && n.fat_g) {
@@ -452,6 +455,46 @@ export default function RecipeImportModal({ onClose, onSaved }) {
                       </p>
                     )}
 
+                    {l.ingredient_options?.length > 1 && (
+                      <div className="flex flex-col gap-1.5 rounded-lg bg-blue-50 px-2 py-2">
+                        <p className="text-[10px] text-accent-blue font-semibold">
+                          This is an either/or ingredient — choose one.
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {l.ingredient_options.map(option => {
+                            const selected = option.name === l.name;
+                            return (
+                              <button
+                                key={option.name}
+                                type="button"
+                                onClick={() => setLines(ls => ls.map((x, j) => {
+                                  if (j !== i) return x;
+                                  const updated = reprice(x, x.grams, option.match);
+                                  return {
+                                    ...updated,
+                                    name: option.name,
+                                    alternates: option.alternates || [],
+                                    alias_learn: false,
+                                    needs_review: !option.match || !x.grams,
+                                  };
+                                }))}
+                                className={`text-[11px] px-2 py-1 rounded-md font-semibold ${
+                                  selected
+                                    ? "bg-accent-blue text-white"
+                                    : "bg-white text-accent-blue border border-blue-200"
+                                }`}
+                              >
+                                {selected ? `Using ${option.name}` : `Use ${option.name} instead`}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[10px] text-muted">
+                          Switching keeps the same recipe weight; it does not add both foods.
+                        </p>
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-2">
                       <label className="text-[11px] text-muted w-14">Weight</label>
                       <input
@@ -464,7 +507,7 @@ export default function RecipeImportModal({ onClose, onSaved }) {
                           // the updater threw on every keystroke.
                           const grams = Number(decimalOnly(e.currentTarget.value)) || null;
                           setLines(ls => ls.map((x, j) => (j === i
-                            ? { ...reprice(x, grams, null), weight_was_edited: true }
+                            ? { ...reprice(x, grams), weight_was_edited: true }
                             : x)));
                         }}
                         onFocus={selectAndReveal}
@@ -495,7 +538,7 @@ export default function RecipeImportModal({ onClose, onSaved }) {
                             const fat_retention = percent / 100;
                             setLines(ls => ls.map((x, j) =>
                               j === i
-                                ? reprice({ ...x, fat_retention }, null, null)
+                                ? reprice({ ...x, fat_retention }, null)
                                 : x
                             ));
                           }}

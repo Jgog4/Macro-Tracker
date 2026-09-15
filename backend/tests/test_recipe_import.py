@@ -5,7 +5,7 @@ from unittest.mock import patch
 from pydantic import ValidationError
 
 from app.schemas.recipe_import import SaveLine, SaveRequest
-from app.services.recipe_import import _recover_stated_unit
+from app.services.recipe_import import _ingredient_choices, _recover_stated_unit
 from app.services.recipe_math import compute_recipe_totals
 from app.services.units import to_grams
 from app.services.recipe_import import ExtractionFailed, _validate_public_url
@@ -118,6 +118,18 @@ class RecipeUnitRecoveryTests(unittest.TestCase):
         grams, method = to_grams(2, "tsp", "dried oregano")
         self.assertEqual(method, "density")
         self.assertAlmostEqual(grams, 2.0, places=1)
+
+
+class RecipeChoiceTests(unittest.TestCase):
+    def test_chooses_primary_and_preserves_meat_alternative(self):
+        primary, alternatives = _ingredient_choices("ground beef or lamb (mince) ((Note 1))")
+        self.assertEqual(primary, "ground beef")
+        self.assertEqual(alternatives, ["lamb"])
+
+    def test_completes_shared_noun_choices(self):
+        primary, alternatives = _ingredient_choices("red or yellow onion")
+        self.assertEqual(primary, "red onion")
+        self.assertEqual(alternatives, ["yellow onion"])
 
 
 if __name__ == "__main__":

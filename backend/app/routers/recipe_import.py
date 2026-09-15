@@ -440,6 +440,18 @@ async def preview_import(body: PreviewRequest, db: AsyncSession = Depends(get_db
 
     for p in parsed:
         food, alternates = await _match_ingredient(db, user, p)
+        # An "A or B" source line is one ingredient choice, never two full
+        # quantities. Resolve each option up front so the review can offer a
+        # one-tap substitution without leaving the primary choice unmatched.
+        ingredient_options = []
+        option_names = [p.get("name") or "", *(p.get("alternatives") or [])]
+        for option_name in option_names[:4]:
+            option_line = {**p, "name": option_name, "alternatives": []}
+            option_food, option_alternates = (
+                (food, alternates) if option_name == p.get("name")
+                else await _match_ingredient(db, user, option_line)
+            )
+            ingredient_options.append((option_name, option_food, option_alternates))
         portions = []
         if food is not None and getattr(food, "usda_fdc_id", None):
             portions = await _usda_portions(food.usda_fdc_id)
@@ -510,6 +522,22 @@ async def preview_import(body: PreviewRequest, db: AsyncSession = Depends(get_db
                 {"id": a.id, "name": a.name, "brand": a.brand,
                  "source": a.source, "per_gram": _per_gram(a)}
                 for a in alternates
+            ],
+            "ingredient_options": [
+                {
+                    "name": option_name,
+                    "match": None if option_food is None else {
+                        "id": option_food.id, "name": option_food.name,
+                        "brand": option_food.brand, "source": option_food.source,
+                        "per_gram": _per_gram(option_food),
+                    },
+                    "alternates": [
+                        {"id": a.id, "name": a.name, "brand": a.brand,
+                         "source": a.source, "per_gram": _per_gram(a)}
+                        for a in option_alternates
+                    ],
+                }
+                for option_name, option_food, option_alternates in ingredient_options
             ],
             "nutrition": nutrition,
             "fat_retention": 1.0,
