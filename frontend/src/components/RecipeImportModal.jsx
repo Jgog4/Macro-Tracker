@@ -8,7 +8,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import {
-  Link2, Loader2, ClipboardPaste, AlertTriangle, Check, ChevronDown, ChevronRight,
+  Link2, Loader2, ClipboardPaste, AlertOctagon, AlertTriangle, Check, ChevronDown, ChevronRight,
   ExternalLink, Search,
 } from "lucide-react";
 import { foodsApi, recipeImportApi } from "../api/client";
@@ -376,6 +376,9 @@ export default function RecipeImportModal({ onClose, onSaved }) {
   // ── screen 2: review ──────────────────────────────────────────────────────
   const reviewCount = lines.filter(l => l.needs_review).length;
   const unresolvedCount = lines.filter(l => l.include && (!l.match || !l.grams)).length;
+  const reviewOnlyCount = lines.filter(l =>
+    l.needs_review && !(l.include && (!l.match || !l.grams))
+  ).length;
 
   return (
     <ModalShell onClose={onClose} title="Review Import">
@@ -395,19 +398,27 @@ export default function RecipeImportModal({ onClose, onSaved }) {
         )}
 
         {(draft?.warnings?.length > 0 || reviewCount > 0) && (
-          <div className={`rounded-xl px-3 py-2.5 flex flex-col gap-1 border-2 ${
-            reviewCount > 0
-              ? "bg-red-50 border-accent-red"
-              : "bg-amber-50 border-amber-200"
-          }`}>
-            {reviewCount > 0 && (
-              <p className="text-xs text-accent-red font-semibold">
-                {reviewCount} ingredient{reviewCount === 1 ? "" : "s"} need attention. Look for the red boxes below.
-              </p>
+          <div className="flex flex-col gap-2">
+            {unresolvedCount > 0 && (
+              <div className="rounded-xl bg-red-50 border-2 border-accent-red px-3 py-2.5 flex items-center gap-2">
+                <AlertOctagon size={20} className="text-accent-red shrink-0" />
+                <p className="text-xs text-accent-red font-bold">
+                  {unresolvedCount} ingredient{unresolvedCount === 1 ? "" : "s"} must be fixed before saving. Look for the stop-sign icons below.
+                </p>
+              </div>
             )}
-            {draft?.warnings?.map((w, i) => (
-              <p key={i} className="text-[11px] text-amber-800">{w}</p>
-            ))}
+            {(reviewOnlyCount > 0 || draft?.warnings?.length > 0) && (
+              <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 flex flex-col gap-1">
+                {reviewOnlyCount > 0 && (
+                  <p className="text-xs text-amber-900 font-medium">
+                    {reviewOnlyCount} other ingredient{reviewOnlyCount === 1 ? "" : "s"} {reviewOnlyCount === 1 ? "is" : "are"} worth reviewing, but will not block saving.
+                  </p>
+                )}
+                {draft?.warnings?.map((w, i) => (
+                  <p key={i} className="text-[11px] text-amber-800">{w}</p>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -415,13 +426,16 @@ export default function RecipeImportModal({ onClose, onSaved }) {
         <div className="flex flex-col gap-2">
           {lines.map((l, i) => {
             const kcal = l.nutrition?.calories;
-            const flagged = l.needs_review;
+            const mustFix = l.include && (!l.match || !l.grams);
+            const reviewOnly = l.needs_review && !mustFix;
             return (
               <div
                 key={i}
                 className={`rounded-xl overflow-hidden border-2 ${
-                  flagged
+                  mustFix
                     ? "border-accent-red bg-red-50"
+                    : reviewOnly
+                      ? "border-amber-300 bg-amber-50"
                     : "border-surface-3 bg-surface-1"
                 } ${l.include ? "" : "opacity-50"}`}
               >
@@ -429,16 +443,22 @@ export default function RecipeImportModal({ onClose, onSaved }) {
                   onClick={() => setOpen(o => ({ ...o, [i]: !o[i] }))}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-left">
                   <span className="shrink-0">
-                    {flagged
-                      ? <AlertTriangle size={15} className="text-accent-red" />
+                    {mustFix
+                      ? <AlertOctagon size={18} className="text-accent-red" />
+                      : reviewOnly
+                        ? <AlertTriangle size={15} className="text-amber-500" />
                       : <Check size={14} className="text-accent-green" />}
                   </span>
                   <span className="flex-1 min-w-0">
                     <span className="flex items-center gap-1.5 min-w-0">
                       <span className="text-sm text-foreground truncate">{l.name}</span>
-                      {flagged && (
+                      {mustFix ? (
                         <span className="text-[9px] uppercase tracking-wide font-bold text-white bg-accent-red rounded px-1.5 py-0.5 shrink-0">
-                          Needs attention
+                          Must fix
+                        </span>
+                      ) : reviewOnly && (
+                        <span className="text-[9px] uppercase tracking-wide font-bold text-amber-800 bg-amber-100 rounded px-1.5 py-0.5 shrink-0">
+                          Review
                         </span>
                       )}
                     </span>
@@ -456,9 +476,19 @@ export default function RecipeImportModal({ onClose, onSaved }) {
 
                 {open[i] && (
                   <div className={`px-3 pb-3 flex flex-col gap-2 ${
-                    flagged ? "bg-red-50" : "bg-surface-2/40"
+                    mustFix ? "bg-red-50" : reviewOnly ? "bg-amber-50" : "bg-surface-2/40"
                   }`}>
                     <p className="text-[11px] text-muted font-mono">{l.raw}</p>
+
+                    {mustFix && (
+                      <p className="text-[11px] font-semibold text-accent-red bg-red-100 rounded-lg px-2 py-1.5">
+                        {!l.match && !l.grams
+                          ? "Choose a food match and enter its weight, or exclude this ingredient."
+                          : !l.match
+                            ? "Choose a food match, or exclude this ingredient."
+                            : "Enter a weight, or exclude this ingredient."}
+                      </p>
+                    )}
 
                     {l.flags?.map(f => FLAG_TEXT[f] && (
                       <p key={f} className="text-[11px] text-amber-800 bg-amber-50 rounded-lg px-2 py-1.5">
