@@ -14,8 +14,12 @@ Two disciplines from the spec are load-bearing and deliberately enforced here:
 from __future__ import annotations
 
 import json
+import asyncio
+import ipaddress
 import re
+import socket
 from typing import Any, Optional
+from urllib.parse import urljoin, urlsplit
 
 import httpx
 
@@ -25,6 +29,8 @@ from app.services.vision_ocr import _TextExtractor, _response_text
 settings = get_settings()
 
 FETCH_TIMEOUT = 10.0          # spec: hard timeout, fail into the paste box
+MAX_FETCH_BYTES = 2_000_000   # recipe pages should never need an unbounded download
+MAX_REDIRECTS = 5
 _BROWSER_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -103,12 +109,102 @@ def extract_structured(html: str) -> Optional[dict]:
     return None
 
 
+def _is_public_address(value: str) -> bool:
+    """Return True only for globally routable addresses."""
+    try:
+        address = ipaddress.ip_address(value.split("%", 1)[0])
+    except ValueError:
+        return False
+    # IPv4-mapped IPv6 addresses inherit the IPv4 address's classification.
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
+        address = address.ipv4_mapped
+    return address.is_global
+
+
+async def _validate_public_url(url: str) -> str:
+    """Reject URLs capable of reaching the host or a private/internal network."""
+    try:
+        parsed = urlsplit(url)
+        port = parsed.port
+    except ValueError as exc:
+        raise ExtractionFailed("That recipe URL is not valid.") from exc
+
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
+        raise ExtractionFailed("Recipe links must use http:// or https://.")
+    if parsed.username or parsed.password:
+        raise ExtractionFailed("Recipe links cannot contain a username or password.")
+    if port and port not in {80, 443}:
+        raise ExtractionFailed("Recipe links must use the standard web ports (80 or 443).")
+
+    host = parsed.hostname.rstrip(".").lower()
+    if host == "localhost" or host.endswith(".localhost"):
+        raise ExtractionFailed("That address is not a public recipe website.")
+
+    try:
+        literal = ipaddress.ip_address(host)
+    except ValueError:
+        literal = None
+
+    if literal is not None:
+        addresses = [str(literal)]
+    else:
+        try:
+            infos = await asyncio.to_thread(
+                socket.getaddrinfo,
+                host,
+                port or (443 if parsed.scheme.lower() == "https" else 80),
+                type=socket.SOCK_STREAM,
+            )
+        except socket.gaierror as exc:
+            raise ExtractionFailed("That recipe website could not be found.") from exc
+        addresses = list({info[4][0] for info in infos})
+
+    if not addresses or any(not _is_public_address(address) for address in addresses):
+        raise ExtractionFailed("That address is not a public recipe website.")
+    return url
+
+
 async def fetch_page(url: str) -> str:
-    """Fetch HTML with a browser UA, following redirects."""
-    async with httpx.AsyncClient(timeout=FETCH_TIMEOUT, follow_redirects=True) as client:
-        resp = await client.get(url, headers=_BROWSER_HEADERS)
-        resp.raise_for_status()
-        return resp.text
+    """Fetch a bounded public HTML page, validating every redirect target."""
+    current = url
+    limits = httpx.Limits(max_connections=5, max_keepalive_connections=2)
+    async with httpx.AsyncClient(timeout=FETCH_TIMEOUT, follow_redirects=False, limits=limits) as client:
+        for _ in range(MAX_REDIRECTS + 1):
+            await _validate_public_url(current)
+            async with client.stream("GET", current, headers=_BROWSER_HEADERS) as resp:
+                if resp.is_redirect:
+                    location = resp.headers.get("location")
+                    if not location:
+                        raise ExtractionFailed("The recipe website returned an invalid redirect.")
+                    current = urljoin(current, location)
+                    continue
+
+                resp.raise_for_status()
+                content_type = resp.headers.get("content-type", "").lower()
+                if content_type and not any(
+                    kind in content_type
+                    for kind in ("text/html", "application/xhtml+xml", "application/ld+json")
+                ):
+                    raise ExtractionFailed("That link did not return a web page.")
+                try:
+                    declared_size = int(resp.headers.get("content-length", "0"))
+                except ValueError:
+                    declared_size = 0
+                if declared_size > MAX_FETCH_BYTES:
+                    raise ExtractionFailed("That recipe page is too large to import safely.")
+
+                chunks: list[bytes] = []
+                total = 0
+                async for chunk in resp.aiter_bytes():
+                    total += len(chunk)
+                    if total > MAX_FETCH_BYTES:
+                        raise ExtractionFailed("That recipe page is too large to import safely.")
+                    chunks.append(chunk)
+                raw = b"".join(chunks)
+                encoding = resp.encoding or "utf-8"
+                return raw.decode(encoding, errors="replace")
+
+        raise ExtractionFailed("The recipe website redirected too many times.")
 
 
 _EXTRACT_SYSTEM = """You extract a recipe's ingredient list from web page text.

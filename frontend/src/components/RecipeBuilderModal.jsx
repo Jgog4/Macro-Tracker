@@ -26,14 +26,16 @@ const SOURCE_BADGE = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function calcTotals(basket) {
-  return basket.reduce((acc, { food, qty }) => {
+  return basket.reduce((acc, { food, qty, fatRetention = 1 }) => {
     const qtyNum = parseFloat(qty) || 0;
     const baseG  = food.serving_size_g || 100;   // null serving_size_g → macros are per 100g
     const ratio  = baseG > 0 ? qtyNum / baseG : 0;
-    acc.calories += (food.calories  || 0) * ratio;
+    const originalFat = (food.fat_g || 0) * ratio;
+    const removedFat = originalFat * (1 - fatRetention);
+    acc.calories += Math.max(0, (food.calories || 0) * ratio - removedFat * 9);
     acc.protein  += (food.protein_g || 0) * ratio;
     acc.carbs    += (food.carbs_g   || 0) * ratio;
-    acc.fat      += (food.fat_g     || 0) * ratio;
+    acc.fat      += originalFat * fatRetention;
     acc.totalG   += qtyNum;
     return acc;
   }, { calories: 0, protein: 0, carbs: 0, fat: 0, totalG: 0 });
@@ -67,6 +69,7 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
         source:         ri.ingredient.source,
       },
       qty: String(ri.quantity_g),
+      fatRetention: ri.fat_retention ?? 1,
     }));
   });
   const basketCounter = useRef(recipe ? recipe.ingredients.length : 0);
@@ -197,7 +200,7 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
       // Persist live-search foods before creating the recipe so every recipe
       // ingredient has a real database ID.
       const ingredients = await Promise.all(
-        basket.map(async ({ food, qty }) => {
+        basket.map(async ({ food, qty, fatRetention = 1 }) => {
           let ingredient_id = food.id;
           if (!ingredient_id && food.fdc_id) {
             const imported = await foodsApi.importUsda(food.fdc_id);
@@ -227,7 +230,11 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
           if (!ingredient_id) {
             throw new Error(`Couldn't save ${food.name} as a recipe ingredient.`);
           }
-          return { ingredient_id, quantity_g: parseFloat(qty) };
+          return {
+            ingredient_id,
+            quantity_g: parseFloat(qty),
+            fat_retention: fatRetention,
+          };
         })
       );
 
@@ -350,11 +357,15 @@ export default function RecipeBuilderModal({ recipe, onClose, onSaved }) {
                 Ingredients ({basket.length})
               </p>
               <div className="flex flex-col">
-                {basket.map(({ key, food, qty }) => {
+                {basket.map(({ key, food, qty, fatRetention = 1 }) => {
                   const qtyNum = parseFloat(qty) || 0;
                   const baseG  = food.serving_size_g || 100;
                   const ratio  = baseG > 0 ? qtyNum / baseG : 0;
-                  const kcal   = ((food.calories || 0) * ratio).toFixed(0);
+                  const originalFat = (food.fat_g || 0) * ratio;
+                  const kcal = Math.max(
+                    0,
+                    (food.calories || 0) * ratio - originalFat * (1 - fatRetention) * 9
+                  ).toFixed(0);
                   return (
                     <div key={key}
                       className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-surface-2 group">

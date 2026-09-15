@@ -226,9 +226,10 @@ async def _recipe_ingredients_csv(db: AsyncSession) -> str:
             ri.recipe.name if ri.recipe else "",
             ri.ingredient.name if ri.ingredient else "",
             ri.quantity_g,
+            ri.fat_retention,
         ])
     rows.sort(key=lambda r: (r[0], r[1]))
-    return _csv(rows, ["recipe", "ingredient", "quantity_g"])
+    return _csv(rows, ["recipe", "ingredient", "quantity_g", "fat_retention"])
 
 
 async def _targets_csv(db: AsyncSession) -> str:

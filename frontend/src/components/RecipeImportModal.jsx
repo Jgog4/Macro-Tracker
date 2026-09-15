@@ -6,12 +6,12 @@
  * pipeline is unsure about expands with the reason stated in a plain sentence
  * and a one-tap fix, so a bad match is obvious before it reaches your diary.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Link2, Loader2, ClipboardPaste, AlertTriangle, Check, ChevronDown, ChevronRight,
   ExternalLink, Search,
 } from "lucide-react";
-import { recipeImportApi } from "../api/client";
+import { foodsApi, recipeImportApi } from "../api/client";
 import { ModalShell, selectAndReveal, decimalOnly } from "./AddFoodModal";
 
 /** Plain-English explanation for each flag the parser can raise. */
@@ -27,6 +27,146 @@ const FLAG_TEXT = {
 };
 
 const num = (v, d = 0) => (v == null ? "—" : Number(v).toFixed(d));
+
+const NUTRIENT_KEYS = [
+  "calories", "protein_g", "fat_g", "carbs_g", "sodium_mg",
+  "cholesterol_mg", "fiber_g", "sugar_g", "sat_fat_g",
+];
+
+function foodToMatch(food) {
+  const base = Number(food.serving_size_g) > 0 ? Number(food.serving_size_g) : 100;
+  return {
+    id: food.id,
+    name: food.name,
+    brand: food.brand || null,
+    source: food.source,
+    per_gram: Object.fromEntries(
+      NUTRIENT_KEYS.map(key => [key, Number(food[key] || 0) / base])
+    ),
+  };
+}
+
+/** Search-and-select correction used for unmatched and incorrect lines. */
+function FoodMatchSearch({ initialQuery, onChoose }) {
+  const [expanded, setExpanded] = useState(false);
+  const [query, setQuery] = useState(initialQuery || "");
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [choosing, setChoosing] = useState("");
+  const [error, setError] = useState("");
+  const generation = useRef(0);
+
+  useEffect(() => {
+    if (!expanded || query.trim().length < 2) {
+      setResults([]);
+      return undefined;
+    }
+    const current = ++generation.current;
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      setError("");
+      const [local, usda] = await Promise.allSettled([
+        foodsApi.search(query.trim(), { limit: 12 }),
+        foodsApi.usdaSearch(query.trim(), 5),
+      ]);
+      if (current !== generation.current) return;
+      const localRows = local.status === "fulfilled" ? local.value.data : [];
+      const localFdc = new Set(localRows.map(row => row.usda_fdc_id).filter(Boolean));
+      const liveRows = usda.status === "fulfilled"
+        ? usda.value.data
+            .filter(row => !localFdc.has(row.fdc_id))
+            .map(row => ({
+              id: null,
+              fdc_id: row.fdc_id,
+              name: row.description,
+              brand: row.brand_owner,
+              source: "usda_live",
+              calories: row.calories,
+              protein_g: row.protein_g,
+              fat_g: row.fat_g,
+              carbs_g: row.carbs_g,
+              serving_size_g: 100,
+            }))
+        : [];
+      setResults([...localRows, ...liveRows]);
+      setSearching(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [expanded, query]);
+
+  const choose = async (food) => {
+    setChoosing(food.id || String(food.fdc_id));
+    setError("");
+    try {
+      const selected = food.source === "usda_live"
+        ? (await foodsApi.importUsda(food.fdc_id)).data
+        : food;
+      onChoose(foodToMatch(selected));
+      setExpanded(false);
+    } catch (e) {
+      setError(e.response?.data?.detail || "Couldn't select that food.");
+    } finally {
+      setChoosing("");
+    }
+  };
+
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        className="text-[11px] text-accent-blue font-semibold self-start flex items-center gap-1"
+      >
+        <Search size={12} /> Find another food
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-surface-3 bg-surface-1 p-2 flex flex-col gap-1.5">
+      <div className="flex items-center gap-1.5">
+        <Search size={12} className="text-muted shrink-0" />
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search foods or USDA…"
+          className="bg-transparent outline-none text-xs flex-1 min-w-0 py-1"
+          autoFocus
+        />
+      </div>
+      <div className="max-h-40 overflow-y-auto divide-y divide-surface-3">
+        {searching ? (
+          <div className="py-4 flex justify-center"><Loader2 size={15} className="animate-spin text-muted" /></div>
+        ) : results.length ? results.map(food => {
+          const key = food.id || `usda-${food.fdc_id}`;
+          const kcal100 = food.serving_size_g
+            ? Number(food.calories || 0) / Number(food.serving_size_g) * 100
+            : Number(food.calories || 0);
+          return (
+            <button key={key} type="button" onClick={() => choose(food)}
+              disabled={!!choosing}
+              className="w-full text-left py-2 flex items-center gap-2 disabled:opacity-50">
+              <span className="flex-1 min-w-0">
+                <span className="block text-xs text-foreground truncate">{food.name}</span>
+                <span className="block text-[10px] text-muted truncate">
+                  {food.brand ? `${food.brand} · ` : ""}{Math.round(kcal100)} kcal/100g · {food.source === "usda_live" ? "USDA" : "My database"}
+                </span>
+              </span>
+              {choosing === (food.id || String(food.fdc_id))
+                ? <Loader2 size={12} className="animate-spin" />
+                : <ChevronRight size={12} className="text-muted" />}
+            </button>
+          );
+        }) : query.trim().length >= 2 ? (
+          <p className="text-[10px] text-muted text-center py-3">No matching foods</p>
+        ) : null}
+      </div>
+      {error && <p className="text-[10px] text-accent-red">{error}</p>}
+      <button type="button" onClick={() => setExpanded(false)}
+        className="text-[10px] text-muted self-end">Cancel</button>
+    </div>
+  );
+}
 
 /** How a line's gram weight was arrived at, in plain words. */
 const WEIGHT_SOURCE = {
@@ -100,6 +240,12 @@ export default function RecipeImportModal({ onClose, onSaved }) {
     const m = match || line.match;
     if (!m || !g || !m.per_gram) return { ...line, grams: g, match: m };
     const n = Object.fromEntries(Object.entries(m.per_gram).map(([k, v]) => [k, v * g]));
+    const retention = line.fat_retention ?? 1;
+    if (retention < 1 && n.fat_g) {
+      const removedFat = n.fat_g * (1 - retention);
+      n.fat_g *= retention;
+      n.calories = Math.max(0, (n.calories || 0) - removedFat * 9);
+    }
     return { ...line, grams: g, match: m, nutrition: n };
   };
 
@@ -118,6 +264,7 @@ export default function RecipeImportModal({ onClose, onSaved }) {
           // Sent so a hand-typed weight for a counted item can be remembered.
           quantity: l.quantity, unit: l.unit,
           unit_is_mass: ["mass", "density", "usda"].includes(l.gram_method),
+          fat_retention: l.fat_retention ?? 1,
         })),
       });
       onSaved?.(data);
@@ -219,6 +366,7 @@ export default function RecipeImportModal({ onClose, onSaved }) {
 
   // ── screen 2: review ──────────────────────────────────────────────────────
   const reviewCount = lines.filter(l => l.needs_review).length;
+  const unresolvedCount = lines.filter(l => l.include && (!l.match || !l.grams)).length;
 
   return (
     <ModalShell onClose={onClose} title="Review Import">
@@ -325,6 +473,32 @@ export default function RecipeImportModal({ onClose, onSaved }) {
                       </button>
                     </div>
 
+                    {l.flags?.includes("fat_drained") && (
+                      <div className="flex items-center gap-2">
+                        <label className="text-[11px] text-muted w-24">Fat retained</label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          defaultValue={Math.round((l.fat_retention ?? 0.5) * 100)}
+                          onInput={e => {
+                            const percent = Math.max(
+                              0,
+                              Math.min(100, Number(decimalOnly(e.currentTarget.value)) || 0)
+                            );
+                            const fat_retention = percent / 100;
+                            setLines(ls => ls.map((x, j) =>
+                              j === i
+                                ? reprice({ ...x, fat_retention }, null, null)
+                                : x
+                            ));
+                          }}
+                          onFocus={selectAndReveal}
+                          className="input w-20 font-mono py-1 px-2 text-sm"
+                        />
+                        <span className="text-[11px] text-muted">%</span>
+                      </div>
+                    )}
+
                     {l.alternates?.length > 1 && (
                       <div className="flex flex-col gap-1">
                         <p className="text-[10px] text-muted uppercase tracking-wide">Matched to</p>
@@ -344,6 +518,20 @@ export default function RecipeImportModal({ onClose, onSaved }) {
                         </p>
                       </div>
                     )}
+
+                    <FoodMatchSearch
+                      initialQuery={l.name}
+                      onChoose={match => setLines(ls => ls.map((x, j) =>
+                        j === i
+                          ? {
+                              ...reprice(x, null, match),
+                              alternates: [match, ...(x.alternates || []).filter(a => a.id !== match.id)],
+                              alias_learn: true,
+                              needs_review: !x.grams,
+                            }
+                          : x
+                      ))}
+                    />
                   </div>
                 )}
               </div>
@@ -409,11 +597,17 @@ export default function RecipeImportModal({ onClose, onSaved }) {
 
         {error && <p className="text-accent-red text-xs">{error}</p>}
 
+        {unresolvedCount > 0 && (
+          <p className="text-[11px] text-amber-700">
+            Match and weigh all {unresolvedCount} included ingredient{unresolvedCount === 1 ? "" : "s"}, or exclude them before saving.
+          </p>
+        )}
+
         <div className="flex gap-2">
           <button onClick={() => setStep("input")} className="btn-ghost px-4">Back</button>
           <button
             onClick={save}
-            disabled={saving || !lines.some(l => l.include && l.match)}
+            disabled={saving || unresolvedCount > 0 || !lines.some(l => l.include && l.match && l.grams)}
             className="btn-primary flex-1 flex items-center justify-center gap-2 py-3 disabled:opacity-40">
             {saving && <Loader2 size={14} className="animate-spin" />}
             Save Recipe

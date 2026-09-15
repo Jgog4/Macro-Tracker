@@ -14,28 +14,14 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models.models import Ingredient, MealLog, MealLogItem, Recipe, RecipeIngredient
 from app.schemas.schemas import RecipeCreate, RecipeRead, RecipeUpdate
+from app.services.recipe_math import compute_recipe_totals
 
 router = APIRouter(prefix="/recipes", tags=["Recipes"])
 
 
-def _compute_recipe_totals(ingredients_with_qty: list[tuple[Ingredient, float]]) -> dict:
-    """
-    Sum macros across all (ingredient, quantity_g) pairs.
-    Each ingredient stores macros *per serving* — we scale by qty/serving_size_g.
-    """
-    totals = dict(calories=0.0, protein_g=0.0, fat_g=0.0, carbs_g=0.0,
-                  sodium_mg=0.0, cholesterol_mg=0.0, total_weight_g=0.0)
-    for ing, qty_g in ingredients_with_qty:
-        base_g = ing.serving_size_g or 100.0  # null serving_size_g → macros stored per 100g
-        ratio  = qty_g / base_g if base_g else 1.0
-        totals["calories"]       += (ing.calories       or 0) * ratio
-        totals["protein_g"]      += (ing.protein_g      or 0) * ratio
-        totals["fat_g"]          += (ing.fat_g          or 0) * ratio
-        totals["carbs_g"]        += (ing.carbs_g        or 0) * ratio
-        totals["sodium_mg"]      += (ing.sodium_mg      or 0) * ratio
-        totals["cholesterol_mg"] += (ing.cholesterol_mg or 0) * ratio
-        totals["total_weight_g"] += qty_g
-    return {k: round(v, 2) for k, v in totals.items()}
+def _compute_recipe_totals(ingredients_with_qty: list[tuple]) -> dict:
+    """Backward-compatible name used by existing scripts and import code."""
+    return compute_recipe_totals(ingredients_with_qty)
 
 
 @router.post("/", response_model=RecipeRead, status_code=status.HTTP_201_CREATED)
@@ -62,9 +48,10 @@ async def create_recipe(body: RecipeCreate, db: AsyncSession = Depends(get_db)):
         ing = await db.get(Ingredient, item.ingredient_id)
         if not ing:
             raise HTTPException(status_code=404, detail=f"Ingredient {item.ingredient_id} not found")
-        ri = RecipeIngredient(recipe_id=recipe.id, ingredient_id=ing.id, quantity_g=item.quantity_g)
+        ri = RecipeIngredient(recipe_id=recipe.id, ingredient_id=ing.id,
+                              quantity_g=item.quantity_g, fat_retention=item.fat_retention)
         db.add(ri)
-        pairs.append((ing, item.quantity_g))
+        pairs.append((ing, item.quantity_g, item.fat_retention))
 
     totals = _compute_recipe_totals(pairs)
     for field, val in totals.items():
@@ -165,9 +152,10 @@ async def update_recipe(recipe_id: str, body: RecipeUpdate, db: AsyncSession = D
             ing = await db.get(Ingredient, item.ingredient_id)
             if not ing:
                 raise HTTPException(status_code=404, detail=f"Ingredient {item.ingredient_id} not found")
-            ri = RecipeIngredient(recipe_id=recipe.id, ingredient_id=ing.id, quantity_g=item.quantity_g)
+            ri = RecipeIngredient(recipe_id=recipe.id, ingredient_id=ing.id,
+                                  quantity_g=item.quantity_g, fat_retention=item.fat_retention)
             db.add(ri)
-            pairs.append((ing, item.quantity_g))
+            pairs.append((ing, item.quantity_g, item.fat_retention))
 
         totals = _compute_recipe_totals(pairs)
         for field, val in totals.items():

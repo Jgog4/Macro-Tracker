@@ -208,6 +208,7 @@ class IngredientRead(IngredientBase):
 class RecipeIngredientCreate(BaseModel):
     ingredient_id: str
     quantity_g:    float = Field(..., gt=0, description="Grams of this ingredient in the recipe batch")
+    fat_retention: float = Field(1.0, ge=0, le=1)
 
 
 class RecipeIngredientRead(BaseModel):
@@ -215,6 +216,7 @@ class RecipeIngredientRead(BaseModel):
     ingredient_id: str
     ingredient:    IngredientRead
     quantity_g:    float
+    fat_retention: float = 1.0
 
     model_config = {"from_attributes": True}
 

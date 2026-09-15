@@ -16,7 +16,6 @@ mt_meal_log_items              – individual line items inside a meal (ingredie
 mt_meal_log_item_components    – sub-ingredient snapshot when a recipe is logged
 mt_api_keys                    – hashed keys for external tool access (Mac dashboard, etc.)
 """
-
 import uuid
 from datetime import date, datetime
 
@@ -243,6 +242,10 @@ class RecipeIngredient(Base):
     recipe_id:     Mapped[str]   = mapped_column(ForeignKey("mt_recipes.id",     ondelete="CASCADE"), nullable=False)
     ingredient_id: Mapped[str]   = mapped_column(ForeignKey("mt_ingredients.id", ondelete="CASCADE"), nullable=False)
     quantity_g:    Mapped[float] = mapped_column(Float, nullable=False)
+    # Fraction of the ingredient's fat retained after cooking. Most ingredients
+    # retain 100%; URL imports can explicitly preserve a reviewed drained-fat
+    # adjustment without mutating the reusable source food.
+    fat_retention: Mapped[float] = mapped_column(Float, nullable=False, default=1.0, server_default="1")
 
     recipe:     Mapped["Recipe"]     = relationship("Recipe",     back_populates="ingredients")
     ingredient: Mapped["Ingredient"] = relationship("Ingredient", back_populates="recipe_usages")

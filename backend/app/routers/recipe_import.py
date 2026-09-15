@@ -28,18 +28,16 @@ from typing import Any, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.database import get_db
 from app.models.models import Ingredient, IngredientAlias, Recipe, RecipeImportLog, User
-from app.routers.foods import search_local_foods
+from app.schemas.recipe_import import PreviewRequest, SaveRequest
 from app.services import units
 from app.services.portions import remember_weight, resolve_item_weight, split_size
 from app.services.recipe_import import ExtractionFailed, extract_recipe, parse_ingredient_lines
-from app.services.usda import import_usda_food, search_usda
 
 settings = get_settings()
 router = APIRouter(prefix="/recipes/import", tags=["Recipe import"])
@@ -325,7 +323,12 @@ def _rank(rows: list[Ingredient], words: list[str], prep: Optional[str] = None) 
 
 
 async def _match_ingredient(db: AsyncSession, user: User, line: dict) -> tuple[Optional[Ingredient], list[Ingredient]]:
-    """Alias table first, then the local verified search, then live USDA."""
+    """Alias table first, then local verified search.
+
+    A live USDA result is never selected automatically. Search ordering can put a
+    similarly named branded product first, so importing it without review turns
+    a plausible match into quietly incorrect nutrition.
+    """
     name  = line.get("name") or line.get("raw") or ""
     alias = _normalise(name)
 
@@ -352,18 +355,6 @@ async def _match_ingredient(db: AsyncSession, user: User, line: dict) -> tuple[O
         if cands:
             break
 
-    # 2. Nothing local — reach for live USDA and import the best hit.
-    if not cands and query.strip():
-        try:
-            hits = await search_usda(query, 3)
-            if hits:
-                ing = await import_usda_food(hits[0].fdc_id)
-                db.add(ing)
-                await db.flush()
-                cands = [ing]
-        except Exception:
-            cands = []
-
     if not cands:
         return None, []
 
@@ -386,33 +377,6 @@ def _per_gram(food: Ingredient) -> dict[str, float]:
 
 
 # ── request / response models ────────────────────────────────────────────────
-
-class PreviewRequest(BaseModel):
-    url:    Optional[str] = None
-    text:   Optional[str] = None
-    locale: str = "us"
-
-
-class SaveLine(BaseModel):
-    name:          str
-    quantity:      Optional[float] = None
-    unit:          Optional[str] = None
-    unit_is_mass:  bool = False
-    ingredient_id: Optional[str] = None
-    grams:         Optional[float] = None
-    include:       bool = True
-    raw:           Optional[str] = None
-    alias_learn:   bool = False      # true when the user changed the match
-
-
-class SaveRequest(BaseModel):
-    title:        str
-    source_url:   Optional[str] = None
-    num_servings: int = 1
-    cooked_weight_g: Optional[float] = None
-    lines:        list[SaveLine]
-    import_id:    Optional[str] = None
-
 
 # ── stage 5: cooking transformations ─────────────────────────────────────────
 
@@ -437,6 +401,7 @@ def _cooking_adjustments(instructions: str, lines: list[dict]) -> tuple[list[dic
             ln["nutrition"]["fat_g"] -= removed
             ln["nutrition"]["calories"] -= removed * 9
             ln.setdefault("flags", []).append("fat_drained")
+            ln["fat_retention"] = 0.5
             ln["adjustment_note"] = (
                 f"Instructions say the fat is drained — removed {removed:.0f} g fat "
                 f"(50% of rendered fat, editable)."
@@ -459,9 +424,16 @@ async def preview_import(body: PreviewRequest, db: AsyncSession = Depends(get_db
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     try:
+        if len(extracted["ingredients"]) > 250:
+            raise ExtractionFailed("Recipes are limited to 250 ingredient lines.")
         parsed = await parse_ingredient_lines(extracted["ingredients"], extracted.get("instructions", ""))
     except ExtractionFailed as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Ingredient parsing is temporarily unavailable. Please try again.",
+        ) from exc
 
     user = await _get_user(db)
     lines: list[dict] = []
@@ -540,6 +512,7 @@ async def preview_import(body: PreviewRequest, db: AsyncSession = Depends(get_db
                 for a in alternates
             ],
             "nutrition": nutrition,
+            "fat_retention": 1.0,
         })
 
     lines, cooking_notes = _cooking_adjustments(extracted.get("instructions", ""), lines)
@@ -599,15 +572,26 @@ async def save_import(body: SaveRequest, db: AsyncSession = Depends(get_db)) -> 
     from app.routers.recipes import _compute_recipe_totals
 
     user = await _get_user(db)
-    pairs: list[tuple[Ingredient, float]] = []
+    pairs: list[tuple[Ingredient, float, float]] = []
+    invalid_lines: list[str] = []
 
     for ln in body.lines:
-        if not ln.include or not ln.ingredient_id or not ln.grams:
+        if not ln.include:
+            continue
+        if not ln.ingredient_id:
+            invalid_lines.append(f"{ln.name}: choose a matching food")
+            continue
+        if ln.grams is None:
+            invalid_lines.append(f"{ln.name}: enter a gram weight")
             continue
         food = await db.get(Ingredient, ln.ingredient_id)
         if food is None:
+            invalid_lines.append(f"{ln.name}: selected food no longer exists")
             continue
-        pairs.append((food, float(ln.grams)))
+        if food.recipe_id is not None:
+            invalid_lines.append(f"{ln.name}: another recipe cannot be used as an ingredient")
+            continue
+        pairs.append((food, float(ln.grams), float(ln.fat_retention)))
         # If the user typed the weight for a counted item, remember it so the
         # same ingredient resolves itself on every future import.
         if ln.quantity and ln.quantity > 0 and not ln.unit_is_mass:
@@ -627,11 +611,16 @@ async def save_import(body: SaveRequest, db: AsyncSession = Depends(get_db)) -> 
                     db.add(IngredientAlias(user_id=user.id, alias=alias,
                                            ingredient_id=ln.ingredient_id))
 
+    if invalid_lines:
+        raise HTTPException(
+            status_code=422,
+            detail="Fix these included ingredients before saving: " + "; ".join(invalid_lines[:10]),
+        )
     if not pairs:
-        raise HTTPException(status_code=400, detail="No matched ingredients to save.")
+        raise HTTPException(status_code=422, detail="Include at least one matched ingredient.")
 
     totals = _compute_recipe_totals(pairs)
-    servings = max(1, body.num_servings or 1)
+    servings = body.num_servings
     # `serving_size_g` on a recipe is the finished weight of the WHOLE recipe,
     # not one serving — RecipeBuilderModal stores the cooked weight there and
     # the client divides by num_servings itself. Writing a per-serving value
@@ -640,7 +629,7 @@ async def save_import(body: SaveRequest, db: AsyncSession = Depends(get_db)) -> 
     finished = body.cooked_weight_g or totals["total_weight_g"]
 
     recipe = Recipe(
-        name=(body.title.strip() or "Imported recipe")[:500],
+        name=body.title.strip(),
         source_url=body.source_url,
         num_servings=servings,
         total_weight_g=totals["total_weight_g"],
@@ -651,12 +640,15 @@ async def save_import(body: SaveRequest, db: AsyncSession = Depends(get_db)) -> 
     )
     db.add(recipe)
     await db.flush()
-    for food, qty in pairs:
-        db.add(RecipeIngredient(recipe_id=recipe.id, ingredient_id=food.id, quantity_g=qty))
+    for food, qty, fat_retention in pairs:
+        db.add(RecipeIngredient(
+            recipe_id=recipe.id, ingredient_id=food.id, quantity_g=qty,
+            fat_retention=fat_retention,
+        ))
 
     if body.import_id:
         log = await db.get(RecipeImportLog, body.import_id)
-        if log:
+        if log and log.user_id == user.id:
             log.recipe_id = recipe.id
 
     await db.flush()
