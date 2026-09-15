@@ -5,7 +5,9 @@ from unittest.mock import patch
 from pydantic import ValidationError
 
 from app.schemas.recipe_import import SaveLine, SaveRequest
-from app.services.recipe_import import _ingredient_choices, _recover_stated_unit
+from app.services.recipe_import import (
+    _apply_culinary_default, _ingredient_choices, _recover_stated_unit,
+)
 from app.services.recipe_math import compute_recipe_totals
 from app.services.units import to_grams
 from app.services.recipe_import import ExtractionFailed, _validate_public_url
@@ -139,6 +141,12 @@ class RecipeChoiceTests(unittest.TestCase):
 
 
 class IngredientIdentityTests(unittest.TestCase):
+    def test_bare_recipe_pepper_means_black_pepper(self):
+        self.assertEqual(_apply_culinary_default("pepper"), "black pepper")
+        grams, method = to_grams(0.25, "tsp", "black pepper")
+        self.assertEqual(method, "density")
+        self.assertAlmostEqual(grams, 0.6, places=1)
+
     def test_plain_milk_rejects_dry_milk_but_accepts_whole_milk(self):
         self.assertGreater(form_penalty(["milk"], "Milk, dry whole"), 0)
         self.assertTrue(is_unsafe_automatic_match(["milk"], "Milk, dry whole"))

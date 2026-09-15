@@ -98,7 +98,7 @@ _DENSITY = {
     "italian seasoning": 0.20, "dried oregano": 0.20, "oregano": 0.20,
     "dried basil": 0.21, "dried parsley": 0.20, "dried thyme": 0.27,
     "dried rosemary": 0.23, "cumin": 0.42, "paprika": 0.44,
-    "chili powder": 0.50, "cayenne": 0.45, "black pepper": 0.45,
+    "chili powder": 0.50, "cayenne": 0.45, "black pepper": 0.45, "pepper": 0.45,
     "cinnamon": 0.42, "garlic powder": 0.52, "onion powder": 0.48,
 }
 _DENSITY_KEYS = sorted(_DENSITY, key=len, reverse=True)

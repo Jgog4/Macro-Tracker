@@ -327,6 +327,8 @@ or null if none given.
 puffery and prep verbs that do not change the food's identity ("finely \
 chopped" → drop), but KEEP words that change its nutrition ("cooked", "dry", \
 "canned", "drained", "skinless", "low-fat").
+- A bare "pepper" in a standard savoury recipe means black pepper, not a
+  vegetable pepper. Parse it as "black pepper" unless a variety is stated.
 - For an either/or ingredient ("ground beef or lamb", "red or yellow onion"),
   make `name` the first complete, sensible option and put the other complete
   option(s) in `alternatives`. Do not make both active ingredients. For example,
@@ -395,6 +397,20 @@ def _json_from(raw: str) -> Optional[Any]:
 
 def _normalise(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
+
+
+_CULINARY_DEFAULTS = {
+    # Recipe convention, not a database synonym: a bare "pepper" seasoning is
+    # black pepper. Vegetable peppers are always qualified (bell, jalapeño,
+    # banana, etc.) in an ingredient list.
+    "pepper": "black pepper",
+}
+
+
+def _apply_culinary_default(name: str) -> str:
+    """Resolve unambiguous recipe shorthand before food-database matching."""
+    cleaned = re.sub(r"\s+", " ", (name or "").strip(" ,;"))
+    return _CULINARY_DEFAULTS.get(_normalise(cleaned), cleaned)
 
 
 _CHOICE_SPLIT = re.compile(r"\s+(?:or|and/or)\s+", re.IGNORECASE)
@@ -516,6 +532,7 @@ async def parse_ingredient_lines(lines: list[str], instructions: str = "") -> li
         name, alternatives = _ingredient_choices(
             str(item.get("name") or raw), item.get("alternatives")
         )
+        name = _apply_culinary_default(name)
         out.append({
             "raw":        raw,
             "quantity":   qty,
