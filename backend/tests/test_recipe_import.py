@@ -9,6 +9,7 @@ from app.services.recipe_import import _ingredient_choices, _recover_stated_unit
 from app.services.recipe_math import compute_recipe_totals
 from app.services.units import to_grams
 from app.services.recipe_import import ExtractionFailed, _validate_public_url
+from app.services.ingredient_identity import form_penalty, is_unsafe_automatic_match
 
 
 class RecipeURLSafetyTests(unittest.IsolatedAsyncioTestCase):
@@ -135,6 +136,20 @@ class RecipeChoiceTests(unittest.TestCase):
         primary, alternatives = _ingredient_choices("red or yellow onion")
         self.assertEqual(primary, "red onion")
         self.assertEqual(alternatives, ["yellow onion"])
+
+
+class IngredientIdentityTests(unittest.TestCase):
+    def test_plain_milk_rejects_dry_milk_but_accepts_whole_milk(self):
+        self.assertGreater(form_penalty(["milk"], "Milk, dry whole"), 0)
+        self.assertTrue(is_unsafe_automatic_match(["milk"], "Milk, dry whole"))
+        self.assertEqual(form_penalty(["milk"], "Milk, whole, UHT"), 0)
+
+    def test_explicit_dry_milk_is_not_rejected(self):
+        self.assertEqual(form_penalty(["milk", "dry"], "Milk, dry whole"), 0)
+        self.assertFalse(is_unsafe_automatic_match(["milk", "dry"], "Milk, dry whole"))
+
+    def test_plain_beef_does_not_auto_match_broth(self):
+        self.assertTrue(is_unsafe_automatic_match(["beef"], "Soup, broth, beef, ready-to-serve"))
 
 
 if __name__ == "__main__":

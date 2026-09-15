@@ -35,6 +35,7 @@ from app.config import get_settings
 from app.database import get_db
 from app.models.models import Ingredient, IngredientAlias, Recipe, RecipeImportLog, User
 from app.schemas.recipe_import import PreviewRequest, SaveRequest
+from app.services.ingredient_identity import form_penalty, is_unsafe_automatic_match
 from app.services import units
 from app.services.portions import (
     remember_weight, resolve_item_weight, resolve_volume_weight, split_size,
@@ -296,10 +297,10 @@ def _rank(rows: list[Ingredient], words: list[str], prep: Optional[str] = None) 
     """
     Prefer the candidate that says the least beyond what was asked for.
 
-    Ordering, in priority: verified generic source, then no unrequested
-    preparation ("sticks, fried", "extract"), then fewest extra words, then the
-    food's head noun matching. Sorting by raw string length alone put "Creamy
-    Parmesan Dip" above "Cheese, parmesan, hard".
+    Ordering, in priority: compatible food form, no unrequested preparation,
+    matching head noun, then source quality and extra words. Sorting by raw
+    string length alone put "Creamy Parmesan Dip" above "Cheese, parmesan,
+    hard"; preferring source quality alone put dry milk above liquid milk.
     """
     # Compare on variants so "egg" in a candidate satisfies a query for "eggs".
     wanted = {v for w in words for v in _word_variants(w)}
@@ -322,10 +323,11 @@ def _rank(rows: list[Ingredient], words: list[str], prep: Optional[str] = None) 
         prep_hit = 0 if (prep and any(w in toks for w in _PREP_WORDS.get(prep, ()))) else 1
         # Prefer the implied default variety over an enumerated exotic one.
         implied_hit = 0 if (implied is None or implied in toks) else 1
-        # Food identity comes before source preference. A verified generic is
+        # Food form comes before source preference. A verified generic is
         # valuable, but it must not beat the correct form of the ingredient:
         # e.g. "Milk, dry whole" is not a safe default for plain liquid milk.
-        return (prep_noise, head_hit, prep_hit, implied_hit,
+        form_mismatch = form_penalty(words, food.name or "")
+        return (form_mismatch, prep_noise, head_hit, prep_hit, implied_hit,
                 _PY_SOURCE_RANK.get(food.source, 4), len(unmatched), len(food.name or ""))
     return sorted(rows, key=key)
 
@@ -366,7 +368,16 @@ async def _match_ingredient(db: AsyncSession, user: User, line: dict) -> tuple[O
     if not cands:
         return None, []
 
-    cands.sort(key=lambda c: -_prep_score(c.name, prep))
+    query_words = [w for w in re.split(r"[^a-z0-9]+", _fold(query)) if w]
+    cands.sort(key=lambda c: (
+        -_prep_score(c.name, prep),
+        form_penalty(query_words, c.name or ""),
+    ))
+    # Do not silently use a materially different form just because it was the
+    # only broad word match. Keep alternatives visible in the review so the
+    # person can choose intentionally, but require a match correction first.
+    if is_unsafe_automatic_match(query_words, cands[0].name or ""):
+        return None, cands[:5]
     return cands[0], cands[:5]
 
 
