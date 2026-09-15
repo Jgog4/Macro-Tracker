@@ -76,7 +76,7 @@ _NOISE_WORDS = {
 # fried" and "beef" on "Beef extract" — both are shorter names that happen to
 # contain the word.
 _PREPARATION_WORDS = {
-    "fried", "breaded", "battered", "sticks", "dip", "sauce", "soup", "powder",
+    "fried", "breaded", "battered", "sticks", "dip", "sauce", "soup", "powder", "dry",
     "extract", "dehydrated", "syrup", "snack", "bar", "pie", "cake", "roll",
     "juice", "drink", "flavoured", "flavored", "substitute", "imitation",
     "baby", "babyfood", "infant",
@@ -100,7 +100,10 @@ _PY_SOURCE_RANK = {"cnf": 0, "cofid": 0, "usda": 0, "personal": 1, "custom": 2, 
 # databases enumerate species.
 _IMPLIED_VARIETY = {
     "egg": "chicken", "eggs": "chicken",
-    "milk": "cow", "flour": "wheat", "rice": "white",
+    # A plain recipe line such as "2 cups milk (any fat %)" needs a liquid
+    # default. Whole milk is the conventional cooking baseline; a dry/powdered
+    # milk product is a different ingredient and must be stated explicitly.
+    "milk": "whole", "flour": "wheat", "rice": "white",
 }
 
 
@@ -317,8 +320,11 @@ def _rank(rows: list[Ingredient], words: list[str], prep: Optional[str] = None) 
         prep_hit = 0 if (prep and any(w in toks for w in _PREP_WORDS.get(prep, ()))) else 1
         # Prefer the implied default variety over an enumerated exotic one.
         implied_hit = 0 if (implied is None or implied in toks) else 1
-        return (_PY_SOURCE_RANK.get(food.source, 4), prep_noise, head_hit,
-                prep_hit, implied_hit, len(unmatched), len(food.name or ""))
+        # Food identity comes before source preference. A verified generic is
+        # valuable, but it must not beat the correct form of the ingredient:
+        # e.g. "Milk, dry whole" is not a safe default for plain liquid milk.
+        return (prep_noise, head_hit, prep_hit, implied_hit,
+                _PY_SOURCE_RANK.get(food.source, 4), len(unmatched), len(food.name or ""))
     return sorted(rows, key=key)
 
 
