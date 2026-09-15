@@ -74,6 +74,9 @@ _DENSITY = {
     "milk": 1.03, "buttermilk": 1.03, "cream": 1.00, "yogurt": 1.03, "yoghurt": 1.03,
     "water": 1.0, "stock": 1.0, "broth": 1.0, "juice": 1.04, "vinegar": 1.01,
     "soy sauce": 1.15, "fish sauce": 1.20, "ketchup": 1.14,
+    # Tomato paste is much denser than fresh tomato. Three US tablespoons are
+    # about 49 g, not three whole tomatoes (369 g).
+    "tomato paste": 1.10,
     "mayonnaise": 0.91, "peanut butter": 1.08, "tahini": 1.05,
     "rice": 0.85, "oats": 0.41, "rolled oats": 0.41, "breadcrumbs": 0.43,
     "salt": 1.22, "kosher salt": 0.69, "baking powder": 0.90, "baking soda": 1.10,

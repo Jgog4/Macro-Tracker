@@ -24,6 +24,7 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 
 from app.config import get_settings
+from app.services.units import canonical_unit
 from app.services.vision_ocr import _TextExtractor, _response_text
 
 settings = get_settings()
@@ -340,6 +341,34 @@ marinade/brine the instructions discard
 - Never invent a line that was not in the input. Never merge or split lines."""
 
 
+# The parser is deliberately AI-assisted because recipe notation is messy, but
+# standard units do not need to be guessed by a model. Recover one from the
+# original line whenever it was omitted or changed. Without this, "3 tbsp tomato
+# paste" could fall into the countable-item fallback because its name contains
+# "tomato", yielding three whole tomatoes instead of three tablespoons.
+_LEADING_MEASURE = re.compile(
+    r"^\s*(?:\d+(?:[.,]\d+)?(?:\s+\d+/\d+)?|\d+/\d+|[¼½¾⅓⅔⅛⅜⅝⅞])\s*"
+    r"(?P<unit>tablespoons?|tbsp\.?|tbs\.?|tb\.?|teaspoons?|tsp\.?|"
+    r"cups?|fluid\s+ounces?|fl\.?\s*oz\.?|millilit(?:er|re)s?|ml|"
+    r"lit(?:er|re)s?|grams?|g|kilograms?|kg|ounces?|oz|pounds?|lbs?|lb)\b",
+    re.IGNORECASE,
+)
+
+
+def _recover_stated_unit(raw: str, parsed_unit: Optional[str]) -> Optional[str]:
+    """Prefer a clear measured unit stated in the original recipe line."""
+    match = _LEADING_MEASURE.match(raw or "")
+    if not match:
+        return parsed_unit
+    stated = match.group("unit").rstrip(".")
+    # Preserve the parser's unit only when it means the same thing. A model that
+    # returns "large" or null for a measured source line must not reach the
+    # whole-item conversion table.
+    if canonical_unit(stated) and canonical_unit(stated) != canonical_unit(parsed_unit):
+        return stated
+    return parsed_unit
+
+
 def _json_from(raw: str) -> Optional[Any]:
     """Pull the first JSON object/array out of a model reply."""
     if not raw:
@@ -436,10 +465,11 @@ async def parse_ingredient_lines(lines: list[str], instructions: str = "") -> li
             conf = max(0.0, min(1.0, float(item.get("confidence", 0.5))))
         except (TypeError, ValueError):
             conf = 0.5
+        unit = _recover_stated_unit(raw, str(item["unit"]).strip() if item.get("unit") else None)
         out.append({
             "raw":        raw,
             "quantity":   qty,
-            "unit":       (str(item["unit"]).strip() if item.get("unit") else None),
+            "unit":       unit,
             "name":       str(item.get("name") or raw).strip(),
             "prep_state": (str(item["prep_state"]).strip().lower() if item.get("prep_state") else None),
             "flags":      flags,

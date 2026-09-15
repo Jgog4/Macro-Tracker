@@ -5,7 +5,9 @@ from unittest.mock import patch
 from pydantic import ValidationError
 
 from app.schemas.recipe_import import SaveLine, SaveRequest
+from app.services.recipe_import import _recover_stated_unit
 from app.services.recipe_math import compute_recipe_totals
+from app.services.units import to_grams
 from app.services.recipe_import import ExtractionFailed, _validate_public_url
 
 
@@ -101,6 +103,16 @@ class RecipeCookingAdjustmentTests(unittest.TestCase):
         totals = compute_recipe_totals([(oil, 10.0)])
         self.assertEqual(totals["fat_g"], 10.0)
         self.assertEqual(totals["calories"], 88.4)
+
+
+class RecipeUnitRecoveryTests(unittest.TestCase):
+    def test_recovers_tablespoon_omitted_by_parser(self):
+        self.assertEqual(_recover_stated_unit("3 tbsp tomato paste", None), "tbsp")
+
+    def test_tomato_paste_volume_never_uses_whole_tomato_weight(self):
+        grams, method = to_grams(3, "tbsp", "tomato paste")
+        self.assertEqual(method, "density")
+        self.assertAlmostEqual(grams, 48.8, places=1)
 
 
 if __name__ == "__main__":
