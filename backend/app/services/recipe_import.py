@@ -362,6 +362,19 @@ _LEADING_MEASURE = re.compile(
     re.IGNORECASE,
 )
 
+_LEADING_QUANTITY = re.compile(
+    r"^\s*(?P<quantity>\d+/\d+|\d+[¼½¾⅓⅔⅛⅜⅝⅞]|\d+(?:[.,]\d+)?(?:\s+\d+/\d+)?|[¼½¾⅓⅔⅛⅜⅝⅞])\s*(?P<rest>.*)$",
+    re.IGNORECASE,
+)
+_FALLBACK_UNIT = re.compile(
+    r"^(?P<unit>tablespoons?|tbsp\.?|tbs\.?|tb\.?|teaspoons?|tsp\.?|"
+    r"cups?|fluid\s+ounces?|fl\.?\s*oz\.?|millilit(?:er|re)s?|ml|"
+    r"lit(?:er|re)s?|grams?|g|kilograms?|kg|ounces?|oz|pounds?|lbs?|lb)\b\s*(?P<name>.*)$",
+    re.IGNORECASE,
+)
+_UNICODE_FRACTIONS = {"¼": 0.25, "½": 0.5, "¾": 0.75, "⅓": 1 / 3, "⅔": 2 / 3,
+                      "⅛": 0.125, "⅜": 0.375, "⅝": 0.625, "⅞": 0.875}
+
 
 def _recover_stated_unit(raw: str, parsed_unit: Optional[str]) -> Optional[str]:
     """Prefer a clear measured unit stated in the original recipe line."""
@@ -375,6 +388,57 @@ def _recover_stated_unit(raw: str, parsed_unit: Optional[str]) -> Optional[str]:
     if canonical_unit(stated) and canonical_unit(stated) != canonical_unit(parsed_unit):
         return stated
     return parsed_unit
+
+
+def _fallback_parse_item(raw: str) -> dict:
+    """Safe, deliberately modest parser used when an AI JSON reply is unusable.
+
+    It keeps the import reviewable instead of rejecting an entire recipe for a
+    formatting hiccup. The AI parser remains the preferred path because it can
+    identify preparation state and recipe-specific flags more precisely.
+    """
+    source = (raw or "").strip()
+    quantity = None
+    unit = None
+    name = source
+    match = _LEADING_QUANTITY.match(source)
+    if match:
+        value = match.group("quantity").replace(",", ".")
+        try:
+            if value in _UNICODE_FRACTIONS:
+                quantity = _UNICODE_FRACTIONS[value]
+            elif value[-1:] in _UNICODE_FRACTIONS:
+                quantity = float(value[:-1]) + _UNICODE_FRACTIONS[value[-1]]
+            elif "/" in value:
+                parts = value.split()
+                fraction = parts[-1].split("/", 1)
+                quantity = (float(parts[0]) if len(parts) == 2 else 0.0) + float(fraction[0]) / float(fraction[1])
+            else:
+                quantity = float(value)
+        except (ValueError, ZeroDivisionError):
+            quantity = None
+        remainder = match.group("rest").strip()
+        unit_match = _FALLBACK_UNIT.match(remainder)
+        if unit_match:
+            unit = unit_match.group("unit").rstrip(".")
+            name = unit_match.group("name").strip() or remainder
+        else:
+            name = remainder or source
+
+    lower = source.lower()
+    flags = []
+    if any(text in lower for text in ("optional", "if desired", "for serving")):
+        flags.append("optional")
+    if any(text in lower for text in ("to taste", "as needed", "season with")):
+        flags.append("to_taste")
+    prep_state = next((state for state in ("drained", "canned", "cooked", "dry", "raw")
+                       if state in lower), None)
+    name, alternatives = _ingredient_choices(name)
+    return {
+        "raw": source, "quantity": quantity, "unit": unit,
+        "name": _apply_culinary_default(name), "alternatives": alternatives,
+        "prep_state": prep_state, "flags": flags, "confidence": 0.5,
+    }
 
 
 def _json_from(raw: str) -> Optional[Any]:
@@ -509,16 +573,22 @@ async def parse_ingredient_lines(lines: list[str], instructions: str = "") -> li
         r.raise_for_status()
         parsed = _json_from(_response_text(r.json()))
 
+    # A model can occasionally wrap the array in prose, omit an echoed `raw`,
+    # or produce a truncated JSON object. A source-aligned fallback lets the
+    # person review and correct the import rather than losing the entire recipe.
     if not isinstance(parsed, list):
-        raise ExtractionFailed("Could not parse the ingredient list.")
+        return [_fallback_parse_item(source) for source in lines]
 
     out: list[dict] = []
-    for item in parsed:
-        if not isinstance(item, dict):
+    for index, source in enumerate(lines):
+        item = parsed[index] if index < len(parsed) and isinstance(parsed[index], dict) else None
+        if item is None:
+            out.append(_fallback_parse_item(source))
             continue
         raw = str(item.get("raw") or "").strip()
         if _is_hallucinated(raw, lines):
-            continue                      # drop rather than trust
+            out.append(_fallback_parse_item(source))
+            continue
         flags = [str(f) for f in (item.get("flags") or []) if f]
         try:
             qty = float(item["quantity"]) if item.get("quantity") is not None else None
@@ -543,6 +613,4 @@ async def parse_ingredient_lines(lines: list[str], instructions: str = "") -> li
             "flags":      flags,
             "confidence": conf,
         })
-    if not out:
-        raise ExtractionFailed("Could not parse the ingredient list.")
-    return out
+    return out or [_fallback_parse_item(source) for source in lines]

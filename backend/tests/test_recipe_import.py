@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 from app.schemas.recipe_import import SaveLine, SaveRequest
 from app.services.recipe_import import (
-    _apply_culinary_default, _ingredient_choices, _recover_stated_unit,
+    _apply_culinary_default, _fallback_parse_item, _ingredient_choices, _recover_stated_unit,
 )
 from app.services.recipe_math import compute_recipe_totals
 from app.services.units import to_grams
@@ -146,6 +146,13 @@ class IngredientIdentityTests(unittest.TestCase):
         grams, method = to_grams(0.25, "tsp", "black pepper")
         self.assertEqual(method, "density")
         self.assertAlmostEqual(grams, 0.6, places=1)
+
+    def test_fallback_parser_keeps_import_reviewable_and_applies_pepper_default(self):
+        item = _fallback_parse_item("1/4 tsp pepper")
+        self.assertEqual(item["quantity"], 0.25)
+        self.assertEqual(item["unit"], "tsp")
+        self.assertEqual(item["name"], "black pepper")
+        self.assertEqual(item["confidence"], 0.5)
 
     def test_plain_milk_rejects_dry_milk_but_accepts_whole_milk(self):
         self.assertGreater(form_penalty(["milk"], "Milk, dry whole"), 0)
