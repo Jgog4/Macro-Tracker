@@ -29,6 +29,10 @@ class SaveLine(BaseModel):
     quantity: Optional[float] = Field(None, gt=0, le=1_000_000, allow_inf_nan=False)
     unit: Optional[str] = Field(None, max_length=100)
     unit_is_mass: bool = False
+    # An inferred count weight must not become a remembered preference merely
+    # because the recipe was saved. The client sets this only after the person
+    # changes the gram field themselves.
+    weight_was_edited: bool = False
     ingredient_id: Optional[str] = Field(None, pattern=UUID_PATTERN)
     grams: Optional[float] = Field(None, gt=0, le=10_000_000, allow_inf_nan=False)
     include: bool = True

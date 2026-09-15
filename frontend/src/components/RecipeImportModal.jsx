@@ -206,7 +206,11 @@ export default function RecipeImportModal({ onClose, onSaved }) {
       const body = useText ? { text: paste, locale } : { url: url.trim(), locale };
       const { data } = await recipeImportApi.preview(body);
       setDraft(data);
-      setLines(data.lines.map(l => ({ ...l, alias_learn: false })));
+      setLines(data.lines.map(l => ({
+        ...l,
+        alias_learn: false,
+        weight_was_edited: false,
+      })));
       setServings(data.num_servings || 1);
       setTitle(data.title || "Imported recipe");
       // Open the rows that need attention so nothing needing a decision hides.
@@ -264,6 +268,7 @@ export default function RecipeImportModal({ onClose, onSaved }) {
           // Sent so a hand-typed weight for a counted item can be remembered.
           quantity: l.quantity, unit: l.unit,
           unit_is_mass: ["mass", "density", "usda"].includes(l.gram_method),
+          weight_was_edited: !!l.weight_was_edited,
           fat_retention: l.fat_retention ?? 1,
         })),
       });
@@ -458,7 +463,9 @@ export default function RecipeImportModal({ onClose, onSaved }) {
                           // `currentTarget` is null by then — reading it inside
                           // the updater threw on every keystroke.
                           const grams = Number(decimalOnly(e.currentTarget.value)) || null;
-                          setLines(ls => ls.map((x, j) => (j === i ? reprice(x, grams, null) : x)));
+                          setLines(ls => ls.map((x, j) => (j === i
+                            ? { ...reprice(x, grams, null), weight_was_edited: true }
+                            : x)));
                         }}
                         onFocus={selectAndReveal}
                         placeholder="grams"

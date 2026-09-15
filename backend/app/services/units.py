@@ -85,6 +85,15 @@ _DENSITY = {
     "vanilla extract": 0.88, "almond extract": 0.88, "extract": 0.88,
     "worcestershire": 1.10, "mustard": 1.05, "hot sauce": 1.01, "sriracha": 1.10,
     "maple": 1.32, "syrup": 1.33, "jam": 1.33, "treacle": 1.42,
+    # Dried herbs and ground spices are extremely light by volume.  Treating
+    # them as countable foods makes "2 tsp dried oregano" fall through to an
+    # unrelated remembered per-item weight (e.g. 70 g), which is wildly wrong.
+    # These values are grams per mL, based on common teaspoon weights.
+    "italian seasoning": 0.20, "dried oregano": 0.20, "oregano": 0.20,
+    "dried basil": 0.21, "dried parsley": 0.20, "dried thyme": 0.27,
+    "dried rosemary": 0.23, "cumin": 0.42, "paprika": 0.44,
+    "chili powder": 0.50, "cayenne": 0.45, "black pepper": 0.45,
+    "cinnamon": 0.42, "garlic powder": 0.52, "onion powder": 0.48,
 }
 _DENSITY_KEYS = sorted(_DENSITY, key=len, reverse=True)
 

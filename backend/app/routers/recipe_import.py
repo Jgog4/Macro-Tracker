@@ -592,9 +592,12 @@ async def save_import(body: SaveRequest, db: AsyncSession = Depends(get_db)) -> 
             invalid_lines.append(f"{ln.name}: another recipe cannot be used as an ingredient")
             continue
         pairs.append((food, float(ln.grams), float(ln.fat_retention)))
-        # If the user typed the weight for a counted item, remember it so the
-        # same ingredient resolves itself on every future import.
-        if ln.quantity and ln.quantity > 0 and not ln.unit_is_mass:
+        # Only a weight the person actually changed is a preference. Previously
+        # every inferred per-item value was saved as a user value on submit;
+        # one bad parse of "2 tsp oregano" could therefore teach the importer
+        # that one oregano weighs 35 g forever.
+        if (ln.weight_was_edited and ln.quantity and ln.quantity > 0
+                and not ln.unit_is_mass):
             await remember_weight(db, ln.name, split_size(ln.unit),
                                   float(ln.grams) / ln.quantity, source="user")
         if ln.alias_learn:

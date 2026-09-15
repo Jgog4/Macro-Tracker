@@ -114,6 +114,11 @@ class RecipeUnitRecoveryTests(unittest.TestCase):
         self.assertEqual(method, "density")
         self.assertAlmostEqual(grams, 48.8, places=1)
 
+    def test_dried_oregano_uses_light_volume_conversion(self):
+        grams, method = to_grams(2, "tsp", "dried oregano")
+        self.assertEqual(method, "density")
+        self.assertAlmostEqual(grams, 2.0, places=1)
+
 
 if __name__ == "__main__":
     unittest.main()
