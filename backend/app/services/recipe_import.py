@@ -516,7 +516,7 @@ def _apply_culinary_default(name: str) -> str:
     return _CULINARY_DEFAULTS.get(_normalise(cleaned), cleaned)
 
 
-_CHOICE_SPLIT = re.compile(r"\s+(?:or|and/or)\s+", re.IGNORECASE)
+_CHOICE_SPLIT = re.compile(r"(?:\s+|\(\s*)(?:or|and/or)\s+", re.IGNORECASE)
 _NON_FOOD_OPTIONS = {"to taste", "as needed", "if desired", "optional"}
 
 

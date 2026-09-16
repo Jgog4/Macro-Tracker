@@ -205,7 +205,7 @@ class RecipeChoiceTests(unittest.TestCase):
 
     def test_recovers_alternative_measure_when_model_returns_name_only(self):
         parent = {
-            "raw": "10 green cardamom pods or 1/2 tsp ground cardamom",
+            "raw": "10 green cardamom pods (or 1/2 tsp ground cardamom)",
             "quantity": 10,
             "unit": "pods",
             "name": "green cardamom pods",
