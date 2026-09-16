@@ -9,10 +9,11 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Link2, Loader2, ClipboardPaste, AlertOctagon, AlertTriangle, Check, ChevronDown, ChevronRight,
-  ExternalLink, Search,
+  ExternalLink, ScanLine, Search,
 } from "lucide-react";
 import { foodsApi, recipeImportApi } from "../api/client";
 import { ModalShell, selectAndReveal, decimalOnly } from "./AddFoodModal";
+import BarcodeModal from "./BarcodeModal";
 
 /** Plain-English explanation for each flag the parser can raise. */
 const FLAG_TEXT = {
@@ -199,6 +200,9 @@ export default function RecipeImportModal({ onClose, onSaved }) {
   const [title, setTitle]     = useState("");
   const [open, setOpen]       = useState({});        // expanded rows
   const [saving, setSaving]   = useState(false);
+  const [barcodeLineIndex, setBarcodeLineIndex] = useState(null);
+  const [barcodeSavingIndex, setBarcodeSavingIndex] = useState(null);
+  const [barcodeError, setBarcodeError] = useState(null);
 
   // ── run the pipeline ──────────────────────────────────────────────────────
   const runImport = async (useText) => {
@@ -255,6 +259,56 @@ export default function RecipeImportModal({ onClose, onSaved }) {
       n.calories = Math.max(0, (n.calories || 0) - removedFat * 9);
     }
     return { ...line, grams: g, match: m, nutrition: n };
+  };
+
+  /**
+   * BarcodeModal returns the reviewed Open Food Facts result. Save it before
+   * attaching it to this draft: recipe-import saving accepts database IDs only,
+   * and barcode foods are deliberately excluded from future fuzzy matching.
+   */
+  const useBarcodeMatch = async (food) => {
+    const lineIndex = barcodeLineIndex;
+    if (lineIndex == null) return;
+    setBarcodeSavingIndex(lineIndex);
+    setBarcodeError(null);
+    try {
+      const { data: saved } = await foodsApi.create({
+        source: "barcode",
+        name: food.name,
+        brand: food.brand ?? null,
+        serving_size_desc: food.serving_size_desc ?? null,
+        serving_size_g: food.serving_size_g ?? null,
+        calories: food.calories ?? 0,
+        protein_g: food.protein_g ?? 0,
+        fat_g: food.fat_g ?? 0,
+        carbs_g: food.carbs_g ?? 0,
+        sat_fat_g: food.sat_fat_g ?? null,
+        trans_fat_g: food.trans_fat_g ?? null,
+        fiber_g: food.fiber_g ?? null,
+        sugar_g: food.sugar_g ?? null,
+        sodium_mg: food.sodium_mg ?? null,
+        cholesterol_mg: food.cholesterol_mg ?? null,
+        potassium_mg: food.potassium_mg ?? null,
+      });
+      const match = foodToMatch(saved);
+      setLines(ls => ls.map((line, i) => {
+        if (i !== lineIndex) return line;
+        return {
+          ...reprice(line, null, match),
+          alternates: [match, ...(line.alternates || []).filter(a => a.id !== match.id)],
+          alias_learn: true,
+          needs_review: !line.grams,
+        };
+      }));
+    } catch (e) {
+      setBarcodeError({
+        lineIndex,
+        message: e.response?.data?.detail || "Couldn't add the scanned food. Try again.",
+      });
+    } finally {
+      setBarcodeSavingIndex(null);
+      setBarcodeLineIndex(null);
+    }
   };
 
   const save = async () => {
@@ -381,6 +435,7 @@ export default function RecipeImportModal({ onClose, onSaved }) {
   ).length;
 
   return (
+    <>
     <ModalShell onClose={onClose} title="Review Import">
       <div className="flex flex-col gap-3">
 
@@ -483,9 +538,9 @@ export default function RecipeImportModal({ onClose, onSaved }) {
                     {mustFix && (
                       <p className="text-[11px] font-semibold text-accent-red bg-red-100 rounded-lg px-2 py-1.5">
                         {!l.match && !l.grams
-                          ? "Choose a food match and enter its weight, or exclude this ingredient."
+                          ? "Choose a food match or scan its barcode, then enter its weight (or exclude it)."
                           : !l.match
-                            ? "Choose a food match, or exclude this ingredient."
+                            ? "Choose a food match or scan its barcode, or exclude this ingredient."
                             : "Enter a weight, or exclude this ingredient."}
                       </p>
                     )}
@@ -620,6 +675,24 @@ export default function RecipeImportModal({ onClose, onSaved }) {
                       </div>
                     )}
 
+                    {!l.match && (
+                      <button
+                        type="button"
+                        onClick={() => { setBarcodeError(null); setBarcodeLineIndex(i); }}
+                        disabled={barcodeSavingIndex === i}
+                        className="text-[11px] text-accent-blue font-semibold self-start flex items-center gap-1 disabled:opacity-50"
+                      >
+                        {barcodeSavingIndex === i
+                          ? <Loader2 size={12} className="animate-spin" />
+                          : <ScanLine size={13} />}
+                        {barcodeSavingIndex === i ? "Adding scanned food…" : "Scan barcode to match this ingredient"}
+                      </button>
+                    )}
+
+                    {barcodeError?.lineIndex === i && (
+                      <p className="text-[11px] text-accent-red">{barcodeError.message}</p>
+                    )}
+
                     <FoodMatchSearch
                       initialQuery={l.name}
                       onChoose={match => setLines(ls => ls.map((x, j) =>
@@ -716,5 +789,12 @@ export default function RecipeImportModal({ onClose, onSaved }) {
         </div>
       </div>
     </ModalShell>
+    {barcodeLineIndex != null && (
+      <BarcodeModal
+        onClose={() => setBarcodeLineIndex(null)}
+        onFoodScanned={useBarcodeMatch}
+      />
+    )}
+    </>
   );
 }
