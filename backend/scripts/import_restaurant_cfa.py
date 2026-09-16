@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import html as html_lib
 import json
 import os
 import re
@@ -141,14 +142,19 @@ def page_title(html: str) -> str | None:
     title = re.split(r"\s*[|–—]\s*", title)[0]
     title = re.sub(r"\s*\bNutrition(\s*(and|&)\s*Ingredients)?\s*$", "", title, flags=re.I)
     title = re.sub(r"\s*\bIngredients\s*$", "", title, flags=re.I)
+    # Some og:titles append the brand after the tail:
+    # "Chocolate Milkshake Nutrition and Ingredients Chick-fil-A".
+    title = re.sub(r"\s*\bNutrition\s+(and|&)\s+Ingredients\b.*$", "", title, flags=re.I)
+    title = re.sub(r"\s*\bChick-?fil-?A\s*$", "", title, flags=re.I).strip() or title
     return clean_title(title)
 
 
 def clean_title(raw: str) -> str:
     text = re.sub(r"<[^>]+>", "", raw or "")
-    text = (text.replace("&#8217;", "'").replace("&amp;", "&")
-                .replace("&#038;", "&").replace("&nbsp;", " ")
-                .replace("®", "").replace("™", ""))
+    # html.unescape covers every entity; a hand-rolled list missed "&#039;"
+    # and shipped items named "Kid&#039;s Meal".
+    text = html_lib.unescape(html_lib.unescape(text))
+    text = text.replace("\u00ae", "").replace("\u2122", "")
     return re.sub(r"\s+", " ", text).strip()
 
 
