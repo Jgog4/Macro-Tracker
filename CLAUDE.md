@@ -364,6 +364,48 @@ connection limits affects both.
 
 ---
 
+## Restaurant Data
+
+`backend/scripts/import_restaurant_pdf.py` imports a chain's published
+nutrition-guide PDF. One parser; each chain contributes a column map to
+`BRANDS` (keg, pfchangs, tgifridays, panera). Needs `pdfplumber` and
+**python3.13** — `/usr/bin/python3` is 3.9 and cannot even import the models.
+pdfplumber is deliberately kept out of `requirements.txt` so Railway does not
+build it.
+
+`import_restaurant_cfa.py` is separate because Chick-fil-A publishes nutrition
+as embedded JSON per menu page rather than as a PDF.
+
+Three things about PDF guides that cost real data when ignored:
+
+1. **Read columns by x-position, never from flat text.** Flat extraction
+   silently dropped four of The Keg's fifteen columns, and the rows it produced
+   looked complete.
+2. **Group words into rows by proximity, not `round(top / n)`.** A name and its
+   figures sit on slightly different baselines (Panera: 185.24 vs 187.23). Any
+   pair straddling a bucket boundary splits and the item vanishes — this was
+   70% of Panera's guide and 17 items of The Keg's.
+3. **Validate with `4P + 4C + 9F ≈ kcal`, allowing net carbs.** It is the only
+   independent check on a PDF's text layer and it catches a value landing in
+   the wrong column. Some chains cost calories on net carbs (Panera's Black
+   Bean Soup: 41g carbs, 18g fibre), so accept either form.
+
+Alcohol is not a printed macro, so a cocktail's calories legitimately exceed
+4P+4C+9F. Those rows are identified by **section heading** (`alcohol_until` in
+the brand config), not by guessing brand names, and the shortfall is stored as
+`alcohol_g`. The parser aborts if the end-marker heading is missing, rather than
+writing derived alcohol onto food.
+
+Chains that publish real gram weights (The Keg) set `serving_is_grams: True`.
+The rest publish per-item figures only, so rows are stored `serving_size_g =
+NULL` with `serving_size_desc = "1 serving"` — the serving-only path described
+under the serving-size invariant above.
+
+Rejected rows are reported, not imported. Most are the publisher's own
+inconsistencies: P.F. Chang's spare ribs and TGI's "Wings Only - Boneless 8 PC"
+(310 kcal listed against 33g of fat, which is 297 kcal by itself).
+
+
 ## Development Workflow
 ```bash
 # Deploy everything
