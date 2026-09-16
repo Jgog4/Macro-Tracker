@@ -131,6 +131,12 @@ def fetch_pdf(url: str) -> bytes:
     return body
 
 
+# A menu section whose heading carries a lowercase explanation, so the
+# "headings are all-caps" test does not catch it — Earls prints
+# "MAINS (includes sides unless otherwise noted...)" on its own line, which
+# would otherwise be glued onto the first dish under it.
+SECTION_HEADING = re.compile(r"^[A-Z][A-Z0-9 &'/+-]{2,}\s*\(")
+
 _HEADER_WORD = re.compile(
     r"^(cals?|calories|fat|sat|saturated|trans|chol|cholesterol|sodium|sod|"
     r"carb|carbs|carbohydrates?|fib|fibre|fiber|sug|sugars?|prot|protein|"
@@ -463,6 +469,7 @@ def parse_guide(body: bytes) -> ParsedGuide:
                     and len(rows[i]["cells"]) < 4
                     and not SKIP_NAME.match(rows[i]["name"])
                     and not _looks_like_header(rows[i]["name"])
+                    and not SECTION_HEADING.match(rows[i]["name"])
                     and rows[i]["name"] != rows[i]["name"].upper())
 
         for i, row in enumerate(rows):

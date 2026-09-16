@@ -405,9 +405,20 @@ poisons keyword matching. So the columns are identified by what the numbers
 3. Fill the gaps by label order — saturated, trans, cholesterol, sodium between
    fat and carbs; fibre then sugar between carbs and protein.
 
-Verified against five guides with four different layouts, including Olive
-Garden, which centres each item's name on its own line directly over the number
-columns — so "the name is the text left of the table" is not a safe assumption.
+Verified against six guides with five different layouts. Two that broke early
+assumptions and are worth knowing about:
+
+- **Olive Garden** centres each item's name on its own line directly over the
+  number columns, so "the name is the text left of the table" is not safe. A
+  line with no figures is a name line wherever it sits.
+- **Earls** prints section headings with a lowercase explanation —
+  `MAINS (includes sides unless otherwise noted...)` — which defeats the
+  "headings are all-caps" test and glues the heading onto the first dish under
+  it. `SECTION_HEADING` catches that shape.
+
+Both failures produced plausible-looking rows rather than errors, which is the
+recurring hazard here: a PDF parser fails quietly. Re-run all six guides after
+any change to the row/name logic — one fix silently cost Panera three items.
 
 `import_restaurant_cfa.py` is separate because Chick-fil-A publishes nutrition
 as embedded JSON per menu page rather than as a PDF.
