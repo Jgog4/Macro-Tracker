@@ -11,6 +11,12 @@ so the layout is recovered from the document itself:
      holding at least 60% of the busiest cluster's members are the table; stray
      numbers inside item names ("2 oz") fall far below that line.
 
+     This runs in two passes, because growing a column by proximity in one pass
+     lets a few stray numbers chain two real columns into one — five tokens in
+     Olive Garden's guide were enough to bridge a 37pt gap and swallow its
+     sodium column. Tight sites first, drop the ones almost nothing lands on,
+     then join what survives.
+
   2. **Identify the columns by what the numbers *mean*.** Header text is not
      dependable — Panera stores its headers reversed ("eziS gnivreS"), TGI
      splits them across lines, and body text sitting near a column poisons any
@@ -56,6 +62,9 @@ MAX_PDF_BYTES = 25 * 1024 * 1024
 MAX_PAGES = 60
 
 COL_GAP = 8.0           # x-distance that still counts as the same column
+SITE_GAP = 2.0          # tight first-pass grouping, before sparse sites are dropped
+SITE_MIN_SHARE = 0.05   # of the busiest site, to survive that cull
+MIN_SITE_HITS = 3
 COL_TOLERANCE = 14.0    # how far a value may sit from its column centre
 LINE_TOLERANCE = 4.0    # vertical gap that still counts as the same row
 WRAP_MAX_GAP = 14.0     # a wrapped name is never further than one row away
@@ -67,7 +76,15 @@ ENERGY_FLOOR_KCAL = 35  # small items round hard; a flat % is unfair to them
 MIN_ANCHOR_ROWS = 10
 MAX_ANCHOR_ERROR = 0.20
 
-NUMERIC = re.compile(r"^(?:[\d,]+(?:\.\d+)?|N/A|--|<\d+)$")
+# A bracket on either side is part of the presentation, not the value: the US
+# Earls guide prints calories and sodium as "(710)" and "(3,530)". That PDF also
+# stores its text mirrored — its header reads ")g( )g( )gm(" — so a bracket can
+# arrive facing either way, and requiring a matched pair would miss it.
+NUMERIC = re.compile(
+    r"^(?:[\d,]+(?:\.\d+)?|N/A|--|<\d+)$"      # a plain value
+    r"|^\([\d,]+(?:\.\d+)?\)$"                 # "(710)"
+    r"|^\)[\d,]+(?:\.\d+)?\($"                 # the same, mirrored
+)
 
 # Canonical FDA label order, used to fill the gaps between the anchors.
 BETWEEN_FAT_AND_CARBS = ["sat_fat_g", "trans_fat_g", "cholesterol_mg", "sodium_mg"]
@@ -173,7 +190,7 @@ def _to_float(text: str | None) -> float | None:
     if text in (None, "", "N/A", "--"):
         return None
     try:
-        return float(str(text).replace(",", "").lstrip("<"))
+        return float(str(text).replace(",", "").strip("()").lstrip("<"))
     except ValueError:
         return None
 
@@ -192,12 +209,33 @@ def _find_columns(pages: list[list[dict]]) -> list[float]:
             "No numbers found in that PDF. If it is a scanned image rather than "
             "a text document, the figures cannot be read."
         )
-    groups: list[list[float]] = []
-    for x in xs:
-        if groups and x - groups[-1][-1] <= COL_GAP:
-            groups[-1].append(x)
-        else:
-            groups.append([x])
+    def link(values: list[float], gap: float) -> list[list[float]]:
+        out: list[list[float]] = []
+        for x in values:
+            if out and x - out[-1][-1] <= gap:
+                out[-1].append(x)
+            else:
+                out.append([x])
+        return out
+
+    # Cluster in two passes. Growing a column by proximity in one pass is
+    # fragile: a handful of stray numbers spaced a few points apart will chain
+    # two real columns into one. Olive Garden has exactly five such tokens, and
+    # they were enough to bridge a 37pt gap and swallow its sodium column.
+    #
+    # So first group tightly into sites, discard the sites almost nothing lands
+    # on — a real column is written to on nearly every row, a stray number is
+    # not — and only then join what survives into columns.
+    sites = link(xs, SITE_GAP)
+    if not sites:
+        raise ParseError("That PDF does not have enough numeric columns.")
+    busiest_site = max(len(s) for s in sites)
+    kept = [s for s in sites
+            if len(s) >= max(MIN_SITE_HITS, busiest_site * SITE_MIN_SHARE)]
+    if not kept:
+        raise ParseError("That PDF does not have enough numeric columns.")
+
+    groups = link([x for s in kept for x in s], COL_GAP)
     busiest = max(len(g) for g in groups)
     return [round(statistics.median(g), 1) for g in groups
             if len(g) / busiest >= COLUMN_MIN_SHARE]

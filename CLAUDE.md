@@ -405,8 +405,8 @@ poisons keyword matching. So the columns are identified by what the numbers
 3. Fill the gaps by label order — saturated, trans, cholesterol, sodium between
    fat and carbs; fibre then sugar between carbs and protein.
 
-Verified against six guides with five different layouts. Two that broke early
-assumptions and are worth knowing about:
+Verified against seven guides with six different layouts. Three that broke
+early assumptions and are worth knowing about:
 
 - **Olive Garden** centres each item's name on its own line directly over the
   number columns, so "the name is the text left of the table" is not safe. A
@@ -416,9 +416,17 @@ assumptions and are worth knowing about:
   "headings are all-caps" test and glues the heading onto the first dish under
   it. `SECTION_HEADING` catches that shape.
 
-Both failures produced plausible-looking rows rather than errors, which is the
-recurring hazard here: a PDF parser fails quietly. Re-run all six guides after
-any change to the row/name logic — one fix silently cost Panera three items.
+- **Earls USA** prints calories and sodium in brackets — `(710)`, `(3,530)` —
+  and stores its text mirrored (header: `)g( )g( )gm(`). A numeric pattern of
+  bare digits skipped both columns entirely, so the energy search had no
+  calories column to find and the guide was rejected outright.
+
+These failures mostly produced plausible-looking rows rather than errors, which
+is the recurring hazard: a PDF parser fails quietly. Re-run **all seven** guides
+after any change to column, row or name logic — the fixes interact. Widening the
+numeric pattern for Earls USA broke Olive Garden, because five newly-matched
+tokens chained two of its columns together; that is what the two-pass clustering
+in `_find_columns` is for.
 
 `import_restaurant_cfa.py` is separate because Chick-fil-A publishes nutrition
 as embedded JSON per menu page rather than as a PDF.
