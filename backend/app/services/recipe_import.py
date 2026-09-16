@@ -450,7 +450,20 @@ def _ingredient_option_line(parent: dict, option: str) -> dict:
     the latter inherit ten pods as ten teaspoons. Explicit alternative
     measures therefore override the parent; name-only choices inherit it.
     """
-    parsed = _fallback_parse_item(option)
+    parsed = _fallback_parse_item(option.strip(" ()"))
+    # Models sometimes return only the alternative food name even though the
+    # source line includes its measure. Recover it deterministically from the
+    # source rather than making the person re-enter a clearly stated amount.
+    if parsed.get("quantity") is None:
+        wanted = set(_normalise(option).split())
+        for source_option in _CHOICE_SPLIT.split(parent.get("raw") or "")[1:]:
+            source_parsed = _fallback_parse_item(source_option.strip(" ()"))
+            source_name = set(_normalise(source_parsed.get("name") or "").split())
+            if source_parsed.get("quantity") is not None and (
+                not wanted or wanted <= source_name or source_name <= wanted
+            ):
+                parsed = source_parsed
+                break
     if parsed.get("quantity") is not None:
         return {
             **parent,

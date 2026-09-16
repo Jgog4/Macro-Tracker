@@ -78,6 +78,7 @@ _DENSITY = {
     # Tomato paste is much denser than fresh tomato. Three US tablespoons are
     # about 49 g, not three whole tomatoes (369 g).
     "tomato paste": 1.10, "tomato puree": 1.06, "passata": 1.04,
+    "diced tomato": 0.68, "chopped tomato": 0.68,
     "mayonnaise": 0.91, "peanut butter": 1.08, "tahini": 1.05,
     "rice": 0.85, "oats": 0.41, "rolled oats": 0.41, "breadcrumbs": 0.43,
     "salt": 1.22, "kosher salt": 0.69, "baking powder": 0.90, "baking soda": 1.10,

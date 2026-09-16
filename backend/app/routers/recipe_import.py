@@ -141,7 +141,13 @@ def _word_variants(word: str) -> list[str]:
     """
     w = word.lower()
     out = {w}
-    if w.endswith("ies") and len(w) > 4:
+    # chilli/chili are exceptional: their common plurals are chillies/chilies,
+    # not the generic consonant+y form (which produced the adjective "chilly").
+    if w == "chillies":
+        out.add("chilli")
+    elif w == "chilies":
+        out.add("chili")
+    elif w.endswith("ies") and len(w) > 4:
         out.add(w[:-3] + "y")
     elif w.endswith("es") and len(w) > 3:
         out.add(w[:-2]); out.add(w[:-1])

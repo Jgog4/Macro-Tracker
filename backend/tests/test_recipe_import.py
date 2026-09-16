@@ -203,6 +203,18 @@ class RecipeChoiceTests(unittest.TestCase):
         self.assertEqual(option["unit"], "tsp")
         self.assertEqual(option["name"], "ground cardamom")
 
+    def test_recovers_alternative_measure_when_model_returns_name_only(self):
+        parent = {
+            "raw": "10 green cardamom pods or 1/2 tsp ground cardamom",
+            "quantity": 10,
+            "unit": "pods",
+            "name": "green cardamom pods",
+        }
+        option = _ingredient_option_line(parent, "ground cardamom")
+        self.assertEqual(option["quantity"], 0.5)
+        self.assertEqual(option["unit"], "tsp")
+        self.assertEqual(option["name"], "ground cardamom")
+
     def test_name_only_alternative_inherits_primary_measure(self):
         parent = {"quantity": 0.25, "unit": "cup", "name": "ghee"}
         option = _ingredient_option_line(parent, "vegetable oil")
