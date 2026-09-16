@@ -184,6 +184,30 @@ const WEIGHT_SOURCE = {
   "item:usda":    "Estimated from USDA item weights — worth a glance.",
 };
 
+function DiscardImportDialog({ onKeepEditing, onDiscard }) {
+  return (
+    <>
+      <div className="fixed inset-0 z-[110] bg-black/55" onClick={onKeepEditing} />
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-5 pointer-events-none">
+        <div className="w-full max-w-sm rounded-2xl bg-surface-1 shadow-2xl p-5 pointer-events-auto">
+          <h3 className="text-base font-bold text-foreground">Discard this recipe import?</h3>
+          <p className="text-sm text-muted mt-1.5">
+            The imported recipe and any changes you made will be lost.
+          </p>
+          <div className="flex gap-2 mt-5">
+            <button type="button" onClick={onKeepEditing} className="btn-ghost flex-1">
+              Keep editing
+            </button>
+            <button type="button" onClick={onDiscard} className="btn-danger flex-1">
+              Discard import
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function RecipeImportModal({ onClose, onSaved }) {
   const [step, setStep]       = useState("input");   // input | review
   const [url, setUrl]         = useState("");
@@ -203,6 +227,21 @@ export default function RecipeImportModal({ onClose, onSaved }) {
   const [barcodeLineIndex, setBarcodeLineIndex] = useState(null);
   const [barcodeSavingIndex, setBarcodeSavingIndex] = useState(null);
   const [barcodeError, setBarcodeError] = useState(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  // ModalShell sends the close button and backdrop taps through this handler.
+  // Always confirm: even the input screen may hold a pasted ingredient list.
+  const requestClose = () => {
+    if (busy || saving || barcodeSavingIndex != null) return;
+    setConfirmDiscard(true);
+  };
+
+  const discardDialog = confirmDiscard && (
+    <DiscardImportDialog
+      onKeepEditing={() => setConfirmDiscard(false)}
+      onDiscard={onClose}
+    />
+  );
 
   // ── run the pipeline ──────────────────────────────────────────────────────
   const runImport = async (useText) => {
@@ -340,7 +379,8 @@ export default function RecipeImportModal({ onClose, onSaved }) {
   // ── screen 1: URL / paste ─────────────────────────────────────────────────
   if (step === "input") {
     return (
-      <ModalShell onClose={onClose} title="Import Recipe">
+      <>
+      <ModalShell onClose={requestClose} title="Import Recipe">
         <div className="flex flex-col gap-4">
           <p className="text-xs text-muted -mt-1">
             Paste a recipe link. Ingredients are matched against verified nutrition
@@ -424,6 +464,8 @@ export default function RecipeImportModal({ onClose, onSaved }) {
           )}
         </div>
       </ModalShell>
+      {discardDialog}
+      </>
     );
   }
 
@@ -436,7 +478,7 @@ export default function RecipeImportModal({ onClose, onSaved }) {
 
   return (
     <>
-    <ModalShell onClose={onClose} title="Review Import">
+    <ModalShell onClose={requestClose} title="Review Import">
       <div className="flex flex-col gap-3">
 
         <input
@@ -795,6 +837,7 @@ export default function RecipeImportModal({ onClose, onSaved }) {
         onFoodScanned={useBarcodeMatch}
       />
     )}
+    {discardDialog}
     </>
   );
 }
