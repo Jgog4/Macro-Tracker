@@ -102,7 +102,19 @@ export default function RecipesPage() {
 
                 {/* Name + ingredient count */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{recipe.name}</p>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">{recipe.name}</p>
+                    {recipe.is_imported && (
+                      <span
+                        title={recipe.source_url
+                          ? "Imported from a recipe link"
+                          : "Imported from a pasted ingredient list"}
+                        className="shrink-0 rounded-md bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-accent-blue"
+                      >
+                        Imported recipe
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-muted mt-0.5">
                     {recipe.ingredients.length} ingredient{recipe.ingredients.length !== 1 ? "s" : ""}
                     {recipe.serving_size_g ? ` · ${recipe.serving_size_g}g cooked` : ""}

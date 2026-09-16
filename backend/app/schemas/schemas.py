@@ -241,6 +241,10 @@ class RecipeRead(BaseModel):
     id:             str
     name:           str
     description:    Optional[str]   = None
+    source_url:     Optional[str]   = None
+    # Derived from recipe-import history, rather than duplicated in the recipe
+    # table, so recipes that were imported before this UI label still appear.
+    is_imported:    bool            = False
     serving_size_g: Optional[float] = None
     total_weight_g: Optional[float] = None
     num_servings:   int             = 1

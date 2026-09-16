@@ -12,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models.models import Ingredient, MealLog, MealLogItem, Recipe, RecipeIngredient
+from app.models.models import (
+    Ingredient, MealLog, MealLogItem, Recipe, RecipeImportLog, RecipeIngredient,
+)
 from app.schemas.schemas import RecipeCreate, RecipeRead, RecipeUpdate
 from app.services.recipe_math import compute_recipe_totals
 
@@ -22,6 +24,21 @@ router = APIRouter(prefix="/recipes", tags=["Recipes"])
 def _compute_recipe_totals(ingredients_with_qty: list[tuple]) -> dict:
     """Backward-compatible name used by existing scripts and import code."""
     return compute_recipe_totals(ingredients_with_qty)
+
+
+async def _attach_import_metadata(db: AsyncSession, recipes: list[Recipe]) -> None:
+    """Expose importer provenance without a duplicate Recipe database column."""
+    if not recipes:
+        return
+    recipe_ids = [recipe.id for recipe in recipes]
+    imported_ids = set((await db.execute(
+        select(RecipeImportLog.recipe_id).where(
+            RecipeImportLog.recipe_id.in_(recipe_ids)
+        )
+    )).scalars())
+    for recipe in recipes:
+        # source_url covers imports saved before import history was linked.
+        recipe.is_imported = recipe.id in imported_ids or bool(recipe.source_url)
 
 
 @router.post("/", response_model=RecipeRead, status_code=status.HTTP_201_CREATED)
@@ -63,7 +80,9 @@ async def create_recipe(body: RecipeCreate, db: AsyncSession = Depends(get_db)):
         select(Recipe).where(Recipe.id == recipe.id)
         .options(selectinload(Recipe.ingredients).selectinload(RecipeIngredient.ingredient))
     )
-    return result.scalar_one()
+    row = result.scalar_one()
+    await _attach_import_metadata(db, [row])
+    return row
 
 
 @router.get("/", response_model=list[RecipeRead])
@@ -102,6 +121,7 @@ async def list_recipes(
             u = by_id.get(r.id)
             r.last_logged = u.last_logged if u else None
             r.log_count   = u.log_count if u else 0
+    await _attach_import_metadata(db, rows)
     return rows
 
 
@@ -114,6 +134,7 @@ async def get_recipe(recipe_id: str, db: AsyncSession = Depends(get_db)):
     row = result.scalar_one_or_none()
     if not row:
         raise HTTPException(status_code=404, detail="Recipe not found")
+    await _attach_import_metadata(db, [row])
     return row
 
 
@@ -166,7 +187,9 @@ async def update_recipe(recipe_id: str, body: RecipeUpdate, db: AsyncSession = D
         select(Recipe).where(Recipe.id == recipe_id)
         .options(selectinload(Recipe.ingredients).selectinload(RecipeIngredient.ingredient))
     )
-    return result.scalar_one()
+    row = result.scalar_one()
+    await _attach_import_metadata(db, [row])
+    return row
 
 
 @router.delete("/{recipe_id}", status_code=status.HTTP_204_NO_CONTENT)
