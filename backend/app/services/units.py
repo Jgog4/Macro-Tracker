@@ -71,13 +71,13 @@ _DENSITY = {
     "honey": 1.42, "maple syrup": 1.32, "molasses": 1.40, "corn syrup": 1.38,
     "olive oil": 0.918, "vegetable oil": 0.92, "canola oil": 0.92,
     "coconut oil": 0.92, "sesame oil": 0.92, "oil": 0.92,
-    "butter": 0.911, "margarine": 0.91,
+    "ghee": 0.911, "butter": 0.911, "margarine": 0.91,
     "milk": 1.03, "buttermilk": 1.03, "cream": 1.00, "yogurt": 1.03, "yoghurt": 1.03,
     "water": 1.0, "stock": 1.0, "broth": 1.0, "juice": 1.04, "vinegar": 1.01,
     "soy sauce": 1.15, "fish sauce": 1.20, "ketchup": 1.14,
     # Tomato paste is much denser than fresh tomato. Three US tablespoons are
     # about 49 g, not three whole tomatoes (369 g).
-    "tomato paste": 1.10,
+    "tomato paste": 1.10, "tomato puree": 1.06, "passata": 1.04,
     "mayonnaise": 0.91, "peanut butter": 1.08, "tahini": 1.05,
     "rice": 0.85, "oats": 0.41, "rolled oats": 0.41, "breadcrumbs": 0.43,
     "salt": 1.22, "kosher salt": 0.69, "baking powder": 0.90, "baking soda": 1.10,
@@ -95,6 +95,11 @@ _DENSITY = {
     # them as countable foods makes "2 tsp dried oregano" fall through to an
     # unrelated remembered per-item weight (e.g. 70 g), which is wildly wrong.
     # These values are grams per mL, based on common teaspoon weights.
+    "minced garlic": 0.57, "fresh garlic": 0.57, "garlic": 0.57,
+    "garam masala": 0.38, "ground coriander": 0.36, "coriander seed": 0.36,
+    "ground cardamom": 0.40, "cardamom": 0.40,
+    "fresh cilantro": 0.068, "cilantro": 0.068,
+    "fresh coriander": 0.068, "coriander leaves": 0.068,
     "italian seasoning": 0.20, "dried oregano": 0.20, "oregano": 0.20,
     "dried basil": 0.21, "dried parsley": 0.20, "dried thyme": 0.27,
     "dried rosemary": 0.23, "cumin": 0.42, "paprika": 0.44,
@@ -116,6 +121,15 @@ _COUNT_WEIGHTS: dict[str, dict[str, float]] = {
     # One dried bay leaf is roughly 0.2 g. USDA portion lists sometimes expose
     # a 24 g package/household amount that must never be treated as one leaf.
     "bay leaf":     {"": 0.2},
+    "cardamom pod": {"": 0.2},
+    # Recipe chillies vary, but a 15 g small whole chilli is a materially safer
+    # default than blocking the import or mistaking the number for grams.
+    "chilli pepper": {"": 15},
+    "chili pepper":  {"": 15},
+    "green chilli":  {"": 15},
+    "red chilli":    {"": 15},
+    "green chili":   {"": 15},
+    "red chili":     {"": 15},
     "egg":          {"jumbo": 63, "extra large": 56, "large": 50, "medium": 44, "small": 38, "": 50},
     "onion":        {"large": 150, "medium": 110, "small": 70, "": 110},
     "spring onion": {"": 15},
@@ -167,6 +181,10 @@ def count_weight(name: str, size: Optional[str]) -> Optional[tuple[float, bool]]
         # misses tomatoes/potatoes; the old permissive suffix also failed on
         # leaf/leaves and could match unrelated words.
         plurals = {f"{key}s"}
+        if key.endswith("chilli") or key.endswith("chili"):
+            plurals.add(f"{key[:-1]}ies")
+        if key.endswith("y"):
+            plurals.add(f"{key[:-1]}ies")
         if key.endswith("leaf"):
             plurals.add(f"{key[:-4]}leaves")
         if key.endswith("o"):
@@ -197,6 +215,7 @@ def item_weight_is_plausible(name: str, unit: Optional[str], grams: float) -> bo
     text = f"{name or ''} {unit or ''}".lower()
     bounds = (
         (r"\bbay\s+lea(?:f|ves)\b", 0.02, 2.0),
+        (r"\bcardamom\s+pods?\b|\bpods?\s+cardamom\b", 0.03, 1.0),
         (r"\bpeppercorns?\b", 0.01, 1.0),
         (r"\bgarlic\s+cloves?\b|\bcloves?\s+garlic\b", 0.3, 15.0),
         (r"\b(?:herb\s+)?sprigs?\b", 0.05, 20.0),

@@ -617,13 +617,21 @@ export default function RecipeImportModal({ onClose, onSaved }) {
                                 type="button"
                                 onClick={() => setLines(ls => ls.map((x, j) => {
                                   if (j !== i) return x;
-                                  const updated = reprice(x, x.grams, option.match);
+                                  const optionBase = {
+                                    ...x,
+                                    quantity: option.quantity,
+                                    unit: option.unit,
+                                    grams: option.grams,
+                                    gram_method: option.gram_method,
+                                  };
+                                  const updated = reprice(optionBase, option.grams, option.match);
                                   return {
                                     ...updated,
                                     name: option.name,
                                     alternates: option.alternates || [],
                                     alias_learn: false,
-                                    needs_review: !option.match || !x.grams,
+                                    weight_was_edited: false,
+                                    needs_review: !option.match || !option.grams,
                                   };
                                 }))}
                                 className={`text-[11px] px-2 py-1 rounded-md font-semibold ${
@@ -638,7 +646,7 @@ export default function RecipeImportModal({ onClose, onSaved }) {
                           })}
                         </div>
                         <p className="text-[10px] text-muted">
-                          Switching keeps the same recipe weight; it does not add both foods.
+                          Each choice uses its own converted amount; only one is added.
                         </p>
                       </div>
                     )}
@@ -646,6 +654,7 @@ export default function RecipeImportModal({ onClose, onSaved }) {
                     <div className="flex items-center gap-2">
                       <label className="text-[11px] text-muted w-14">Weight</label>
                       <input
+                        key={l.name}
                         type="text" inputMode="decimal"
                         defaultValue={l.grams ?? ""}
                         onInput={e => {

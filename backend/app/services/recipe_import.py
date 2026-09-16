@@ -441,6 +441,32 @@ def _fallback_parse_item(raw: str) -> dict:
     }
 
 
+def _ingredient_option_line(parent: dict, option: str) -> dict:
+    """Build one measurable either/or option from a parsed ingredient line.
+
+    Most alternatives share the primary amount (``ghee or vegetable oil``),
+    but some state their own measure (``10 cardamom pods or 1/2 tsp ground
+    cardamom``). Treating every alternative as a name-only replacement made
+    the latter inherit ten pods as ten teaspoons. Explicit alternative
+    measures therefore override the parent; name-only choices inherit it.
+    """
+    parsed = _fallback_parse_item(option)
+    if parsed.get("quantity") is not None:
+        return {
+            **parent,
+            "quantity": parsed.get("quantity"),
+            "unit": parsed.get("unit"),
+            "name": parsed.get("name") or option,
+            "prep_state": parsed.get("prep_state") or parent.get("prep_state"),
+            "alternatives": [],
+        }
+    return {
+        **parent,
+        "name": _apply_culinary_default(option),
+        "alternatives": [],
+    }
+
+
 def _json_from(raw: str) -> Optional[Any]:
     """Pull the first JSON object/array out of a model reply."""
     if not raw:

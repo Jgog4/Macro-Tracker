@@ -31,7 +31,10 @@ _FORM_GROUPS = {
     "liquid_product": {"juice", "broth", "stock", "soup", "drink"},
     "prepared": {"fried", "breaded", "battered", "cooked", "smoked", "pickled"},
     "substitute": {"substitute", "imitation", "nondairy", "non", "dairy", "plant"},
-    "flavoured": {"flavoured", "flavored", "vanilla", "chocolate", "strawberry"},
+    "flavoured": {
+        "flavoured", "flavored", "fruit", "vanilla", "chocolate",
+        "strawberry", "toffee", "hazelnut",
+    },
     # Finished foods that merely contain the requested ingredient. A plain
     # recipe line such as "cinnamon" must resolve to the spice, not a cinnamon
     # bun or cereal. Explicit queries ("cinnamon bun") still permit the form.

@@ -6,7 +6,8 @@ from pydantic import ValidationError
 
 from app.schemas.recipe_import import SaveLine, SaveRequest
 from app.services.recipe_import import (
-    _apply_culinary_default, _fallback_parse_item, _ingredient_choices, _recover_stated_unit,
+    _apply_culinary_default, _fallback_parse_item, _ingredient_choices,
+    _ingredient_option_line, _recover_stated_unit,
 )
 from app.services.recipe_math import compute_recipe_totals
 from app.services.units import item_weight_is_plausible, to_grams
@@ -155,6 +156,26 @@ class RecipeUnitRecoveryTests(unittest.TestCase):
         self.assertEqual(method, "density")
         self.assertAlmostEqual(grams, 50.0, places=1)
 
+    def test_chicken_korma_volume_ingredients_convert_without_manual_weights(self):
+        cases = (
+            (0.25, "cup", "ghee", 53.9),
+            (2, "tbsp", "minced garlic", 16.9),
+            (2, "tsp", "garam masala", 3.7),
+            (0.5, "cup", "tomato puree", 125.4),
+            (1, "tbsp", "minced cilantro", 1.0),
+        )
+        for quantity, unit, name, expected in cases:
+            with self.subTest(name=name):
+                grams, method = to_grams(quantity, unit, name)
+                self.assertEqual(method, "density")
+                self.assertAlmostEqual(grams, expected, places=1)
+
+    def test_chicken_korma_count_ingredients_use_culinary_weights(self):
+        cardamom_g, cardamom_method = to_grams(10, "pods", "green cardamom pods")
+        chilli_g, chilli_method = to_grams(2, None, "green chillies")
+        self.assertEqual((cardamom_g, cardamom_method), (2.0, "count"))
+        self.assertEqual((chilli_g, chilli_method), (30.0, "count"))
+
 
 class RecipeChoiceTests(unittest.TestCase):
     def test_chooses_primary_and_preserves_meat_alternative(self):
@@ -166,6 +187,28 @@ class RecipeChoiceTests(unittest.TestCase):
         primary, alternatives = _ingredient_choices("red or yellow onion")
         self.assertEqual(primary, "red onion")
         self.assertEqual(alternatives, ["yellow onion"])
+
+    def test_alternative_with_own_measure_does_not_inherit_primary_quantity(self):
+        parent = {
+            "raw": "10 cardamom pods or 1/2 tsp ground cardamom",
+            "quantity": 10,
+            "unit": "pods",
+            "name": "green cardamom pods",
+            "prep_state": None,
+            "flags": [],
+            "confidence": 0.95,
+        }
+        option = _ingredient_option_line(parent, "1/2 tsp ground cardamom")
+        self.assertEqual(option["quantity"], 0.5)
+        self.assertEqual(option["unit"], "tsp")
+        self.assertEqual(option["name"], "ground cardamom")
+
+    def test_name_only_alternative_inherits_primary_measure(self):
+        parent = {"quantity": 0.25, "unit": "cup", "name": "ghee"}
+        option = _ingredient_option_line(parent, "vegetable oil")
+        self.assertEqual(option["quantity"], 0.25)
+        self.assertEqual(option["unit"], "cup")
+        self.assertEqual(option["name"], "vegetable oil")
 
 
 class IngredientIdentityTests(unittest.TestCase):
@@ -193,6 +236,10 @@ class IngredientIdentityTests(unittest.TestCase):
         self.assertGreater(form_penalty(["milk"], "Milk, dry whole"), 0)
         self.assertTrue(is_unsafe_automatic_match(["milk"], "Milk, dry whole"))
         self.assertEqual(form_penalty(["milk"], "Milk, whole, UHT"), 0)
+
+    def test_plain_yogurt_rejects_fruit_yogurt(self):
+        self.assertGreater(form_penalty(["yogurt"], "Yogurt, low fat, fruit"), 0)
+        self.assertEqual(form_penalty(["yogurt", "plain"], "Yogurt, whole milk, plain"), 0)
 
     def test_explicit_dry_milk_is_not_rejected(self):
         self.assertEqual(form_penalty(["milk", "dry"], "Milk, dry whole"), 0)

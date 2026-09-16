@@ -42,7 +42,10 @@ from app.services import units
 from app.services.portions import (
     remember_weight, resolve_item_weight, resolve_volume_weight, split_size,
 )
-from app.services.recipe_import import ExtractionFailed, extract_recipe, parse_ingredient_lines
+from app.services.recipe_import import (
+    ExtractionFailed, _ingredient_option_line, extract_recipe,
+    parse_ingredient_lines,
+)
 
 settings = get_settings()
 router = APIRouter(prefix="/recipes/import", tags=["Recipe import"])
@@ -62,6 +65,20 @@ _SYNONYMS = {
     "single cream": "light cream", "rocket": "arugula", "swede": "rutabaga",
     "prawns": "shrimp", "natural yoghurt": "plain yogurt", "yoghurt": "yogurt",
     "streaky bacon": "bacon", "gammon": "ham", "chips": "french fries",
+}
+
+# Exact recipe shorthand must not use substring replacement. For example,
+# generic "water" means drinking/tap water, but replacing the word inside
+# "water chestnut" would change a real ingredient into nonsense.
+_EXACT_SYNONYMS = {
+    "kosher salt": "salt",
+    "cayenne powder": "cayenne pepper",
+    "coriander": "coriander seed",
+    "green cardamom pods": "cardamom",
+    "cardamom pods": "cardamom",
+    "water": "tap water",
+    "yogurt": "plain yogurt",
+    "cilantro": "coriander cilantro raw",
 }
 
 # Adjectives that describe handling, not identity. Left in the query they pull
@@ -109,6 +126,7 @@ _IMPLIED_VARIETY = {
     # default. Whole milk is the conventional cooking baseline; a dry/powdered
     # milk product is a different ingredient and must be stated explicitly.
     "milk": "whole", "flour": "wheat", "rice": "white",
+    "yogurt": "whole",
 }
 
 
@@ -169,11 +187,48 @@ def _normalise(text: str) -> str:
 
 
 def _expand_synonyms(name: str) -> str:
-    n = name.lower()
+    n = name.lower().strip()
+    exact = _EXACT_SYNONYMS.get(_normalise(n))
+    if exact:
+        return exact
     for src, dst in _SYNONYMS.items():
         if src in n:
             n = n.replace(src, dst)
     return n
+
+
+async def _resolve_line_grams(
+    db: AsyncSession,
+    line: dict,
+    food: Optional[Ingredient],
+    locale: str,
+) -> tuple[Optional[float], str]:
+    """Resolve one parsed option to grams through the shared conversion tiers."""
+    portions = []
+    if food is not None and getattr(food, "usda_fdc_id", None):
+        portions = await _usda_portions(food.usda_fdc_id)
+
+    quantity = line.get("quantity")
+    unit = line.get("unit")
+    name = line.get("name") or ""
+    grams, method = units.to_grams(
+        quantity, unit, name, usda_portions=portions, locale=locale,
+    )
+    is_volume = units.is_volume_unit(unit)
+    if grams is None and is_volume and quantity:
+        grams = await resolve_volume_weight(
+            _expand_synonyms(name), quantity, unit or "", locale,
+        )
+        if grams is not None:
+            method = "usda_volume"
+    if grams is None and not is_volume and quantity and method != "imprecise":
+        per_item, source = await resolve_item_weight(
+            db, _expand_synonyms(name), unit,
+        )
+        if per_item:
+            grams = quantity * per_item
+            method = f"item:{source}"
+    return grams, method
 
 
 async def _get_user(db: AsyncSession) -> User:
@@ -465,46 +520,31 @@ async def preview_import(body: PreviewRequest, db: AsyncSession = Depends(get_db
         # quantities. Resolve each option up front so the review can offer a
         # one-tap substitution without leaving the primary choice unmatched.
         ingredient_options = []
-        option_names = [p.get("name") or "", *(p.get("alternatives") or [])]
-        for option_name in option_names[:4]:
-            option_line = {**p, "name": option_name, "alternatives": []}
+        option_lines = [
+            {**p, "alternatives": []},
+            *[
+                _ingredient_option_line(p, option)
+                for option in (p.get("alternatives") or [])[:3]
+            ],
+        ]
+        for option_index, option_line in enumerate(option_lines):
             option_food, option_alternates = (
-                (food, alternates) if option_name == p.get("name")
+                (food, alternates) if option_index == 0
                 else await _match_ingredient(db, user, option_line)
             )
-            ingredient_options.append((option_name, option_food, option_alternates))
-        portions = []
-        if food is not None and getattr(food, "usda_fdc_id", None):
-            portions = await _usda_portions(food.usda_fdc_id)
-
-        grams, method = units.to_grams(
-            p.get("quantity"), p.get("unit"), p.get("name") or "",
-            usda_portions=portions, locale=body.locale,
-        )
-        # CNF/CoFID foods do not carry an FDC id and therefore lack household
-        # portions. For an unfamiliar cup/spoon measure, ask USDA for a
-        # representative generic portion before asking the user. A volume must
-        # never be sent through the whole-item resolver below.
-        is_volume = units.is_volume_unit(p.get("unit"))
-        if grams is None and is_volume and p.get("quantity"):
-            grams = await resolve_volume_weight(
-                _expand_synonyms(p.get("name") or ""), p["quantity"],
-                p.get("unit") or "", body.locale,
+            option_grams, option_method = await _resolve_line_grams(
+                db, option_line, option_food, body.locale,
             )
-            if grams is not None:
-                method = "usda_volume"
-        # Count-based lines ("2 apples") rarely resolve from the matched food:
-        # CNF and CoFID rows carry no USDA id and so no household measures.
-        # Fall back to the shared resolver, which caches and learns.
-        if grams is None and not is_volume and p.get("quantity") and method != "imprecise":
-            per_item, src = await resolve_item_weight(
-                db, _expand_synonyms(p.get("name") or ""), p.get("unit"))
-            if per_item:
-                grams = p["quantity"] * per_item
-                # Namespaced so the review screen can tell a *stated* weight
-                # from an *inferred* one. Only a weight you taught it yourself
-                # is trusted without a second look.
-                method = f"item:{src}"
+            ingredient_options.append({
+                "line": option_line,
+                "food": option_food,
+                "alternates": option_alternates,
+                "grams": option_grams,
+                "method": option_method,
+            })
+
+        primary = ingredient_options[0]
+        grams, method = primary["grams"], primary["method"]
 
         nutrition = None
         if food is not None and grams:
@@ -521,7 +561,7 @@ async def preview_import(body: PreviewRequest, db: AsyncSession = Depends(get_db
             food is None or grams is None
             # A match with no nutrition data would silently contribute zero —
             # worse than no match, because it looks resolved.
-            or nutrition is None or not nutrition.get("calories")
+            or nutrition is None
             or p.get("confidence", 0) < _CONFIDENCE_FLOOR
             # An inferred per-item weight is a guess, however well sourced.
             # "1 peach" resolved to 35 g in testing — plausible-looking and
@@ -558,19 +598,24 @@ async def preview_import(body: PreviewRequest, db: AsyncSession = Depends(get_db
             ],
             "ingredient_options": [
                 {
-                    "name": option_name,
-                    "match": None if option_food is None else {
-                        "id": option_food.id, "name": option_food.name,
-                        "brand": option_food.brand, "source": option_food.source,
-                        "per_gram": _per_gram(option_food),
+                    "name": option["line"].get("name") or "",
+                    "quantity": option["line"].get("quantity"),
+                    "unit": option["line"].get("unit"),
+                    "grams": round(option["grams"], 1) if option["grams"] else None,
+                    "gram_method": option["method"],
+                    "match": None if option["food"] is None else {
+                        "id": option["food"].id, "name": option["food"].name,
+                        "brand": option["food"].brand,
+                        "source": option["food"].source,
+                        "per_gram": _per_gram(option["food"]),
                     },
                     "alternates": [
                         {"id": a.id, "name": a.name, "brand": a.brand,
                          "source": a.source, "per_gram": _per_gram(a)}
-                        for a in option_alternates
+                        for a in option["alternates"]
                     ],
                 }
-                for option_name, option_food, option_alternates in ingredient_options
+                for option in ingredient_options
             ],
             "nutrition": nutrition,
             "fat_retention": 1.0,
