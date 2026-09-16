@@ -10,7 +10,7 @@ import { useState, useEffect, useCallback } from "react";
 import { foodsApi, recipesApi } from "../api/client";
 import {
   Search, Plus, ChevronRight, ChevronDown, ChevronUp,
-  Loader2, Utensils, Trash2, X, Pencil, Camera, User, Link, ImagePlus,
+  Loader2, Utensils, Trash2, X, Pencil, Camera, User, Link, ImagePlus, FileText,
 } from "lucide-react";
 import RecipeBuilderModal  from "../components/RecipeBuilderModal";
 import IngredientEditModal from "../components/IngredientEditModal";
@@ -18,6 +18,7 @@ import LogFoodModal        from "../components/LogFoodModal";
 import FoodDetailModal     from "../components/FoodDetailModal";
 import UrlFoodModal        from "../components/UrlFoodModal";
 import VisionModal         from "../components/VisionModal";
+import RestaurantImportModal from "../components/RestaurantImportModal";
 
 const TABS = ["Recipes", "My Foods", "Restaurants"];
 
@@ -428,6 +429,8 @@ function RestaurantsTab() {
   const [logging,    setLogging]    = useState(null);
   const [deleting,   setDeleting]   = useState(null);
   const [detail,     setDetail]     = useState(null);
+  const [importing,  setImporting]  = useState(false);
+  const [reloadKey,  setReloadKey]  = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -439,7 +442,7 @@ function RestaurantsTab() {
       } catch { /* silent */ }
       finally { setLoading(false); }
     })();
-  }, []);
+  }, [reloadKey]);
 
   const filtered = query.length < 1
     ? foods
@@ -478,17 +481,37 @@ function RestaurantsTab() {
         <span className="text-4xl">🍽️</span>
         <p className="font-semibold text-foreground">No restaurant items yet</p>
         <p className="text-muted text-sm">
-          Search for Chipotle, Cactus Club, Pokerrito, and others when adding food
+          Import a restaurant’s published nutrition PDF to add its whole menu
         </p>
+        <button
+          onClick={() => setImporting(true)}
+          className="mt-1 flex items-center gap-1.5 rounded-xl bg-accent-blue px-4 py-2.5 text-sm font-semibold text-white"
+        >
+          <FileText size={15} /> Import from PDF
+        </button>
+        {importing && (
+          <RestaurantImportModal
+            onClose={() => setImporting(false)}
+            onSaved={() => { setImporting(false); setReloadKey(k => k + 1); }}
+          />
+        )}
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-muted text-sm">
-        {brands.length} restaurant{brands.length !== 1 ? "s" : ""} · {filtered.length} item{filtered.length !== 1 ? "s" : ""}
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-muted text-sm">
+          {brands.length} restaurant{brands.length !== 1 ? "s" : ""} · {filtered.length} item{filtered.length !== 1 ? "s" : ""}
+        </p>
+        <button
+          onClick={() => setImporting(true)}
+          className="flex items-center gap-1.5 rounded-xl bg-surface-2 px-3 py-1.5 text-xs font-semibold text-accent-blue shrink-0"
+        >
+          <FileText size={13} /> Import PDF
+        </button>
+      </div>
 
       <SearchBox value={query} onChange={setQuery} placeholder="Search restaurants & items…" />
 
@@ -583,6 +606,12 @@ function RestaurantsTab() {
           food={detail}
           onClose={() => setDetail(null)}
           onLog={() => { setDetail(null); setLogging(detail); }}
+        />
+      )}
+      {importing && (
+        <RestaurantImportModal
+          onClose={() => setImporting(false)}
+          onSaved={() => { setImporting(false); setReloadKey(k => k + 1); }}
         />
       )}
     </div>

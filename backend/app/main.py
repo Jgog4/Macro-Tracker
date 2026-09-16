@@ -19,7 +19,8 @@ from sqlalchemy import text
 
 from app.config import get_settings
 from app.database import Base, engine
-from app.routers import foods, meals, recipes, recipe_import, vision, api_keys, export, auth as auth_router
+from app.routers import (foods, meals, recipes, recipe_import, restaurant_import,
+                         vision, api_keys, export, auth as auth_router)
 from app.auth import require_auth
 
 settings = get_settings()
@@ -211,6 +212,7 @@ app.include_router(foods.router,    prefix="/api/v1", dependencies=_gated)
 app.include_router(meals.router,    prefix="/api/v1", dependencies=_gated)
 app.include_router(recipes.router,  prefix="/api/v1", dependencies=_gated)
 app.include_router(recipe_import.router, prefix="/api/v1", dependencies=_gated)
+app.include_router(restaurant_import.router, prefix="/api/v1", dependencies=_gated)
 app.include_router(vision.router,   prefix="/api/v1", dependencies=_gated)
 app.include_router(api_keys.router, prefix="/api/v1", dependencies=_gated)
 app.include_router(export.router,   prefix="/api/v1", dependencies=_gated)

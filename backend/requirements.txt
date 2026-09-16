@@ -19,6 +19,8 @@ httpx==0.26.0
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
 pandas==2.2.0                 # CSV seeding script
+pdfplumber==0.11.4            # restaurant nutrition-guide PDF import (needs
+                              # x-positions, which plain text extraction loses)
 
 # ── Dev tools ─────────────────────────────────────────────────────────────────
 # Uncomment for local development:

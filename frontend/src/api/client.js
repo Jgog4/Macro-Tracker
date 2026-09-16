@@ -50,6 +50,11 @@ export const recipeImportApi = {
   save:           (body)               => api.post("/recipes/import/save", body),
 };
 
+export const restaurantImportApi = {
+  preview:        (body)               => api.post("/foods/restaurant-import/preview", body, { timeout: 120000 }),
+  save:           (body)               => api.post("/foods/restaurant-import/save", body, { timeout: 120000 }),
+};
+
 export const foodsApi = {
   list:           (source)             => api.get("/foods/",               { params: source ? { source } : {} }),
   search:         (q, params = {})     => api.get("/foods/search",        { params: { q, ...params } }),

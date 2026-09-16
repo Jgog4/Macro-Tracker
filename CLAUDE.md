@@ -366,12 +366,48 @@ connection limits affects both.
 
 ## Restaurant Data
 
-`backend/scripts/import_restaurant_pdf.py` imports a chain's published
-nutrition-guide PDF. One parser; each chain contributes a column map to
-`BRANDS` (keg, pfchangs, tgifridays, panera). Needs `pdfplumber` and
-**python3.13** — `/usr/bin/python3` is 3.9 and cannot even import the models.
-pdfplumber is deliberately kept out of `requirements.txt` so Railway does not
-build it.
+There are two ways in, and the in-app one is now the main path.
+
+**In the app** (Library → Restaurants → Import PDF): paste a link to a chain's
+nutrition PDF and review what was read before it is saved.
+`services/restaurant_pdf.py` + `routers/restaurant_import.py`, with
+`RestaurantImportModal.jsx` on the front end. It takes no hand-written column
+map — see below.
+
+**From the command line**, `backend/scripts/import_restaurant_pdf.py` still
+holds hand-derived column maps for four chains (keg, pfchangs, tgifridays,
+panera). Keep it for re-running a known-good import; use the service for
+anything new. It needs **python3.13** — `/usr/bin/python3` is 3.9 and cannot
+even import the models, and the `.venv` is 3.9 too.
+
+`pdfplumber` is now a real runtime dependency in `requirements.txt` because the
+service runs on Railway. Parsing happens in the web process, so a very large
+guide costs memory on an instance that is billed mostly for memory; `MAX_PAGES`
+and `MAX_PDF_BYTES` in the service are the guards.
+
+### How the layout is worked out without a column map
+
+Header text is not dependable: Panera stores its headers **reversed**
+(`eziS gnivreS`), TGI splits them across lines, and body text near a column
+poisons keyword matching. So the columns are identified by what the numbers
+*mean*:
+
+1. Cluster the x-positions of every numeric word. Clusters holding ≥60% of the
+   busiest cluster's members are the table; stray numbers in item names ("2 oz")
+   fall far below that.
+2. Search for the calories/fat/carbs/protein combination that best satisfies
+   `4P + 4C + 9F ≈ kcal` across the document. **The equation that validates the
+   import also discovers it.** Two constraints keep it honest: calories must
+   dominate the macros (or a guide full of zero-calorie drinks lets an all-zero
+   combination fit perfectly — this is what TGI's bar menu does), and carbs sit
+   left of protein, since 4P and 4C are interchangeable in the equation and
+   every label follows FDA order.
+3. Fill the gaps by label order — saturated, trans, cholesterol, sodium between
+   fat and carbs; fibre then sugar between carbs and protein.
+
+Verified against five guides with four different layouts, including Olive
+Garden, which centres each item's name on its own line directly over the number
+columns — so "the name is the text left of the table" is not a safe assumption.
 
 `import_restaurant_cfa.py` is separate because Chick-fil-A publishes nutrition
 as embedded JSON per menu page rather than as a PDF.
