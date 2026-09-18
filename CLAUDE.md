@@ -461,6 +461,27 @@ inconsistencies: P.F. Chang's spare ribs and TGI's "Wings Only - Boneless 8 PC"
 (310 kcal listed against 33g of fat, which is 297 kcal by itself).
 
 
+### Renaming and deleting a whole restaurant
+
+`GET|PATCH|DELETE /foods/restaurant/brand*` in `foods.py`, driven from the
+brand row in the Restaurants tab (`RestaurantBrandModal.jsx`). All three are
+scoped to `source='restaurant'` so a barcode-scanned packet carrying the same
+brand string is never caught up in them. Renaming onto an existing brand merges
+the two — that is how a guessed or misspelled import name gets fixed.
+
+Delete calls `brand-usage` first and shows what it will cost, because the two
+consequences are **not** symmetrical and a bare "are you sure" hides the one
+that matters:
+
+| Table | ondelete | Effect |
+|---|---|---|
+| `mt_meal_log_items` | SET NULL | Logged days keep their frozen macros; only the library link goes |
+| `mt_recipe_ingredients` | **CASCADE** | The recipe silently loses that ingredient and its totals change |
+
+So the confirmation names the affected recipes and requires a second click when
+there are any. Check those FK policies before adding any other bulk delete.
+
+
 ## Development Workflow
 ```bash
 # Deploy everything

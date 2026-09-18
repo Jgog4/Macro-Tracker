@@ -19,6 +19,7 @@ import FoodDetailModal     from "../components/FoodDetailModal";
 import UrlFoodModal        from "../components/UrlFoodModal";
 import VisionModal         from "../components/VisionModal";
 import RestaurantImportModal from "../components/RestaurantImportModal";
+import RestaurantBrandModal  from "../components/RestaurantBrandModal";
 
 const TABS = ["Recipes", "My Foods", "Restaurants"];
 
@@ -431,6 +432,8 @@ function RestaurantsTab() {
   const [detail,     setDetail]     = useState(null);
   const [importing,  setImporting]  = useState(false);
   const [reloadKey,  setReloadKey]  = useState(0);
+  const [brandAction, setBrandAction] = useState(null);   // { brand, mode }
+  const [notice,     setNotice]     = useState("");
 
   useEffect(() => {
     (async () => {
@@ -513,6 +516,10 @@ function RestaurantsTab() {
         </button>
       </div>
 
+      {notice && (
+        <p className="rounded-xl bg-surface-2 px-3 py-2 text-xs text-foreground">{notice}</p>
+      )}
+
       <SearchBox value={query} onChange={setQuery} placeholder="Search restaurants & items…" />
 
       {brands.length === 0 && query && (
@@ -528,21 +535,42 @@ function RestaurantsTab() {
 
         return (
           <div key={brand} className="card-no-pad">
+            <div className="flex w-full items-center">
             <button
               onClick={() => toggleBrand(brand)}
-              className="flex w-full items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors"
+              className="flex flex-1 min-w-0 items-center gap-3 py-3 pl-4 hover:bg-surface-2 transition-colors"
             >
               <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
                 <span className="text-sm font-bold text-orange-500">{brand.charAt(0).toUpperCase()}</span>
               </div>
               <div className="flex-1 min-w-0 text-left">
-                <p className="text-sm font-semibold text-foreground">{brand}</p>
+                <p className="text-sm font-semibold text-foreground truncate">{brand}</p>
                 <p className="text-[11px] text-muted">{items.length} item{items.length !== 1 ? "s" : ""}</p>
               </div>
               {isOpen
                 ? <ChevronUp size={14} className="text-muted shrink-0" />
                 : <ChevronDown size={14} className="text-muted shrink-0" />}
             </button>
+
+            {/* Siblings of the toggle, not children: a button inside a button
+                is invalid and React warns about it. */}
+            <div className="flex items-center gap-0.5 pr-3 shrink-0">
+              <button
+                onClick={() => setBrandAction({ brand, mode: "rename" })}
+                className="w-8 h-8 flex items-center justify-center rounded-xl text-muted hover:bg-surface-2 hover:text-foreground transition-colors"
+                title={`Rename ${brand}`}
+              >
+                <Pencil size={14} />
+              </button>
+              <button
+                onClick={() => setBrandAction({ brand, mode: "delete" })}
+                className="w-8 h-8 flex items-center justify-center rounded-xl text-muted hover:bg-red-50 hover:text-accent-red transition-colors"
+                title={`Delete ${brand}`}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+            </div>
 
             {isOpen && (
               <div className="border-t border-surface-3">
@@ -612,6 +640,19 @@ function RestaurantsTab() {
         <RestaurantImportModal
           onClose={() => setImporting(false)}
           onSaved={() => { setImporting(false); setReloadKey(k => k + 1); }}
+        />
+      )}
+      {brandAction && (
+        <RestaurantBrandModal
+          brand={brandAction.brand}
+          mode={brandAction.mode}
+          onClose={() => setBrandAction(null)}
+          onDone={(msg) => {
+            setBrandAction(null);
+            setNotice(msg);
+            setOpenBrands({});
+            setReloadKey(k => k + 1);
+          }}
         />
       )}
     </div>

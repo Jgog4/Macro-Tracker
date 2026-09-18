@@ -11,7 +11,8 @@ from sqlalchemy import and_, case, select, or_, func, literal_column, text, Nume
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models.models import Ingredient, MealLog, MealLogItem
+from app.models.models import (Ingredient, MealLog, MealLogItem, Recipe,
+                               RecipeIngredient)
 from app.schemas.schemas import (IngredientCreate, IngredientRead, IngredientUpdate,
                                  OFFSearchResult, USDASearchResult)
 from app.services.usda import search_usda, import_usda_food
@@ -239,6 +240,93 @@ async def list_restaurant_foods(
     stmt = stmt.order_by(Ingredient.brand, Ingredient.name)
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+# ── Whole-brand operations ───────────────────────────────────────────────────
+#
+# These act on every restaurant item under one brand, which is why deleting one
+# needs a warning built on real numbers rather than a bare "are you sure". They
+# are scoped to source='restaurant' so a barcode-scanned packet that happens to
+# carry the same brand string is never caught up in them.
+
+def _brand_items(brand: str):
+    return select(Ingredient).where(
+        Ingredient.source == "restaurant",
+        func.lower(func.coalesce(Ingredient.brand, "")) == brand.strip().lower(),
+    )
+
+
+@router.get("/restaurant/brand-usage")
+async def restaurant_brand_usage(
+    brand: str = Query(..., min_length=1),
+    db:    AsyncSession = Depends(get_db),
+):
+    """
+    What deleting this brand would cost, so the confirmation can say so.
+
+    The two consequences differ and the caller should show both:
+
+      * **Logged meals survive.** mt_meal_log_items keeps a frozen copy of the
+        macros and its ingredient_id is ON DELETE SET NULL, so past days keep
+        their totals — only the link back to the library is lost.
+      * **Recipes lose the ingredient.** mt_recipe_ingredients is ON DELETE
+        CASCADE, so any recipe built on one of these items silently loses that
+        line and its totals change. That is the one that can quietly cost data.
+    """
+    ids = (await db.execute(_brand_items(brand).with_only_columns(Ingredient.id))).scalars().all()
+    if not ids:
+        raise HTTPException(status_code=404, detail="No restaurant items under that name.")
+
+    logged = (await db.execute(
+        select(func.count()).select_from(MealLogItem)
+        .where(MealLogItem.ingredient_id.in_(ids))
+    )).scalar_one()
+
+    recipes = (await db.execute(
+        select(Recipe.name).distinct()
+        .join(RecipeIngredient, RecipeIngredient.recipe_id == Recipe.id)
+        .where(RecipeIngredient.ingredient_id.in_(ids))
+        .order_by(Recipe.name)
+    )).scalars().all()
+
+    return {"brand": brand, "items": len(ids),
+            "logged_items": logged, "recipes": list(recipes)}
+
+
+@router.patch("/restaurant/brand")
+async def rename_restaurant_brand(
+    brand:    str = Query(..., min_length=1),
+    new_name: str = Query(..., min_length=1),
+    db:       AsyncSession = Depends(get_db),
+):
+    """Rename every item under a brand. Renaming onto an existing brand merges
+    the two, which is a legitimate way to fix a guessed name."""
+    new_name = new_name.strip()
+    if not new_name:
+        raise HTTPException(status_code=400, detail="A restaurant name is required.")
+
+    rows = (await db.execute(_brand_items(brand))).scalars().all()
+    if not rows:
+        raise HTTPException(status_code=404, detail="No restaurant items under that name.")
+    for row in rows:
+        row.brand = new_name
+    await db.commit()
+    return {"brand": new_name, "renamed": len(rows)}
+
+
+@router.delete("/restaurant/brand")
+async def delete_restaurant_brand(
+    brand: str = Query(..., min_length=1),
+    db:    AsyncSession = Depends(get_db),
+):
+    """Delete every item under a brand. See brand-usage for the consequences."""
+    rows = (await db.execute(_brand_items(brand))).scalars().all()
+    if not rows:
+        raise HTTPException(status_code=404, detail="No restaurant items under that name.")
+    for row in rows:
+        await db.delete(row)
+    await db.commit()
+    return {"brand": brand, "deleted": len(rows)}
 
 
 # ── USDA FoodData Central ────────────────────────────────────────────────────
