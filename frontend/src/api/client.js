@@ -83,6 +83,7 @@ export const mealsApi = {
   copyMeal:       (mealId, data)       => api.post(`/meals/${mealId}/copy`, data),
   setTarget:      (data)               => api.post("/meals/targets", data),
   getLatestTarget:()                   => api.get("/meals/targets/latest"),
+  getLogRange:    ()                   => api.get("/meals/range"),
 };
 
 // ── Recipes ──────────────────────────────────────────────────────────────────
@@ -109,11 +110,13 @@ export const visionApi = {
 
 // ── Micronutrients ───────────────────────────────────────────────────────────
 export const micronutrientsApi = {
-  // start / end are "yyyy-MM-dd" strings
-  getRange:     (start, end) => api.get("/meals/micronutrients", { params: { start, end } }),
-  getSources:   (nutrient, start, end) => api.get("/meals/nutrient-sources", { params: { nutrient, start, end } }),
-  dailySeries:  (start, end) => api.get("/meals/daily-series",   { params: { start, end } }),
-  nutrientSeries: (start, end) => api.get("/meals/nutrient-series", { params: { start, end } }),
+  // start / end are "yyyy-MM-dd" strings.
+  // A full-history range walks every logged item, so these get an explicit,
+  // generous timeout rather than relying on a default.
+  getRange:     (start, end) => api.get("/meals/micronutrients", { params: { start, end }, timeout: 120000 }),
+  getSources:   (nutrient, start, end) => api.get("/meals/nutrient-sources", { params: { nutrient, start, end }, timeout: 120000 }),
+  dailySeries:  (start, end) => api.get("/meals/daily-series",   { params: { start, end }, timeout: 120000 }),
+  nutrientSeries: (start, end) => api.get("/meals/nutrient-series", { params: { start, end }, timeout: 120000 }),
 };
 
 // ── Export (CSV backup) ──────────────────────────────────────────────────────

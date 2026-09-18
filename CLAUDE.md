@@ -158,7 +158,8 @@ One row per food logged: `id`, `meal_log_id`, `ingredient_id`, `quantity_g`, `se
 - `POST /{mealId}/copy` — copy a meal to another date/meal_number
 - `POST /targets` — save calorie/macro targets
 - `GET /targets/latest`
-- `GET /micronutrients?start=yyyy-MM-dd&end=yyyy-MM-dd` (range capped at 732 days)
+- `GET /micronutrients?start=yyyy-MM-dd&end=yyyy-MM-dd` (see Reports ranges below)
+- `GET /range` — first and last logged day, so Reports can offer "All"
 - `GET /daily-series`, `GET /nutrient-series`, `GET /nutrient-sources` — Reports charts
 - `PATCH|DELETE /items/{id}/components/{component_id}` — edit one component of an
   AI-estimated meal
@@ -480,6 +481,29 @@ that matters:
 
 So the confirmation names the affected recipes and requires a second click when
 there are any. Check those FK policies before adding any other bulk delete.
+
+
+## Reports: ranges and memory
+
+Every range endpoint (`micronutrients`, `nutrient-sources`, `daily-series`,
+`nutrient-series`) shares `MAX_RANGE_DAYS` in `meals.py`. It was **732 days**,
+hardcoded in four places, which quietly became a ceiling on the charts once the
+diary passed two years — the Reports page just failed to load. It is now 20
+years: a guard against a nonsense range, not a limit on viewable history. The
+cost of these queries tracks the number of days *logged*, not the span asked
+for.
+
+These endpoints walk every logged item and total it in Python. Reading each
+result in full costs **~99 MB** of peak memory over a full history, which is the
+wrong thing to spend on an instance billed almost entirely for memory. They now
+stream in batches of `ROW_BATCH` (2000), which costs **~22 MB** for a
+byte-identical answer — verified by diffing all five endpoints' output against
+the previous implementation before shipping. The only trade is more round trips,
+which is cheap on Railway's internal network and expensive over the public proxy
+(so local runs against prod look about twice as slow as production).
+
+If you add another bulk report query, stream it the same way, and diff the
+output against the old code path rather than assuming.
 
 
 ## Development Workflow

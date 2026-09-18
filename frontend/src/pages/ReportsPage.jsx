@@ -19,11 +19,17 @@ const daysAgo   = (n) => format(subDays(new Date(), n - 1), "yyyy-MM-dd");
 const yesterday = () => format(subDays(new Date(), 1), "yyyy-MM-dd");
 
 // ── Period presets ─────────────────────────────────────────────────────────
+// `days: null` means the range is not a fixed window — "all" is resolved from
+// the diary's own first entry, "custom" from the pickers.
 const PRESETS = [
-  { id: "1w",     label: "1 Week",  days: 7  },
-  { id: "2w",     label: "2 Weeks", days: 14 },
-  { id: "1m",     label: "1 Month", days: 30 },
-  { id: "custom", label: "Custom",  days: null },
+  { id: "1w",     label: "1W",     days: 7   },
+  { id: "2w",     label: "2W",     days: 14  },
+  { id: "1m",     label: "1M",     days: 30  },
+  { id: "3m",     label: "3M",     days: 90  },
+  { id: "6m",     label: "6M",     days: 182 },
+  { id: "1y",     label: "1Y",     days: 365 },
+  { id: "all",    label: "All",    days: null },
+  { id: "custom", label: "Custom", days: null },
 ];
 
 const CORE_NUTRIENTS = [
@@ -65,10 +71,23 @@ export default function ReportsPage({ onClose }) {
   const [expanded,     setExpanded]     = useState(null);
   const [trendKey,     setTrendKey]     = useState("fiber_g");
   const [showNutrientFinder, setShowNutrientFinder] = useState(false);
+  const [logRange,     setLogRange]     = useState(null);   // first/last logged day
+
+  // How far back the diary actually goes, so "All" does not have to guess.
+  useEffect(() => {
+    mealsApi.getLogRange()
+      .then(res => setLogRange(res.data))
+      .catch(() => setLogRange(null));
+  }, []);
 
   // Compute start / end dates from preset + toggle
   const { start, end } = useMemo(() => {
     const endDate = includeToday ? todayStr() : yesterday();
+    if (preset === "all") {
+      // Before the range loads, fall back to a year rather than rendering an
+      // empty chart — it is replaced as soon as the first entry is known.
+      return { start: logRange?.start || daysAgo(365), end: endDate };
+    }
     if (preset !== "custom") {
       const p = PRESETS.find(p => p.id === preset);
       return { start: daysAgo(p.days), end: endDate };
@@ -77,7 +96,7 @@ export default function ReportsPage({ onClose }) {
       start: customStart,
       end:   includeToday ? customEnd : (customEnd >= todayStr() ? yesterday() : customEnd),
     };
-  }, [preset, customStart, customEnd, includeToday]);
+  }, [preset, customStart, customEnd, includeToday, logRange]);
 
   // Total calendar days in range
   const totalDays = useMemo(() => {
@@ -144,12 +163,12 @@ export default function ReportsPage({ onClose }) {
 
         {/* ── Period selector ── */}
         <div className="flex flex-col gap-3">
-          <div className="flex bg-surface-2 rounded-xl p-1 gap-1">
+          <div className="grid grid-cols-4 bg-surface-2 rounded-xl p-1 gap-1">
             {PRESETS.map(p => (
               <button
                 key={p.id}
                 onClick={() => setPreset(p.id)}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors
+                className={`py-1.5 rounded-lg text-xs font-semibold transition-colors
                   ${preset === p.id
                     ? "bg-surface-1 text-foreground shadow-sm"
                     : "text-muted hover:text-foreground"}`}

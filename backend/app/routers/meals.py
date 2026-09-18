@@ -45,6 +45,21 @@ from app.schemas.schemas import (
 
 router = APIRouter(prefix="/meals", tags=["Meals"])
 
+# How far back a report may reach. This was two years, which silently became a
+# ceiling on the charts once the diary grew past it — the Reports page just
+# failed to load. The real cost of these queries scales with the number of days
+# actually logged, not with the span asked for, so the limit is now only a guard
+# against a nonsense range (a typo'd year, a bot walking the API) rather than a
+# product decision about how much history is viewable.
+MAX_RANGE_DAYS = 366 * 20
+
+# Report queries walk every logged item in the range and add it up in Python.
+# Reading the whole result at once costs ~99 MB of peak memory over a full
+# history, which is the wrong thing to spend on an instance billed almost
+# entirely for memory. Streaming in batches costs ~22 MB for the same answer;
+# the arithmetic is identical, only the number of round trips changes.
+ROW_BATCH = 2000
+
 # ── Hardcoded single-user shortcut ────────────────────────────────────────────
 DEFAULT_USER_EMAIL = "jesse@macro.app"
 
@@ -386,9 +401,11 @@ async def get_micronutrients(
     """
     user = await _get_or_create_user(db)
 
-    # Validate range (cap at 366 days to avoid huge queries)
-    if (end - start).days > 732:
-        raise HTTPException(status_code=400, detail="Date range cannot exceed 2 years")
+    if (end - start).days > MAX_RANGE_DAYS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Date range cannot exceed {MAX_RANGE_DAYS // 365} years",
+        )
     if end < start:
         raise HTTPException(status_code=400, detail="end must be >= start")
 
@@ -397,7 +414,7 @@ async def get_micronutrients(
     # ── 0. Snapshot macros from ALL items (ingredient AND recipe) ─────────────
     # Recipe items have ingredient_id=NULL (they use recipe_id) — they must still
     # count toward calories/protein/etc. via their snapshotted values.
-    all_items_result = await db.execute(
+    all_items_result = await db.stream(
         select(MealLogItem)
         .join(MealLog, MealLogItem.meal_log_id == MealLog.id)
         .where(
@@ -405,15 +422,16 @@ async def get_micronutrients(
             MealLog.log_date >= start,
             MealLog.log_date <= end,
         )
+        .execution_options(yield_per=ROW_BATCH)
     )
-    for item in all_items_result.scalars().all():
+    async for item in all_items_result.scalars():
         for field in _SNAPSHOT_FIELDS:
             val = getattr(item, field, None)
             if val is not None:
                 _add_micro(totals, field, val)
 
     # ── 1. Direct ingredient items — micros only (macros handled above) ───────
-    direct_result = await db.execute(
+    direct_result = await db.stream(
         select(MealLogItem, Ingredient)
         .join(MealLog, MealLogItem.meal_log_id == MealLog.id)
         .join(Ingredient, MealLogItem.ingredient_id == Ingredient.id)
@@ -423,13 +441,14 @@ async def get_micronutrients(
             MealLog.log_date <= end,
             MealLogItem.ingredient_id.isnot(None),
         )
+        .execution_options(yield_per=ROW_BATCH)
     )
-    for item, ingredient in direct_result.all():
+    async for item, ingredient in direct_result:
         # Use ingredient scaling for micros (vitamins, minerals, fiber, etc.)
         _accumulate_ingredient_micros(totals, ingredient, item.quantity_g)
 
     # ── 2. Recipe items via components ───────────────────────────────────────
-    component_result = await db.execute(
+    component_result = await db.stream(
         select(MealLogItemComponent, Ingredient)
         .join(MealLogItem, MealLogItemComponent.meal_log_item_id == MealLogItem.id)
         .join(MealLog,     MealLogItem.meal_log_id == MealLog.id)
@@ -440,8 +459,9 @@ async def get_micronutrients(
             MealLog.log_date <= end,
             MealLogItemComponent.ingredient_id.isnot(None),
         )
+        .execution_options(yield_per=ROW_BATCH)
     )
-    for component, ingredient in component_result.all():
+    async for component, ingredient in component_result:
         _accumulate_ingredient_micros(totals, ingredient, component.quantity_g)
 
     # ── Days with at least one log entry ─────────────────────────────────────
@@ -488,8 +508,11 @@ async def get_nutrient_sources(
     valid_fields = _SNAPSHOT_FIELDS | set(_MICRO_FIELDS)
     if nutrient not in valid_fields:
         raise HTTPException(status_code=400, detail="Unknown nutrient")
-    if (end - start).days > 732:
-        raise HTTPException(status_code=400, detail="Date range cannot exceed 2 years")
+    if (end - start).days > MAX_RANGE_DAYS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Date range cannot exceed {MAX_RANGE_DAYS // 365} years",
+        )
     if end < start:
         raise HTTPException(status_code=400, detail="end must be >= start")
 
@@ -524,7 +547,7 @@ async def get_nutrient_sources(
             add_source(item.display_name, None, item.quantity_g, getattr(item, nutrient, None))
     else:
         # Direct foods contribute from their nutrient profile at the logged weight.
-        direct_result = await db.execute(
+        direct_result = await db.stream(
             select(MealLogItem, Ingredient)
             .join(MealLog, MealLogItem.meal_log_id == MealLog.id)
             .join(Ingredient, MealLogItem.ingredient_id == Ingredient.id)
@@ -534,15 +557,16 @@ async def get_nutrient_sources(
                 MealLog.log_date <= end,
                 MealLogItem.ingredient_id.isnot(None),
             )
+            .execution_options(yield_per=ROW_BATCH)
         )
-        for item, ingredient in direct_result.all():
+        async for item, ingredient in direct_result:
             raw = getattr(ingredient, nutrient, None)
             base_g = ingredient.serving_size_g or 100.0
             value = raw * (item.quantity_g / base_g) if raw is not None and base_g else None
             add_source(item.display_name, None, item.quantity_g, value)
 
         # Recipe ingredient snapshots retain the recipe context for clarity.
-        component_result = await db.execute(
+        component_result = await db.stream(
             select(MealLogItemComponent, MealLogItem, Ingredient)
             .join(MealLogItem, MealLogItemComponent.meal_log_item_id == MealLogItem.id)
             .join(MealLog, MealLogItem.meal_log_id == MealLog.id)
@@ -553,8 +577,9 @@ async def get_nutrient_sources(
                 MealLog.log_date <= end,
                 MealLogItemComponent.ingredient_id.isnot(None),
             )
+            .execution_options(yield_per=ROW_BATCH)
         )
-        for component, item, ingredient in component_result.all():
+        async for component, item, ingredient in component_result:
             raw = getattr(ingredient, nutrient, None)
             base_g = ingredient.serving_size_g or 100.0
             value = raw * (component.quantity_g / base_g) if raw is not None and base_g else None
@@ -588,6 +613,26 @@ async def get_nutrient_sources(
 
 # ── GET /meals/daily-series — per-day macro totals for charting ───────────────
 
+@router.get("/range")
+async def get_log_range(db: AsyncSession = Depends(get_db)) -> dict:
+    """
+    The first and last day with any entry, so the Reports page can offer an
+    "All" period without guessing how far back to reach.
+    """
+    user = await _get_or_create_user(db)
+    row = (await db.execute(
+        select(func.min(MealLog.log_date), func.max(MealLog.log_date),
+               func.count(func.distinct(MealLog.log_date)))
+        .where(MealLog.user_id == user.id)
+    )).one()
+    first, last, logged_days = row
+    return {
+        "start": first.isoformat() if first else None,
+        "end": last.isoformat() if last else None,
+        "days_logged": logged_days or 0,
+    }
+
+
 @router.get("/daily-series")
 async def get_daily_series(
     start: date_type = Query(..., description="Start date (yyyy-MM-dd)"),
@@ -600,8 +645,11 @@ async def get_daily_series(
     Shape: [{ "date": "2026-07-01", "calories": 3200, "protein_g": 180, ... }]
     """
     user = await _get_or_create_user(db)
-    if (end - start).days > 732:
-        raise HTTPException(status_code=400, detail="Date range cannot exceed 2 years")
+    if (end - start).days > MAX_RANGE_DAYS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Date range cannot exceed {MAX_RANGE_DAYS // 365} years",
+        )
     if end < start:
         raise HTTPException(status_code=400, detail="end must be >= start")
 
@@ -653,8 +701,11 @@ async def get_nutrient_series(
     calculated from their saved ingredient components.
     """
     user = await _get_or_create_user(db)
-    if (end - start).days > 732:
-        raise HTTPException(status_code=400, detail="Date range cannot exceed 2 years")
+    if (end - start).days > MAX_RANGE_DAYS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Date range cannot exceed {MAX_RANGE_DAYS // 365} years",
+        )
     if end < start:
         raise HTTPException(status_code=400, detail="end must be >= start")
 
@@ -665,7 +716,7 @@ async def get_nutrient_series(
             daily[day][field] = round((daily[day].get(field) or 0.0) + value, 6)
 
     # Snapshot fields apply to every logged item, including recipe entries.
-    items_result = await db.execute(
+    items_result = await db.stream(
         select(MealLog.log_date, MealLogItem)
         .join(MealLogItem, MealLogItem.meal_log_id == MealLog.id)
         .where(
@@ -673,13 +724,14 @@ async def get_nutrient_series(
             MealLog.log_date >= start,
             MealLog.log_date <= end,
         )
+        .execution_options(yield_per=ROW_BATCH)
     )
-    for log_date, item in items_result.all():
+    async for log_date, item in items_result:
         for field in _SNAPSHOT_FIELDS:
             add(log_date, field, getattr(item, field, None))
 
     # Direct food entries contribute their scaled nutrient profile.
-    direct_result = await db.execute(
+    direct_result = await db.stream(
         select(MealLog.log_date, MealLogItem, Ingredient)
         .join(MealLogItem, MealLogItem.meal_log_id == MealLog.id)
         .join(Ingredient, MealLogItem.ingredient_id == Ingredient.id)
@@ -689,8 +741,9 @@ async def get_nutrient_series(
             MealLog.log_date <= end,
             MealLogItem.ingredient_id.isnot(None),
         )
+        .execution_options(yield_per=ROW_BATCH)
     )
-    for log_date, item, ingredient in direct_result.all():
+    async for log_date, item, ingredient in direct_result:
         base_g = ingredient.serving_size_g or 100.0
         ratio = item.quantity_g / base_g if base_g else 1.0
         for field in _MICRO_FIELDS:
@@ -699,7 +752,7 @@ async def get_nutrient_series(
                 add(log_date, field, raw * ratio)
 
     # Recipes use the ingredient-component snapshot created when they were logged.
-    components_result = await db.execute(
+    components_result = await db.stream(
         select(MealLog.log_date, MealLogItemComponent, Ingredient)
         .join(MealLogItem, MealLogItemComponent.meal_log_item_id == MealLogItem.id)
         .join(MealLog, MealLogItem.meal_log_id == MealLog.id)
@@ -710,8 +763,9 @@ async def get_nutrient_series(
             MealLog.log_date <= end,
             MealLogItemComponent.ingredient_id.isnot(None),
         )
+        .execution_options(yield_per=ROW_BATCH)
     )
-    for log_date, component, ingredient in components_result.all():
+    async for log_date, component, ingredient in components_result:
         base_g = ingredient.serving_size_g or 100.0
         ratio = component.quantity_g / base_g if base_g else 1.0
         for field in _MICRO_FIELDS:
