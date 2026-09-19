@@ -131,7 +131,31 @@ One row per meal per day: `id`, `date` (string yyyy-MM-dd), `meal_number` (1–6
 
 ### `mt_meal_log_items` (MealLogItem)
 One row per food logged: `id`, `meal_log_id`, `ingredient_id`, `quantity_g`, `serving_desc`
-+ all 74 micronutrient columns mirrored from mt_ingredients (snapshot at log time)
+**Only six nutrients are snapshotted** here: `calories`, `protein_g`, `fat_g`,
+`carbs_g`, `sodium_mg`, `cholesterol_mg`. Everything else — fibre, sugar,
+vitamins, minerals — is **recomputed at read time** by scaling the linked
+`mt_ingredients` row, or by summing `mt_meal_log_item_components` for a recipe.
+
+That has a consequence worth knowing before trusting any micronutrient chart:
+**an entry with no ingredient link and no components contributes its macros but
+zero micronutrients.** Cronometer-imported composite meals came in exactly that
+way — `ingredient_id` and `recipe_id` both NULL, just a `display_name` and the
+six macros — so they contributed calories and zero micronutrients. Fibre was the
+visible symptom (appearing to double in June 2026 when the same meals started
+being logged as recipes), but it applied to every micronutrient.
+
+**Repaired Sep 2026** by `backend/scripts/backfill_orphan_micros.py`: 4,723
+component rows written across 785 entries (2024-06 → 2026-06), which took
+pre-switch calories carrying no micronutrient data from 32% to 0% and removed
+the step change (May 13.6 → 31.9 g fibre/day, against June's 30.8). Macros were
+verified unchanged on all 766 days. The script is re-runnable and skips entries
+that already have components.
+
+Two caveats on that history: it reconstructs old days from **today's** recipe
+definitions, so a recipe edited since is applied retroactively; and 24 entries
+(mostly "Sweet Cherries, Fresh") matched no current recipe and still carry no
+micronutrients. Treat pre-June-2026 micronutrients as a good estimate, not a
+record.
 
 ### `mt_recipes` (Recipe)
 `id`, `name`, `serving_size_g`, `total_weight_g`, + macro totals, linked to `mt_recipe_ingredients`
