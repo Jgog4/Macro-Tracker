@@ -251,10 +251,19 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
       if (gen !== searchGen.current) return;
       setLoading(true);
       try {
-        const [localRes, usdaRes, recipesRes] = await Promise.allSettled([
+        const [localRes, usdaRes, recipesRes, offRes] = await Promise.allSettled([
           foodsApi.search(query, { limit: 20 }),
           foodsApi.usdaSearch(query, 5),
           recipesApi.search(query),
+          // Open Food Facts is queried on every search, in parallel with the
+          // rest. It used to be a conditional fallback that only fired when
+          // fewer than three results matched every word typed — which sounds
+          // reasonable and in practice never fired for the branded packaged
+          // goods it is best at. "Lay's potato chips" returns eight strong
+          // USDA matches, so the branch was closed for exactly the query it
+          // existed to serve. It sorts last either way, so showing it always
+          // costs nothing but one debounced request.
+          foodsApi.offSearch(query, 8),
         ]);
         if (gen !== searchGen.current) return;
         const localItems = localRes.status === "fulfilled" ? localRes.value.data : [];
@@ -305,34 +314,22 @@ export default function AddFoodModal({ dateStr, defaultMealNumber, onClose, onLo
           ...usdaItems.filter(i => !localFdcIds.has(i.fdc_id)),
         ];
 
-        // Open Food Facts is a genuine fallback: only queried when your own
-        // library and USDA between them turn up almost nothing. Searching
-        // "lays potato chips" used to return nothing at all even though
-        // scanning the packet worked, because OFF was wired up for barcodes
-        // only. It is a volunteer non-profit, so we neither hammer it on every
-        // keystroke nor let a slow response hold up the results above.
-        // Count results that actually match every word typed. A raw length
-        // check is useless here: the fuzzy fallback happily returns 20
-        // loosely-related foods, which would suppress this branch forever.
-        const norm = t => (t || "").toLowerCase().replace(/[^a-z0-9 ]/g, "");
-        const qWords = norm(query).split(/\s+/).filter(Boolean);
-        const strong = merged.filter(it => {
-          const hay = `${norm(it.name)} ${norm(it.brand)}`;
-          return qWords.every(w => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(hay));
-        }).length;
-        if (strong < 3) {
-          try {
-            const offRes = await foodsApi.offSearch(query, 8);
-            if (gen !== searchGen.current) return;
-            merged.push(...offRes.data.map(f => ({
+        // Drop Open Food Facts entries for something already in your library,
+        // so a food you have saved does not appear twice with slightly
+        // different volunteer-entered numbers.
+        const norm = t => (t || "").toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+        const known = new Set(localItems.map(i => norm(`${i.name} ${i.brand || ""}`)));
+        merged.push(
+          ...(offRes.status === "fulfilled" ? offRes.value.data : [])
+            .filter(f => !known.has(norm(`${f.name} ${f.brand || ""}`)))
+            .map(f => ({
               id: null, off_code: f.code, source: "off_live",
               name: f.name, brand: f.brand,
               calories: f.calories, protein_g: f.protein_g,
               fat_g: f.fat_g, carbs_g: f.carbs_g,
               serving_size_g: f.serving_size_g, serving_size_desc: f.serving_size_desc,
-            })));
-          } catch { /* fallback only — never fail the search because of it */ }
-        }
+            })),
+        );
         // The live USDA lookup is a FALLBACK for foods you do not already have,
         // so it always sorts last — never mixed in by relevance. Otherwise its
         // generic brand names beat your own library on the relevance key alone:
