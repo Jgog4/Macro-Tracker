@@ -123,14 +123,15 @@ export default function ReportsPage({ onClose }) {
     ])
       .then(([agg, ser, nutrients]) => {
         setData(agg.data);
-        setSeries((ser.data || []).map(d => ({
+        // `label` is the axis tick and stays short; `fullLabel` is what the
+        // tooltip shows. Over a multi-year range "May 3" alone is ambiguous.
+        const withLabels = (rows) => (rows || []).map(d => ({
           ...d,
-          label: format(parseISO(d.date), "MMM d"),
-        })));
-        setNutrientSeries((nutrients.data || []).map(d => ({
-          ...d,
-          label: format(parseISO(d.date), "MMM d"),
-        })));
+          label:     format(parseISO(d.date), "MMM d"),
+          fullLabel: format(parseISO(d.date), "MMM d, yyyy"),
+        }));
+        setSeries(withLabels(ser.data));
+        setNutrientSeries(withLabels(nutrients.data));
       })
       .catch(() => setError("Could not load report data"))
       .finally(() => setLoading(false));
@@ -588,9 +589,12 @@ function formatTrendAxis(value) {
 // ── Chart tooltip ──────────────────────────────────────────────────────────
 function ChartTooltip({ active, payload, label, unit }) {
   if (!active || !payload?.length) return null;
+  // Prefer the dated label carried on the row; `label` is the axis tick, which
+  // omits the year to keep the ticks readable.
+  const heading = payload[0]?.payload?.fullLabel || label;
   return (
     <div className="bg-surface-1 rounded-lg shadow-lg border border-surface-3 px-3 py-2 text-xs">
-      <p className="font-semibold text-foreground mb-1">{label}</p>
+      <p className="font-semibold text-foreground mb-1">{heading}</p>
       {payload.map((p) => (
         <p key={p.dataKey} style={{ color: p.color || p.fill }}>
           {p.name}: <span className="font-mono font-semibold">{formatNutrientValue(p.value)} {unit}</span>
