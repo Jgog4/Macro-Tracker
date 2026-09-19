@@ -440,8 +440,9 @@ function RestaurantsTab() {
       try {
         const res = await foodsApi.getRestaurant();
         setFoods(res.data);
-        const brands = [...new Set(res.data.map(f => f.brand).filter(Boolean))];
-        if (brands.length) setOpenBrands({ [brands[0]]: true });
+        // Every restaurant starts collapsed. Auto-expanding the first one made
+        // the tab open on an arbitrary alphabetical brand and pushed the rest
+        // off screen — with 14 restaurants that is noise, not a shortcut.
       } catch { /* silent */ }
       finally { setLoading(false); }
     })();
